@@ -1,0 +1,638 @@
+// prisma/schema.prisma
+// HifzPro Complete Database Schema v1.0
+// ═══════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  CAMPUS_ADMIN
+  USTADH
+  PARENT
+  STUDENT
+  EXAMINER
+  DONOR
+}
+
+enum Program {
+  HIFZ
+  NAZRA
+  TAJWEED
+  GIRDAAN
+}
+
+enum StudentStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  COMPLETED
+  WITHDRAWN
+}
+
+enum Grade {
+  EXCELLENT
+  GOOD
+  WEAK
+  REPEAT
+}
+
+enum MistakeType {
+  ATAK        // Hesitation
+  TAJWEED     // Tajweed error
+  LAHN_JALI   // Major error
+  LAHN_KHAFI  // Minor error
+}
+
+enum LessonType {
+  SABAQ       // New lesson
+  SABQI       // Recent consolidation
+  MANZIL      // Long-term revision
+  GIRDAAN     // Revision cycle
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE
+}
+
+enum AbsenceReason {
+  ILLNESS
+  TRAVEL
+  FAMILY
+  UNEXCUSED
+  HOLIDAY
+}
+
+enum TestType {
+  SABAQ_TEST
+  SABQI_TEST
+  PARA_TEST
+  NUSS_TEST       // 15 Para test
+  TARTEEB_TEST    // Random Ayah test
+  FULL_QURAN_TEST // Final Dour test
+  GIRDAAN_TEST
+}
+
+enum TestResult {
+  PASS
+  CONDITIONAL_PASS
+  FAIL
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum MushaF {
+  MADANI_15_LINE
+  MADANI_13_LINE
+  INDOPAK_16_LINE
+}
+
+// ─────────────────────────────────────────
+// INSTITUTION & CAMPUS
+// ─────────────────────────────────────────
+
+model Institution {
+  id          String   @id @default(cuid())
+  name        String
+  nameArabic  String?
+  slug        String   @unique
+  logo        String?
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  country     String   @default("Pakistan")
+  website     String?
+  mushaf      MushaF   @default(MADANI_15_LINE)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campuses    Campus[]
+  users       User[]
+  donors      Donor[]
+
+  @@map("institutions")
+}
+
+model Campus {
+  id            String   @id @default(cuid())
+  institutionId String
+  name          String
+  nameArabic    String?
+  address       String?
+  city          String?
+  phone         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  batches       Batch[]
+  users         User[]
+  students      Student[]
+
+  @@map("campuses")
+}
+
+// ─────────────────────────────────────────
+// USERS (All roles in one table)
+// ─────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  institutionId String?
+  campusId      String?
+  role          Role
+  name          String
+  nameArabic    String?
+  email         String?  @unique
+  phone         String?  @unique
+  whatsapp      String?
+  passwordHash  String?
+  avatar        String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  institution   Institution? @relation(fields: [institutionId], references: [id])
+  campus        Campus?      @relation(fields: [campusId], references: [id])
+  ustadh        Ustadh?
+  parent        Parent?
+  otpTokens     OtpToken[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model OtpToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("otp_tokens")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─────────────────────────────────────────
+// USTADH
+// ─────────────────────────────────────────
+
+model Ustadh {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  qualification   String?
+  specialization  String?
+  joinedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batches         Batch[]
+  lessonEntries   LessonEntry[]
+  testRecords     TestRecord[]
+
+  @@map("asatidha")
+}
+
+// ─────────────────────────────────────────
+// BATCH / HALQA
+// ─────────────────────────────────────────
+
+model Batch {
+  id          String   @id @default(cuid())
+  campusId    String
+  ustadhId    String?
+  name        String
+  program     Program
+  sessionTime String?  // e.g. "Morning 7-9 AM"
+  maxStudents Int      @default(20)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campus      Campus   @relation(fields: [campusId], references: [id], onDelete: Cascade)
+  ustadh      Ustadh?  @relation(fields: [ustadhId], references: [id])
+  students    Student[]
+  attendance  AttendanceSession[]
+
+  @@map("batches")
+}
+
+// ─────────────────────────────────────────
+// STUDENT
+// ─────────────────────────────────────────
+
+model Student {
+  id                String        @id @default(cuid())
+  campusId          String
+  batchId           String?
+  enrollmentNumber  String?       @unique
+  name              String
+  nameArabic        String?
+  dateOfBirth       DateTime?
+  photo             String?
+  program           Program
+  status            StudentStatus @default(ACTIVE)
+  enrolledAt        DateTime      @default(now())
+  expectedKhatmAt   DateTime?
+  actualKhatmAt     DateTime?
+
+  // Starting point in Quran (for students with partial Hifz)
+  startingJuz       Int?          @default(1)
+  startingSurah     Int?
+  startingAyah      Int?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  campus            Campus        @relation(fields: [campusId], references: [id])
+  batch             Batch?        @relation(fields: [batchId], references: [id])
+  guardians         Guardian[]
+  lessonEntries     LessonEntry[]
+  attendanceRecords AttendanceRecord[]
+  testRecords       TestRecord[]
+  manzilHealth      ManzilHealth[]
+  progress          StudentProgress?
+  sanads            Sanad[]
+  scholarships      Scholarship[]
+
+  @@map("students")
+}
+
+model Guardian {
+  id           String   @id @default(cuid())
+  studentId    String
+  name         String
+  relation     String   // Father, Mother, Uncle, etc.
+  cnic         String?
+  phone        String
+  whatsapp     String?
+  email        String?
+  isEmergency  Boolean  @default(false)
+  receiveUpdates Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent       Parent?
+
+  @@map("guardians")
+}
+
+model Parent {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  guardianId  String?  @unique
+  createdAt   DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardian    Guardian? @relation(fields: [guardianId], references: [id])
+
+  @@map("parents")
+}
+
+// ─────────────────────────────────────────
+// LESSON ENTRY (Core of HifzPro)
+// ─────────────────────────────────────────
+
+model LessonEntry {
+  id            String     @id @default(cuid())
+  studentId     String
+  ustadhId      String
+  lessonType    LessonType
+  date          DateTime   @default(now())
+
+  // Quran Reference
+  juzFrom       Int?
+  surahFrom     Int?
+  ayahFrom      Int?
+  pageFrom      Int?
+  lineFrom      Int?
+
+  juzTo         Int?
+  surahTo       Int?
+  ayahTo        Int?
+  pageTo        Int?
+  lineTo        Int?
+
+  // Quality
+  grade         Grade?
+  durationMins  Int?       // Time taken in minutes
+  mistakeCount  Int        @default(0)
+  notes         String?
+  voiceNoteUrl  String?
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  ustadh        Ustadh     @relation(fields: [ustadhId], references: [id])
+  mistakes      Mistake[]
+
+  @@map("lesson_entries")
+}
+
+model Mistake {
+  id            String      @id @default(cuid())
+  lessonEntryId String
+  mistakeType   MistakeType
+  surah         Int?
+  ayah          Int?
+  page          Int?
+  description   String?
+  createdAt     DateTime    @default(now())
+
+  lessonEntry   LessonEntry @relation(fields: [lessonEntryId], references: [id], onDelete: Cascade)
+
+  @@map("mistakes")
+}
+
+// ─────────────────────────────────────────
+// MANZIL HEALTH (The Intelligence Layer)
+// ─────────────────────────────────────────
+
+model ManzilHealth {
+  id          String   @id @default(cuid())
+  studentId   String
+  score       Float    // 0-100
+  juzNumber   Int?     // null = overall score
+  calculatedAt DateTime @default(now())
+
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("manzil_health")
+}
+
+// ─────────────────────────────────────────
+// STUDENT PROGRESS
+// ─────────────────────────────────────────
+
+model StudentProgress {
+  id                  String   @id @default(cuid())
+  studentId           String   @unique
+  totalAyahsMemorized Int      @default(0)
+  totalPagesMemorized Int      @default(0)
+  totalJuzMemorized   Int      @default(0)
+  currentJuz          Int      @default(1)
+  currentSurah        Int?
+  currentAyah         Int?
+  currentPage         Int?
+  percentComplete     Float    @default(0)
+  projectedKhatmDate  DateTime?
+  avgLinesPerDay      Float    @default(0)
+  updatedAt           DateTime @updatedAt
+
+  student             Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("student_progress")
+}
+
+// ─────────────────────────────────────────
+// ATTENDANCE
+// ─────────────────────────────────────────
+
+model AttendanceSession {
+  id          String   @id @default(cuid())
+  batchId     String
+  date        DateTime
+  sessionTime String?  // Morning / Evening
+  takenById   String?  // Ustadh who took attendance
+  createdAt   DateTime @default(now())
+
+  batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  records     AttendanceRecord[]
+
+  @@unique([batchId, date, sessionTime])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  id                  String           @id @default(cuid())
+  attendanceSessionId String
+  studentId           String
+  status              AttendanceStatus @default(PRESENT)
+  absenceReason       AbsenceReason?
+  returnDate          DateTime?
+  notes               String?
+  createdAt           DateTime         @default(now())
+
+  session             AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  student             Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([attendanceSessionId, studentId])
+  @@map("attendance_records")
+}
+
+// ─────────────────────────────────────────
+// TESTS & ASSESSMENTS
+// ─────────────────────────────────────────
+
+model TestRecord {
+  id            String     @id @default(cuid())
+  studentId     String
+  examinerId    String
+  testType      TestType
+  date          DateTime   @default(now())
+
+  // Scope
+  juzFrom       Int?
+  juzTo         Int?
+  surahFrom     Int?
+  surahTo       Int?
+
+  // Results
+  result        TestResult?
+  score         Float?     // Percentage
+  mistakeCount  Int        @default(0)
+  notes         String?
+  conditions    String?    // For conditional pass
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  student       Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examiner      Ustadh     @relation(fields: [examinerId], references: [id])
+
+  @@map("test_records")
+}
+
+// ─────────────────────────────────────────
+// SANAD & CERTIFICATION
+// ─────────────────────────────────────────
+
+model Sanad {
+  id              String   @id @default(cuid())
+  studentId       String
+  issuedById      String?
+  sanadNumber     String   @unique
+  program         Program
+  issuedAt        DateTime @default(now())
+  silsila         String?  // Chain of transmission
+  qrCode          String?  // QR verification URL
+  pdfUrl          String?
+  isVerified      Boolean  @default(true)
+
+  student         Student  @relation(fields: [studentId], references: [id])
+
+  @@map("sanads")
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS (WhatsApp / Email)
+// ─────────────────────────────────────────
+
+model Notification {
+  id          String              @id @default(cuid())
+  recipientId String              // Guardian phone or User ID
+  channel     NotificationChannel
+  type        String              // daily_sabaq, absence_alert, test_result, etc.
+  title       String?
+  body        String
+  metadata    Json?               // Extra data (student name, grade, etc.)
+  status      NotificationStatus  @default(PENDING)
+  sentAt      DateTime?
+  readAt      DateTime?
+  error       String?
+  createdAt   DateTime            @default(now())
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────
+// FEES & FINANCE
+// ─────────────────────────────────────────
+
+model FeeStructure {
+  id            String   @id @default(cuid())
+  campusId      String
+  program       Program
+  name          String
+  amount        Float
+  frequency     String   // monthly, quarterly, annual
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  feeRecords    FeeRecord[]
+
+  @@map("fee_structures")
+}
+
+model FeeRecord {
+  id              String       @id @default(cuid())
+  studentId       String
+  feeStructureId  String
+  amount          Float
+  discount        Float        @default(0)
+  finalAmount     Float
+  dueDate         DateTime
+  paidAt          DateTime?
+  paidAmount      Float        @default(0)
+  paymentMethod   String?      // cash, bank, jazzcash, easypaisa
+  receiptNumber   String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  feeStructure    FeeStructure @relation(fields: [feeStructureId], references: [id])
+
+  @@map("fee_records")
+}
+
+// ─────────────────────────────────────────
+// DONORS & SCHOLARSHIPS
+// ─────────────────────────────────────────
+
+model Donor {
+  id            String   @id @default(cuid())
+  institutionId String
+  name          String
+  email         String?
+  phone         String?
+  isAnonymous   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  institution   Institution  @relation(fields: [institutionId], references: [id])
+  scholarships  Scholarship[]
+
+  @@map("donors")
+}
+
+model Scholarship {
+  id          String   @id @default(cuid())
+  studentId   String
+  donorId     String?
+  amount      Float
+  coverage    Float    @default(100) // Percentage of fee covered
+  startDate   DateTime
+  endDate     DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  student     Student  @relation(fields: [studentId], references: [id])
+  donor       Donor?   @relation(fields: [donorId], references: [id])
+
+  @@map("scholarships")
+}
+
+// ─────────────────────────────────────────
+// QURAN REFERENCE DATA
+// ─────────────────────────────────────────
+
+model Surah {
+  id          Int    @id
+  nameArabic  String
+  nameEnglish String
+  nameUrdu    String?
+  juzNumber   Int
+  ayahCount   Int
+  pageStart   Int?   // In 15-line Madani Mushaf
+  pageEnd     Int?
+  isRukuCount Int?
+
+  @@map("surahs")
+}
