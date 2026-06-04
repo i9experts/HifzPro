@@ -27,6 +27,9 @@ export const colors = {
   error:       "#EF4444",
   errorBg:     "#FEE2E2",
   errorText:   "#991B1B",
+  info:        "#3B82F6",
+  infoBg:      "#DBEAFE",
+  infoText:    "#1E40AF",
 
   n50:  "#FAFAF8",
   n100: "#F3F3F0",
