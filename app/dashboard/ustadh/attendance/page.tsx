@@ -103,7 +103,7 @@ export default function AttendancePage() {
           <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto" }}>
             {batches.map((b, i) => (
               <button key={b.id} onClick={() => setBatchIdx(i)} style={{
-                padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", whiteSpace: "nowrap",
+                padding: "8px 16px", borderRadius: 8, cursor: "pointer", whiteSpace: "nowrap",
                 background: batchIdx === i ? colors.primary : colors.white,
                 color: batchIdx === i ? colors.white : colors.n600,
                 fontFamily: fonts.heading, fontSize: 12, fontWeight: 600,
