@@ -10,6 +10,7 @@ interface Student {
   currentJuz: number; percentComplete: number; manzilHealth: number | null;
   daysSinceLesson: number; attendancePct: number | null; riskLevel: number;
   guardian: { name: string; phone: string } | null; recentGrades: string[];
+  totalMistakes: number;
 }
 interface BatchAnalytic {
   id: string; name: string; program: string; ustadhName: string;
