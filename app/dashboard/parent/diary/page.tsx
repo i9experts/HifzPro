@@ -60,7 +60,7 @@ export default function DiaryPage() {
       <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
         {(["ALL","SABAQ","SABQI","MANZIL","GIRDAAN"] as FilterType[]).map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
-            padding: "7px 14px", borderRadius: 20, border: "none", cursor: "pointer", whiteSpace: "nowrap",
+            padding: "7px 14px", borderRadius: 20, cursor: "pointer", whiteSpace: "nowrap",
             background: filter === f ? colors.primary : colors.white,
             color: filter === f ? colors.white : colors.n500,
             fontFamily: fonts.heading, fontSize: 11, fontWeight: 600,
