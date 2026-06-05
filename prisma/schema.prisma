@@ -638,3 +638,80 @@ model Surah {
 
   @@map("surahs")
 }
+// ─────────────────────────────────────────────────────────────
+// ADD THESE MODELS TO YOUR EXISTING prisma/schema.prisma
+// Place after the existing models
+// ─────────────────────────────────────────────────────────────
+
+// model FeeStructure {
+//   id          String    @id @default(cuid())
+//   campusId    String
+//   name        String
+//   program     Program?
+//   amount      Float
+//   frequency   String    @default("MONTHLY")
+//   feeType     String    @default("TUITION")
+//   description String?
+//   isActive    Boolean   @default(true)
+//   createdAt   DateTime  @default(now())
+//   updatedAt   DateTime  @updatedAt
+//
+//   campus      Campus       @relation(fields: [campusId], references: [id])
+//   payments    FeePayment[]
+// }
+//
+// model FeePayment {
+//   id             String    @id @default(cuid())
+//   studentId      String
+//   feeStructureId String?
+//   amount         Float
+//   paidAmount     Float     @default(0)
+//   discountAmount Float     @default(0)
+//   month          Int
+//   year           Int
+//   status         String    @default("PENDING")
+//   paymentDate    DateTime?
+//   paymentMethod  String?
+//   receiptNumber  String    @unique
+//   notes          String?
+//   collectedById  String
+//   createdAt      DateTime  @default(now())
+//   updatedAt      DateTime  @updatedAt
+//
+//   student        Student       @relation(fields: [studentId], references: [id])
+//   feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
+//   collectedBy    User          @relation("FeeCollectedBy", fields: [collectedById], references: [id])
+// }
+//
+// model Scholarship {
+//   id          String    @id @default(cuid())
+//   studentId   String
+//   name        String
+//   type        String    @default("FULL")
+//   percentage  Float?
+//   fixedAmount Float?
+//   reason      String?
+//   startDate   DateTime  @default(now())
+//   endDate     DateTime?
+//   isActive    Boolean   @default(true)
+//   grantedById String
+//   createdAt   DateTime  @default(now())
+//
+//   student     Student   @relation(fields: [studentId], references: [id])
+//   grantedBy   User      @relation("ScholarshipGrantedBy", fields: [grantedById], references: [id])
+// }
+
+// ─────────────────────────────────────────────────────────────
+// ALSO ADD TO Student model:
+//   feePayments  FeePayment[]
+//   scholarships Scholarship[]
+//
+// ADD TO User model:
+//   collectedFees FeePayment[]  @relation("FeeCollectedBy")
+//   grantedScholarships Scholarship[] @relation("ScholarshipGrantedBy")
+//
+// ADD TO Campus model:
+//   feeStructures FeeStructure[]
+// ─────────────────────────────────────────────────────────────
+
+export {};
