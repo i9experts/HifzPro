@@ -87,10 +87,10 @@ export default function AttendancePage() {
       {/* Month stat pills */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:16 }}>
         {[
-          {label:"Present", ur:"حاضر",   val:monthPresent, ...STATUS_CONFIG.PRESENT},
-          {label:"Absent",  ur:"غیر حاضر",val:monthAbsent, ...STATUS_CONFIG.ABSENT},
-          {label:"Late",    ur:"دیر سے",  val:monthLate,   ...STATUS_CONFIG.LATE},
-          {label:"Leave",   ur:"چھٹی",    val:monthLeave,  ...STATUS_CONFIG.LEAVE},
+          {...STATUS_CONFIG.PRESENT, val:monthPresent},
+          {...STATUS_CONFIG.ABSENT,  val:monthAbsent},
+          {...STATUS_CONFIG.LATE,    val:monthLate},
+          {...STATUS_CONFIG.LEAVE,   val:monthLeave},
         ].map((s,i)=>(
           <div key={i} style={{ background:s.bg, borderRadius:10, padding:"10px 6px", textAlign:"center" }}>
             <div style={{ fontFamily:fonts.heading, fontSize:20, fontWeight:700, color:s.color }}>{s.val}</div>
