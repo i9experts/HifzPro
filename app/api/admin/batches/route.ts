@@ -52,7 +52,8 @@ export async function GET(req: NextRequest) {
       const lastActivity   = activeStudents.reduce((latest, s) => {
         const last = s.lessonEntries[0]?.date;
         if (!last) return latest;
-        return !latest || new Date(last) > new Date(latest) ? last : latest;
+        const lastStr = last instanceof Date ? last.toISOString() : String(last);
+        return !latest || new Date(lastStr) > new Date(latest) ? lastStr : latest;
       }, null as string | null);
 
       return {
