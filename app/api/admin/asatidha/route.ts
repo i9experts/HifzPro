@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         user: {
           select: {
             id: true, name: true, email: true, phone: true,
-            whatsapp: true, photo: true, isActive: true, createdAt: true,
+            whatsapp: true, avatar: true, isActive: true, createdAt: true,
           },
         },
         batches: {
@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
         email:          u.user.email,
         phone:          u.user.phone,
         whatsapp:       u.user.whatsapp,
-        photo:          u.user.photo,
+        photo:          u.user.avatar,
         isActive:       u.user.isActive,
         createdAt:      u.user.createdAt,
         qualifications: (u as any).qualifications || [],
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
           password:  hashedPassword,
           phone:     data.phone || null,
           whatsapp:  data.whatsapp || null,
-          photo:     data.photo || null,
+          avatar:    data.photo || null,
           role:      "USTADH",
           campusId:  payload.campusId!,
           isActive:  true,
