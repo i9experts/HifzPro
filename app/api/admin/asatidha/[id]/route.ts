@@ -98,7 +98,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (body.name)      updateData.name      = body.name;
     if (body.phone)     updateData.phone     = body.phone;
     if (body.whatsapp)  updateData.whatsapp  = body.whatsapp;
-    if (body.photo)     updateData.photo     = body.photo;
+    if (body.photo)     updateData.avatar    = body.photo;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.newPassword && body.newPassword.length >= 6) {
       updateData.password = await bcrypt.hash(body.newPassword, 12);
