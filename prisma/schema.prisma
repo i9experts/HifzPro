@@ -649,3 +649,65 @@ model Surah {
 
   @@map("surahs")
 }
+// ─────────────────────────────────────────────────────────────
+// ADD THESE TO prisma/schema.prisma
+// 1. Add both models at the bottom
+// 2. Add relations to Student model
+// ─────────────────────────────────────────────────────────────
+
+// ADD TO Student model:
+//   mutashabihat   StudentMutashabihat[]
+
+// ─── PASTE THESE MODELS AT BOTTOM OF schema.prisma ───
+
+model MutashabihatPair {
+  id          String   @id @default(cuid())
+  campusId    String?
+  surah1      Int
+  ayah1       Int
+  juz1        Int
+  text1       String
+  surah2      Int
+  ayah2       Int
+  juz2        Int
+  text2       String
+  category    String   @default("BEGINNING")
+  difficulty  Int      @default(3)
+  difference  String?
+  notes       String?
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  confusions  StudentMutashabihat[]
+
+  @@map("mutashabihat_pairs")
+}
+
+model StudentMutashabihat {
+  id                 String    @id @default(cuid())
+  studentId          String
+  pairId             String?
+  correctSurah       Int
+  correctAyah        Int
+  correctJuz         Int
+  correctText        String?
+  confusedWithSurah  Int
+  confusedWithAyah   Int
+  confusedWithJuz    Int
+  confusedText       String?
+  confusionCount     Int       @default(1)
+  firstConfusedAt    DateTime  @default(now())
+  lastConfusedAt     DateTime  @default(now())
+  resolvedAt         DateTime?
+  isResolved         Boolean   @default(false)
+  priority           Int       @default(50)
+  lessonEntryId      String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  student            Student             @relation(fields: [studentId], references: [id])
+  pair               MutashabihatPair?   @relation(fields: [pairId], references: [id])
+
+  @@map("student_mutashabihat")
+}
