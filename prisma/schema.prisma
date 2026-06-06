@@ -1,5 +1,5 @@
 // prisma/schema.prisma
-// HifzPro Complete Database Schema v1.0
+// HifzPro Complete Database Schema v2.0
 // ═══════════════════════════════════════════
 
 generator client {
@@ -151,10 +151,11 @@ model Campus {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution   Institution  @relation(fields: [institutionId], references: [id], onDelete: Cascade)
   batches       Batch[]
   users         User[]
   students      Student[]
+  feeStructures FeeStructure[]
 
   @@map("campuses")
 }
@@ -180,13 +181,15 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  institution   Institution? @relation(fields: [institutionId], references: [id])
-  campus        Campus?      @relation(fields: [campusId], references: [id])
-  ustadh        Ustadh?
-  parent        Parent?
-  otpTokens     OtpToken[]
-  sessions      Session[]
-  issuedSanads  Sanad[]      @relation("IssuedSanads")
+  institution         Institution? @relation(fields: [institutionId], references: [id])
+  campus              Campus?      @relation(fields: [campusId], references: [id])
+  ustadh              Ustadh?
+  parent              Parent?
+  otpTokens           OtpToken[]
+  sessions            Session[]
+  issuedSanads        Sanad[]      @relation("IssuedSanads")
+  collectedFees       FeePayment[] @relation("FeeCollectedBy")
+  grantedScholarships Scholarship[] @relation("ScholarshipGrantedBy")
 
   @@map("users")
 }
@@ -231,7 +234,7 @@ model Ustadh {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   batches         Batch[]
   lessonEntries   LessonEntry[]
   testRecords     TestRecord[]
@@ -249,7 +252,7 @@ model Batch {
   ustadhId    String?
   name        String
   program     Program
-  sessionTime String?  // e.g. "Morning 7-9 AM"
+  sessionTime String?
   maxStudents Int      @default(20)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -282,7 +285,6 @@ model Student {
   expectedKhatmAt   DateTime?
   actualKhatmAt     DateTime?
 
-  // Starting point in Quran (for students with partial Hifz)
   startingJuz       Int?          @default(1)
   startingSurah     Int?
   startingAyah      Int?
@@ -300,26 +302,27 @@ model Student {
   progress          StudentProgress?
   sanads            Sanad[]
   scholarships      Scholarship[]
+  feePayments       FeePayment[]
 
   @@map("students")
 }
 
 model Guardian {
-  id           String   @id @default(cuid())
-  studentId    String
-  name         String
-  relation     String   // Father, Mother, Uncle, etc.
-  cnic         String?
-  phone        String
-  whatsapp     String?
-  email        String?
-  isEmergency  Boolean  @default(false)
-  receiveUpdates Boolean @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  studentId      String
+  name           String
+  relation       String
+  cnic           String?
+  phone          String
+  whatsapp       String?
+  email          String?
+  isEmergency    Boolean  @default(false)
+  receiveUpdates Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  parent       Parent?
+  student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  parent         Parent?
 
   @@map("guardians")
 }
@@ -347,7 +350,6 @@ model LessonEntry {
   lessonType    LessonType
   date          DateTime   @default(now())
 
-  // Quran Reference
   juzFrom       Int?
   surahFrom     Int?
   ayahFrom      Int?
@@ -360,9 +362,8 @@ model LessonEntry {
   pageTo        Int?
   lineTo        Int?
 
-  // Quality
   grade         Grade?
-  durationMins  Int?       // Time taken in minutes
+  durationMins  Int?
   mistakeCount  Int        @default(0)
   notes         String?
   voiceNoteUrl  String?
@@ -397,13 +398,13 @@ model Mistake {
 // ─────────────────────────────────────────
 
 model ManzilHealth {
-  id          String   @id @default(cuid())
-  studentId   String
-  score       Float    // 0-100
-  juzNumber   Int?     // null = overall score
+  id           String   @id @default(cuid())
+  studentId    String
+  score        Float
+  juzNumber    Int?
   calculatedAt DateTime @default(now())
 
-  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("manzil_health")
 }
@@ -440,8 +441,8 @@ model AttendanceSession {
   id          String   @id @default(cuid())
   batchId     String
   date        DateTime
-  sessionTime String?  // Morning / Evening
-  takenById   String?  // Ustadh who took attendance
+  sessionTime String?
+  takenById   String?
   createdAt   DateTime @default(now())
 
   batch       Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
@@ -479,18 +480,16 @@ model TestRecord {
   testType      TestType
   date          DateTime   @default(now())
 
-  // Scope
   juzFrom       Int?
   juzTo         Int?
   surahFrom     Int?
   surahTo       Int?
 
-  // Results
   result        TestResult?
-  score         Float?     // Percentage
+  score         Float?
   mistakeCount  Int        @default(0)
   notes         String?
-  conditions    String?    // For conditional pass
+  conditions    String?
 
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
@@ -506,19 +505,19 @@ model TestRecord {
 // ─────────────────────────────────────────
 
 model Sanad {
-  id              String   @id @default(cuid())
-  studentId       String
-  issuedById      String?
-  sanadNumber     String   @unique
-  program         Program
-  issuedAt        DateTime @default(now())
-  silsila         String?  // Chain of transmission
-  qrCode          String?  // QR verification URL
-  pdfUrl          String?
-  isVerified      Boolean  @default(true)
+  id          String   @id @default(cuid())
+  studentId   String
+  issuedById  String?
+  sanadNumber String   @unique
+  program     Program
+  issuedAt    DateTime @default(now())
+  silsila     String?
+  qrCode      String?
+  pdfUrl      String?
+  isVerified  Boolean  @default(true)
 
-  student         Student  @relation(fields: [studentId], references: [id])
-  issuedBy        User?    @relation("IssuedSanads", fields: [issuedById], references: [id])
+  student     Student  @relation(fields: [studentId], references: [id])
+  issuedBy    User?    @relation("IssuedSanads", fields: [issuedById], references: [id])
 
   @@map("sanads")
 }
@@ -529,12 +528,12 @@ model Sanad {
 
 model Notification {
   id          String              @id @default(cuid())
-  recipientId String              // Guardian phone or User ID
+  recipientId String
   channel     NotificationChannel
-  type        String              // daily_sabaq, absence_alert, test_result, etc.
+  type        String
   title       String?
   body        String
-  metadata    Json?               // Extra data (student name, grade, etc.)
+  metadata    Json?
   status      NotificationStatus  @default(PENDING)
   sentAt      DateTime?
   readAt      DateTime?
@@ -549,40 +548,47 @@ model Notification {
 // ─────────────────────────────────────────
 
 model FeeStructure {
-  id            String   @id @default(cuid())
-  campusId      String
-  program       Program
-  name          String
-  amount        Float
-  frequency     String   // monthly, quarterly, annual
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String       @id @default(cuid())
+  campusId    String
+  name        String
+  program     String?
+  amount      Float
+  frequency   String       @default("MONTHLY")
+  feeType     String       @default("TUITION")
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  feeRecords    FeeRecord[]
+  campus      Campus       @relation(fields: [campusId], references: [id])
+  payments    FeePayment[]
 
   @@map("fee_structures")
 }
 
-model FeeRecord {
-  id              String       @id @default(cuid())
-  studentId       String
-  feeStructureId  String
-  amount          Float
-  discount        Float        @default(0)
-  finalAmount     Float
-  dueDate         DateTime
-  paidAt          DateTime?
-  paidAmount      Float        @default(0)
-  paymentMethod   String?      // cash, bank, jazzcash, easypaisa
-  receiptNumber   String?
-  notes           String?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+model FeePayment {
+  id             String        @id @default(cuid())
+  studentId      String
+  feeStructureId String?
+  amount         Float
+  paidAmount     Float         @default(0)
+  discountAmount Float         @default(0)
+  month          Int
+  year           Int
+  status         String        @default("PENDING")
+  paymentDate    DateTime?
+  paymentMethod  String?
+  receiptNumber  String        @unique
+  notes          String?
+  collectedById  String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
-  feeStructure    FeeStructure @relation(fields: [feeStructureId], references: [id])
+  student        Student       @relation(fields: [studentId], references: [id])
+  feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
+  collectedBy    User          @relation("FeeCollectedBy", fields: [collectedById], references: [id])
 
-  @@map("fee_records")
+  @@map("fee_payments")
 }
 
 // ─────────────────────────────────────────
@@ -598,7 +604,7 @@ model Donor {
   isAnonymous   Boolean  @default(false)
   createdAt     DateTime @default(now())
 
-  institution   Institution  @relation(fields: [institutionId], references: [id])
+  institution   Institution   @relation(fields: [institutionId], references: [id])
   scholarships  Scholarship[]
 
   @@map("donors")
@@ -622,6 +628,8 @@ model Scholarship {
   student     Student   @relation(fields: [studentId], references: [id])
   donor       Donor?    @relation(fields: [donorId], references: [id])
   grantedBy   User      @relation("ScholarshipGrantedBy", fields: [grantedById], references: [id])
+
+  @@map("scholarships")
 }
 
 // ─────────────────────────────────────────
@@ -635,84 +643,9 @@ model Surah {
   nameUrdu    String?
   juzNumber   Int
   ayahCount   Int
-  pageStart   Int?   // In 15-line Madani Mushaf
+  pageStart   Int?
   pageEnd     Int?
   isRukuCount Int?
 
   @@map("surahs")
 }
-// ─────────────────────────────────────────────────────────────
-// ADD THESE MODELS TO YOUR EXISTING prisma/schema.prisma
-// Place after the existing models
-// ─────────────────────────────────────────────────────────────
-
-model FeeStructure {
-  id          String       @id @default(cuid())
-  campusId    String
-  name        String
-  program     String?
-  amount      Float
-  frequency   String       @default("MONTHLY")
-  feeType     String       @default("TUITION")
-  description String?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  campus      Campus       @relation(fields: [campusId], references: [id])
-  payments    FeePayment[]
-}
-//
-model FeePayment {
-  id             String        @id @default(cuid())
-  studentId      String
-  feeStructureId String?
-  amount         Float
-  paidAmount     Float         @default(0)
-  discountAmount Float         @default(0)
-  month          Int
-  year           Int
-  status         String        @default("PENDING")
-  paymentDate    DateTime?
-  paymentMethod  String?
-  receiptNumber  String        @unique
-  notes          String?
-  collectedById  String
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  student        Student       @relation(fields: [studentId], references: [id])
-  feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
-  collectedBy    User          @relation("FeeCollectedBy", fields: [collectedById], references: [id])
-}
-//
-// model Scholarship {
-//   id          String    @id @default(cuid())
-//   studentId   String
-//   name        String
-//   type        String    @default("FULL")
-//   percentage  Float?
-//   fixedAmount Float?
-//   reason      String?
-//   startDate   DateTime  @default(now())
-//   endDate     DateTime?
-//   isActive    Boolean   @default(true)
-//   grantedById String
-//   createdAt   DateTime  @default(now())
-//
-//   student     Student   @relation(fields: [studentId], references: [id])
-//   grantedBy   User      @relation("ScholarshipGrantedBy", fields: [grantedById], references: [id])
-// }
-
-// ─────────────────────────────────────────────────────────────
-// ALSO ADD TO Student model:
-//   feePayments  FeePayment[]
-//   scholarships Scholarship[]
-//
-// ADD TO User model:
-//   collectedFees FeePayment[]  @relation("FeeCollectedBy")
-//   grantedScholarships Scholarship[] @relation("ScholarshipGrantedBy")
-//
-// ADD TO Campus model:
-//   feeStructures FeeStructure[]
-// ─────────────────────────────────────────────────────────────
