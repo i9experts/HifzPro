@@ -147,12 +147,12 @@ export async function POST(req: NextRequest) {
     const ustadh = await prisma.$transaction(async tx => {
       const user = await tx.user.create({
         data: {
-          name:      data.name,
-          email:     data.email,
-          password:  hashedPassword,
-          phone:     data.phone || null,
-          whatsapp:  data.whatsapp || null,
-          avatar:    data.photo || null,
+          name:         data.name,
+          email:        data.email,
+          passwordHash: hashedPassword,
+          phone:        data.phone || null,
+          whatsapp:     data.whatsapp || null,
+          avatar:       data.photo || null,
           role:      "USTADH",
           campusId:  payload.campusId!,
           isActive:  true,

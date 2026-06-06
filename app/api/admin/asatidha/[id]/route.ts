@@ -67,7 +67,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     return successResponse({
       ustadh: {
         ...ustadh,
-        user: { ...ustadh.user, password: undefined },
+        user: { ...ustadh.user, passwordHash: undefined },
         performance: {
           weekLessons, monthLessons, avgGrade, avgHealth,
           totalStudents, atRiskCount,
@@ -101,7 +101,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (body.photo)     updateData.avatar    = body.photo;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.newPassword && body.newPassword.length >= 6) {
-      updateData.password = await bcrypt.hash(body.newPassword, 12);
+      updateData.passwordHash = await bcrypt.hash(body.newPassword, 12);
     }
 
     const updatedUser = await prisma.user.update({
