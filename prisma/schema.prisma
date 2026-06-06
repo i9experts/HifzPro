@@ -132,9 +132,10 @@ model Institution {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  campuses    Campus[]
-  users       User[]
-  donors      Donor[]
+  campuses      Campus[]
+  users         User[]
+  donors        Donor[]
+  subscriptions Subscription[]
 
   @@map("institutions")
 }
@@ -650,16 +651,6 @@ model Surah {
 
   @@map("surahs")
 }
-// ─────────────────────────────────────────────────────────────
-// ADD THESE TO prisma/schema.prisma
-// 1. Add both models at the bottom
-// 2. Add relations to Student model
-// ─────────────────────────────────────────────────────────────
-
-// ADD TO Student model:
-//   mutashabihat   StudentMutashabihat[]
-
-// ─── PASTE THESE MODELS AT BOTTOM OF schema.prisma ───
 
 model MutashabihatPair {
   id          String   @id @default(cuid())
@@ -712,11 +703,6 @@ model StudentMutashabihat {
 
   @@map("student_mutashabihat")
 }
-// ─────────────────────────────────────────────────────────────
-// ADD TO prisma/schema.prisma
-// ─────────────────────────────────────────────────────────────
-
-// 1. Add this model at the bottom of schema.prisma:
 
 model Subscription {
   id            String    @id @default(cuid())
@@ -740,9 +726,3 @@ model Subscription {
 
   @@map("subscriptions")
 }
-
-// 2. Add to Institution model:
-//   subscriptions  Subscription[]
-
-// 3. Add lastLoginAt to User model if not present:
-//   lastLoginAt  DateTime?
