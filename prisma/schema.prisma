@@ -303,6 +303,7 @@ model Student {
   sanads            Sanad[]
   scholarships      Scholarship[]
   feePayments       FeePayment[]
+  mutashabihat      StudentMutashabihat[]
 
   @@map("students")
 }
