@@ -605,20 +605,23 @@ model Donor {
 }
 
 model Scholarship {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   studentId   String
   donorId     String?
-  amount      Float
-  coverage    Float    @default(100) // Percentage of fee covered
-  startDate   DateTime
+  name        String    @default("Scholarship")
+  type        String    @default("FULL")
+  percentage  Float?
+  fixedAmount Float?
+  reason      String?
+  startDate   DateTime  @default(now())
   endDate     DateTime?
-  notes       String?
-  createdAt   DateTime @default(now())
+  isActive    Boolean   @default(true)
+  grantedById String
+  createdAt   DateTime  @default(now())
 
-  student     Student  @relation(fields: [studentId], references: [id])
-  donor       Donor?   @relation(fields: [donorId], references: [id])
-
-  @@map("scholarships")
+  student     Student   @relation(fields: [studentId], references: [id])
+  donor       Donor?    @relation(fields: [donorId], references: [id])
+  grantedBy   User      @relation("ScholarshipGrantedBy", fields: [grantedById], references: [id])
 }
 
 // ─────────────────────────────────────────
