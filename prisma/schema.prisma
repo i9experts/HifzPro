@@ -712,3 +712,37 @@ model StudentMutashabihat {
 
   @@map("student_mutashabihat")
 }
+// ─────────────────────────────────────────────────────────────
+// ADD TO prisma/schema.prisma
+// ─────────────────────────────────────────────────────────────
+
+// 1. Add this model at the bottom of schema.prisma:
+
+model Subscription {
+  id            String    @id @default(cuid())
+  institutionId String    @unique
+  plan          String    @default("TRIAL")
+  status        String    @default("TRIAL")
+  amount        Float     @default(0)
+  currency      String    @default("PKR")
+  billingCycle  String    @default("MONTHLY")
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  trialEndsAt   DateTime?
+  cancelledAt   DateTime?
+  lastPaymentAt DateTime?
+  nextBillingAt DateTime?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  @@map("subscriptions")
+}
+
+// 2. Add to Institution model:
+//   subscriptions  Subscription[]
+
+// 3. Add lastLoginAt to User model if not present:
+//   lastLoginAt  DateTime?
