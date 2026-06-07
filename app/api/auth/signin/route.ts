@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
 function getDashboardUrl(role: string): string {
   switch (role) {
-    case "SUPER_ADMIN":  return "/dashboard/superadmin";
+    case "SUPER_ADMIN":  return "/superadmin";
     case "CAMPUS_ADMIN": return "/dashboard/admin";
     case "USTADH":       return "/dashboard/ustadh";
     case "EXAMINER":     return "/dashboard/examiner";
