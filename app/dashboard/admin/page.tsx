@@ -87,6 +87,11 @@ const MODULES = [
     desc:"Manage campuses, compare performance, transfer students",
     href:"/dashboard/admin/campuses",           color:"#0369a1", tag:"Enterprise",
   },
+  {
+  id:"quran", icon:"📖", title:"Quran Module", titleUr:"قرآن",
+  desc:"Arabic text, audio recitation, memorization mode",
+  href:"/dashboard/admin/quran", color:"#C4882A", tag:"Reference",
+}
 ];
 
 const TAG_COLORS: Record<string,{color:string;bg:string;border:string}> = {
