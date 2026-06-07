@@ -14,7 +14,7 @@ const schema = z.object({
   sessionTime: z.string().optional(),
 });
 
-async function getInstitutionId(userId: string, jwtId?: string) {
+async function getInstitutionId(userId: string, jwtId?: string | null) {
   if (jwtId) return jwtId;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { institutionId: true } });
   return u?.institutionId ?? null;
