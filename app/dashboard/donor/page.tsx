@@ -228,7 +228,7 @@ export default function DonorDashboard() {
                           <div style={{display:"flex",gap:10}}>
                             {Object.entries(s.recentGrades).filter(([,v]:any)=>v>0).map(([grade,count]:any)=>(
                               <div key={grade} style={{display:"flex",alignItems:"center",gap:5}}>
-                                <span style={{fontSize:14}}>{{EXCELLENT:"⭐",GOOD:"✅",WEAK:"⚠️",REPEAT:"🔄"}[grade]}</span>
+                                <span style={{fontSize:14}}>{gradeEmoji[grade]}</span>
                                 <span style={{fontFamily:mono,fontSize:11,fontWeight:700,color:D.white}}>{count}×</span>
                                 <span style={{fontFamily:sans,fontSize:10,color:D.dim}}>{grade.toLowerCase()}</span>
                               </div>
