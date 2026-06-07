@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import HifzMark from "@/components/ui/HifzMark";
 import Link from "next/link";
 
 // ── Design tokens ──
@@ -104,13 +104,12 @@ export default function LandingPage() {
 
       {/* ── NAVBAR ── */}
       <nav style={{ position:"fixed", top:0, left:0, right:0, zIndex:100, padding:"0 28px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", background: scrolled?"rgba(5,13,10,0.95)":"transparent", backdropFilter: scrolled?"blur(12px)":"none", borderBottom: scrolled?`1px solid ${G.border}`:"none", transition:"all 0.3s" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:38, height:38, borderRadius:10, background:"linear-gradient(135deg,#10B981,#059669)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🕌</div>
-          <div>
-            <div style={{ fontFamily:serif, fontSize:22, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
-            <div style={{ fontFamily:mono, fontSize:7, color:G.primary, letterSpacing:2, opacity:0.8 }}>حِفزپرو</div>
-          </div>
-        </div>
+       <div style={{ width:38, height:38, borderRadius:10, background:"linear-gradient(135deg,#10B981,#059669)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>🕌</div>
+<HifzMark size={38} primary="#10B981" gold="#C4882A" />
+<div>
+  <div style={{ fontFamily:serif, fontSize:22, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
+  <div style={{ fontFamily:mono, fontSize:7, color:G.primary, letterSpacing:2, opacity:0.8 }}>حِفزپرو</div>
+</div>
         <div style={{ display:"flex", gap:28, alignItems:"center" }}>
           {["Features","Pricing","About"].map(l=>(
             <a key={l} href={`#${l.toLowerCase()}`} style={{ fontFamily:sans, fontSize:13, color:G.dim, textDecoration:"none", transition:"color 0.2s" }}>{l}</a>
