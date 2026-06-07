@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         email:     z.string().email().optional(),
         website:   z.string().optional(),
         logo:      z.string().optional(),
-        mushaf:    z.string().optional(),
+        mushaf:    z.enum(["MADANI_15_LINE", "MADANI_13_LINE", "INDOPAK_16_LINE"]).optional(),
       });
       const r = schema.safeParse(body);
       if (!r.success) return errorResponse(r.error.errors[0].message);
