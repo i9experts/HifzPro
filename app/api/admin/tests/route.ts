@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
 
-async function getCampusId(userId: string, jwtCampusId?: string) {
+async function getCampusId(userId: string, jwtCampusId?: string | null) {
   if (jwtCampusId) return jwtCampusId;
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { campusId: true } });
   return u?.campusId ?? null;
