@@ -1,376 +1,259 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import HifzMark from "@/components/ui/HifzMark";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import HifzMark from "@/components/ui/HifzMark";
+import { colors, fonts } from "@/lib/tokens";
 
-// ── Design tokens ──
-const G = {
-  deep:    "#050D0A",
-  dark:    "#0A1510",
-  card:    "#111D16",
-  border:  "#1A2E22",
-  primary: "#10B981",
-  gold:    "#C4882A",
-  white:   "#FFFFFF",
-  dim:     "rgba(255,255,255,0.55)",
-  faint:   "rgba(255,255,255,0.08)",
-  glow:    "rgba(16,185,129,0.15)",
-};
+interface DashboardStats {
+  totalStudents:    number;
+  activeStudents:   number;
+  totalBatches:     number;
+  totalAsatidha:    number;
+  lessonsToday:     number;
+  lessonsThisMonth: number;
+  pendingFees:      number;
+  attendanceToday:  number;
+}
 
-const serif  = "'Cormorant Garamond','Georgia',serif";
-const arabic = "'Scheherazade New',serif";
-const mono   = "'JetBrains Mono','Fira Code','Courier New',monospace";
-const sans   = "'Inter','Segoe UI',system-ui,sans-serif";
-
-// ── Helpers ──
-const btn = (primary=true, small=false) => ({
-  display:"inline-flex" as const, alignItems:"center" as const, gap:8,
-  padding: small ? "9px 20px" : "14px 28px",
-  borderRadius:10, fontSize: small ? 12 : 14, fontWeight:700, fontFamily:sans,
-  border:"none", cursor:"pointer" as const, textDecoration:"none" as const,
-  background: primary ? G.primary : G.faint,
-  color:       primary ? G.dark    : G.white,
-  border_: primary ? "none" : `1px solid ${G.border}`,
-  transition: "all 0.2s",
-  boxShadow: primary ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
-});
-
-// ── Data ──
 const MODULES = [
-  { icon:"👨‍🎓", title:"Student Management",   desc:"5-step enrollment wizard, 6-tab profile, photo upload, documents",       tag:"Core" },
-  { icon:"📖", title:"Hifz Diary",             desc:"Daily Sabaq, Sabqi, Manzil recording with grade and mistake tracking",    tag:"Core" },
-  { icon:"📋", title:"Attendance",             desc:"One-tap dot grid, absence reasons, parent auto-notify",                   tag:"Core" },
-  { icon:"👨‍🏫", title:"Asatidha Management",   desc:"Add Ustadh, 3-step wizard, qualifications, performance analytics",        tag:"Core" },
-  { icon:"👨‍👩‍👦", title:"Parent Portal",         desc:"Mobile-first, 5 tabs, multi-child, live progress tracking",               tag:"Core" },
-  { icon:"💬", title:"WhatsApp Integration",   desc:"7 bilingual Urdu/English templates, auto-send on lesson entry",           tag:"Core" },
-  { icon:"📊", title:"Admin Analytics",        desc:"Dropout risk scoring, Manzil health map, 6-tab insight dashboard",        tag:"Intelligence" },
-  { icon:"🧠", title:"Mutashabihat Module",    desc:"35 classical pairs, AI priority scoring, Manzil alerts, resolution tracking", tag:"Intelligence" },
-  { icon:"📈", title:"Attendance Reports",     desc:"Calendar heatmap, batch comparison, chronic absentees, print to PDF",     tag:"Reporting" },
-  { icon:"📝", title:"Test & Assessment",      desc:"7 test types, 30-Para visual board, WhatsApp result notifications",       tag:"Core" },
-  { icon:"👥", title:"Batch Management",       desc:"Create Halqas, assign Ustadh, two-panel student assignment",              tag:"Core" },
-  { icon:"🏆", title:"Sanad & Certificates",  desc:"3 templates, QR verification, bilingual, PDF download",                   tag:"Premium" },
-  { icon:"💰", title:"Fee Management",        desc:"Fee structures, payment recording, receipts, scholarship management",      tag:"Premium" },
-  { icon:"🎓", title:"Scholarship Manager",   desc:"Full/partial waivers, merit/need-based, automatic discount application",   tag:"Premium" },
-  { icon:"🏫", title:"Multi-Campus Support",  desc:"One institution, multiple campuses, unified analytics, campus switching",  tag:"Enterprise" },
-  { icon:"🆔", title:"Onboarding Flow",       desc:"5-step guided setup — live institution in under 5 minutes",               tag:"Platform" },
-  { icon:"📱", title:"PWA Ready",             desc:"Install as app on iPhone/Android, offline-capable parent portal",         tag:"Platform" },
-  { icon:"🔐", title:"Super Admin Panel",     desc:"SaaS control center — institutions, subscriptions, revenue, health scores",tag:"Platform" },
+  // ── Core ──
+  {
+    id:"students",    icon:"👨‍🎓", title:"Students",             titleUr:"طلباء",
+    desc:"Enroll, manage profiles, track 6 tabs",
+    href:"/dashboard/admin/students",            color:"#0D5C3A", tag:"Core",
+  },
+  {
+    id:"asatidha",    icon:"👨‍🏫", title:"Asatidha",             titleUr:"اساتذہ",
+    desc:"Add Ustadh, qualifications, performance",
+    href:"/dashboard/admin/asatidha",           color:"#7c3aed", tag:"Core",
+  },
+  {
+    id:"batches",     icon:"👥",  title:"Batch Management",     titleUr:"حلقہ جات",
+    desc:"Create Halqas, assign Ustadh, students",
+    href:"/dashboard/admin/batches",            color:"#0369a1", tag:"Core",
+  },
+  {
+    id:"attendance",  icon:"📋",  title:"Attendance",           titleUr:"حاضری",
+    desc:"Daily attendance, dot grid, auto-notify parents",
+    href:"/dashboard/admin/attendance",         color:"#0f766e", tag:"Core",
+  },
+  // ── Academic ──
+  {
+    id:"tests",       icon:"📝",  title:"Test & Assessment",    titleUr:"امتحانات",
+    desc:"7 test types, 30-Para visual board, WhatsApp results",
+    href:"/dashboard/admin/tests",              color:"#b45309", tag:"Academic",
+  },
+  {
+    id:"mutashabihat",icon:"🧠",  title:"Mutashabihat",         titleUr:"المتشابهات",
+    desc:"35 classical pairs, AI priority scoring, Manzil alerts",
+    href:"/dashboard/admin/mutashabihat",       color:"#6d28d9", tag:"Intelligence",
+  },
+  {
+    id:"analytics",   icon:"📊",  title:"Analytics",            titleUr:"تجزیہ",
+    desc:"Dropout risk, Manzil health map, 6-tab insights",
+    href:"/dashboard/admin/analytics",          color:"#0e7490", tag:"Intelligence",
+  },
+  // ── Reports ──
+  {
+    id:"attendance-reports", icon:"📈", title:"Attendance Reports", titleUr:"حاضری رپورٹ",
+    desc:"Calendar heatmap, chronic absentees, batch comparison, print",
+    href:"/dashboard/admin/attendance/reports", color:"#065f46", tag:"Reports",
+  },
+  // ── Finance ──
+  {
+    id:"fees",        icon:"💰",  title:"Fee Management",       titleUr:"فیس مینجمنٹ",
+    desc:"Structures, payments, outstanding, receipts",
+    href:"/dashboard/admin/fees",               color:"#166534", tag:"Finance",
+  },
+  {
+    id:"scholarships",icon:"🎓",  title:"Scholarship Manager",  titleUr:"وظائف",
+    desc:"Full/partial waivers, merit & need-based, donor-linked",
+    href:"/dashboard/admin/fees/scholarships",  color:"#7c3aed", tag:"Finance",
+  },
+  {
+    id:"donors",      icon:"🤲",  title:"Donors",               titleUr:"مخیران",
+    desc:"Manage donors, link to students, send portal access",
+    href:"/dashboard/admin/donors",             color:"#C4882A", tag:"Finance",
+  },
+  // ── Certificates ──
+  {
+    id:"sanads",      icon:"🏆",  title:"Sanad & Certificates", titleUr:"سند",
+    desc:"3 templates, QR verification, bilingual, PDF download",
+    href:"/dashboard/admin/sanads",             color:"#C4882A", tag:"Certificates",
+  },
+  // ── Enterprise ──
+  {
+    id:"campuses",    icon:"🏛️",  title:"Multi-Campus",         titleUr:"کیمپس",
+    desc:"Manage campuses, compare performance, transfer students",
+    href:"/dashboard/admin/campuses",           color:"#0369a1", tag:"Enterprise",
+  },
 ];
 
-const TAG_COLORS: Record<string,{color:string;bg:string}> = {
-  Core:         { color:"#10B981", bg:"rgba(16,185,129,0.12)" },
-  Intelligence: { color:"#a78bfa", bg:"rgba(167,139,250,0.12)" },
-  Reporting:    { color:"#60a5fa", bg:"rgba(96,165,250,0.12)" },
-  Premium:      { color:"#fbbf24", bg:"rgba(251,191,36,0.12)" },
-  Enterprise:   { color:"#f97316", bg:"rgba(249,115,22,0.12)" },
-  Platform:     { color:"#34d399", bg:"rgba(52,211,153,0.12)" },
+const TAG_COLORS: Record<string,{color:string;bg:string;border:string}> = {
+  Core:         { color:"#0D5C3A", bg:"#dcfce7", border:"#86efac" },
+  Academic:     { color:"#b45309", bg:"#fffbeb", border:"#fde68a" },
+  Intelligence: { color:"#6d28d9", bg:"#f5f3ff", border:"#c4b5fd" },
+  Reports:      { color:"#065f46", bg:"#f0fdfa", border:"#99f6e4" },
+  Finance:      { color:"#166534", bg:"#dcfce7", border:"#86efac" },
+  Certificates: { color:"#92400e", bg:"#fffbeb", border:"#fde68a" },
+  Enterprise:   { color:"#0369a1", bg:"#f0f9ff", border:"#bae6fd" },
 };
 
-const PLANS = [
-  { name:"Free Trial",     nameUr:"مفت ٹرائل",     price:0,    period:"14 days",  color:"#6b7280", highlight:false, students:"Up to 20",  features:["All Core Modules","WhatsApp Updates","Parent Portal","Email Support"] },
-  { name:"Basic",          nameUr:"بنیادی",          price:2999, period:"/ month",  color:"#60a5fa", highlight:false, students:"Up to 50",  features:["Everything in Trial","Attendance Reports","Test Module","Batch Management"] },
-  { name:"Professional",   nameUr:"پروفیشنل",        price:5999, period:"/ month",  color:G.primary, highlight:true,  students:"Up to 200", features:["Everything in Basic","Fee Management","Sanad/Certificates","Analytics","Priority Support"] },
-  { name:"Enterprise",     nameUr:"انٹرپرائز",        price:9999, period:"/ month",  color:G.gold,    highlight:false, students:"Unlimited",  features:["Everything in Pro","Multi-Campus","Mutashabihat AI","Super Admin Access","Dedicated Support"] },
-];
-
-const HOW = [
-  { step:"01", icon:"📝", title:"Sign Up Free",       desc:"Create your institution account in 2 minutes. No credit card, no commitment.",  arabic:"سجّل مجاناً" },
-  { step:"02", icon:"⚙️", title:"5-Minute Setup",      desc:"Our wizard guides you: add your campus, Ustadh, create a Halqa, enroll first student.", arabic:"الإعداد في 5 دقائق" },
-  { step:"03", icon:"🚀", title:"Go Live Immediately", desc:"Start recording lessons, WhatsApp updates go to parents automatically from Day 1.", arabic:"ابدأ فوراً" },
-];
-
-const STATS = [
-  { val:"18+",  label:"Live Modules",      arabic:"وحدة نشطة" },
-  { val:"100%", label:"WhatsApp Automated",arabic:"واتساب تلقائي" },
-  { val:"5min", label:"Setup Time",        arabic:"وقت الإعداد" },
-  { val:"3",    label:"Certificate Templates",arabic:"نماذج السند" },
-];
-
-export default function LandingPage() {
-  const [mobileMenu, setMobileMenu] = useState(false);
-  const [scrolled,   setScrolled]   = useState(false);
-  const [activeTab,  setActiveTab]  = useState("Core");
-  const heroRef = useRef<HTMLDivElement>(null);
+export default function AdminDashboard() {
+  const [stats,     setStats]     = useState<DashboardStats | null>(null);
+  const [loading,   setLoading]   = useState(true);
+  const [adminName, setAdminName] = useState("");
+  const [search,    setSearch]    = useState("");
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    fetch("/api/admin/analytics")
+      .then(r => r.json())
+      .then(d => { if (d.success) setStats(d.data); })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+
+    fetch("/api/auth/me")
+      .then(r => r.json())
+      .then(d => { if (d.success) setAdminName(d.data?.name || ""); })
+      .catch(console.error);
   }, []);
 
-  const filteredModules = activeTab === "All" ? MODULES : MODULES.filter(m => m.tag === activeTab);
+  const handleSignOut = async () => {
+    await fetch("/api/auth/signout", { method:"POST" });
+    window.location.href = "/signin";
+  };
+
+  const now       = new Date();
+  const hour      = now.getHours();
+  const greeting  = hour < 12 ? "Subh Bakhair" : hour < 17 ? "Assalamu Alaikum" : "Shaam Bakhair";
+  const filtered  = MODULES.filter(m =>
+    !search ||
+    m.title.toLowerCase().includes(search.toLowerCase()) ||
+    m.titleUr.includes(search) ||
+    m.tag.toLowerCase().includes(search.toLowerCase()) ||
+    m.desc.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
-    <div style={{ background:G.deep, minHeight:"100vh", color:G.white, fontFamily:sans }}>
+    <div style={{ minHeight:"100vh", background:"#f0fdf4" }}>
 
-      {/* ── NAVBAR ── */}
-      <nav style={{ position:"fixed", top:0, left:0, right:0, zIndex:100, padding:"0 28px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", background: scrolled?"rgba(5,13,10,0.95)":"transparent", backdropFilter: scrolled?"blur(12px)":"none", borderBottom: scrolled?`1px solid ${G.border}`:"none", transition:"all 0.3s" }}>
-<div style={{ display:"flex", alignItems:"center", gap:12 }}>
-  <HifzMark size={38} primary="#10B981" gold="#C4882A" />
-  <div>
-    <div style={{ fontFamily:serif, fontSize:22, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
-    <div style={{ fontFamily:mono, fontSize:7, color:G.primary, letterSpacing:2, opacity:0.8 }}>حِفزپرو</div>
-  </div>
-</div>
-        <div style={{ display:"flex", gap:28, alignItems:"center" }}>
-          {["Features","Pricing","About"].map(l=>(
-            <a key={l} href={`#${l.toLowerCase()}`} style={{ fontFamily:sans, fontSize:13, color:G.dim, textDecoration:"none", transition:"color 0.2s" }}>{l}</a>
-          ))}
-          <Link href="/signin" style={{ fontFamily:sans, fontSize:13, color:G.dim, textDecoration:"none" }}>Sign In</Link>
-          <Link href="/signup" style={{ ...btn(true,true), borderRadius:8 } as any}>Get Started Free</Link>
+      {/* Nav */}
+      <nav style={{ background:"#0D5C3A", padding:"0 24px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:50, boxShadow:"0 2px 12px rgba(0,0,0,0.2)" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          <HifzMark size={36} primary="#10B981" gold="#C4882A"/>
+          <div>
+            <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:20, fontWeight:700, color:"white", lineHeight:1 }}>HifzPro</div>
+            <div style={{ fontFamily:"monospace", fontSize:8, color:"#C4882A", letterSpacing:2, opacity:0.8 }}>ADMIN DASHBOARD</div>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+          <Link href="/dashboard/admin/students/new" style={{ padding:"8px 16px", borderRadius:8, background:"#C4882A", color:"white", fontSize:12, fontWeight:700, textDecoration:"none" }}>
+            + Enroll Student
+          </Link>
+          <button onClick={handleSignOut} style={{ padding:"7px 14px", borderRadius:7, background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.7)", fontSize:12, cursor:"pointer" }}>
+            Sign Out
+          </button>
         </div>
       </nav>
 
-      {/* ── HERO ── */}
-      <section ref={heroRef} style={{ minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"120px 24px 80px", textAlign:"center", position:"relative", overflow:"hidden" }}>
+      <div style={{ maxWidth:1200, margin:"0 auto", padding:"28px 20px" }}>
 
-        {/* Background glow */}
-        <div style={{ position:"absolute", top:"30%", left:"50%", transform:"translateX(-50%)", width:600, height:600, background:"radial-gradient(circle,rgba(16,185,129,0.12),transparent 70%)", pointerEvents:"none" }}/>
-        {/* Geometric Islamic pattern */}
-        <svg style={{ position:"absolute", top:80, right:"5%", opacity:0.04 }} width="400" height="400" viewBox="0 0 200 200">
-          {[...Array(6)].map((_,i)=><polygon key={i} points={`100,${10+i*8} ${185-i*8},${55+i*4} ${185-i*8},${145-i*4} ${100},${190-i*8} ${15+i*8},${145-i*4} ${15+i*8},${55+i*4}`} fill="none" stroke="white" strokeWidth="0.5"/>)}
-        </svg>
-        <svg style={{ position:"absolute", bottom:80, left:"5%", opacity:0.04 }} width="300" height="300" viewBox="0 0 200 200">
-          {[...Array(5)].map((_,i)=><polygon key={i} points={`100,${10+i*10} ${180-i*10},${100} ${100},${190-i*10} ${20+i*10},${100}`} fill="none" stroke="white" strokeWidth="0.5"/>)}
-        </svg>
-
-        {/* Badge */}
-        <div style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"6px 16px", borderRadius:999, background:G.faint, border:`1px solid ${G.border}`, marginBottom:28 }}>
-          <div style={{ width:6, height:6, borderRadius:"50%", background:G.primary }}/>
-          <span style={{ fontFamily:mono, fontSize:11, color:G.primary, letterSpacing:1 }}>PAKISTAN'S FIRST INTELLIGENT HIFZ PLATFORM</span>
+        {/* Welcome banner */}
+        <div style={{ background:"linear-gradient(135deg,#0D5C3A,#065f46)", borderRadius:20, padding:"26px 32px", marginBottom:24, position:"relative", overflow:"hidden" }}>
+          <svg style={{ position:"absolute", right:-20, top:-20, opacity:0.05 }} width="180" height="180" viewBox="0 0 80 80">
+            {[...Array(4)].map((_,i)=><polygon key={i} points={`40,${4+i*8} ${76-i*8},${40} ${40},${76-i*8} ${4+i*8},${40}`} fill="none" stroke="white" strokeWidth="1"/>)}
+          </svg>
+          <div style={{ fontFamily:"monospace", fontSize:9, letterSpacing:3, color:"#C4882A", marginBottom:4 }}>ADMIN CONTROL CENTER</div>
+          <h1 style={{ fontFamily:"'Cormorant Garamond',serif", fontSize:"1.8rem", fontWeight:700, color:"white", margin:"0 0 4px" }}>
+            {greeting}{adminName ? `, ${adminName}` : ""}
+          </h1>
+          <div style={{ fontFamily:"'Scheherazade New',serif", fontSize:18, color:"#C4882A", opacity:0.8 }}>
+            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+          </div>
         </div>
 
-        {/* Arabic headline */}
-        <div style={{ fontFamily:arabic, fontSize:"clamp(22px,4vw,36px)", color:G.gold, marginBottom:12, opacity:0.8 }}>
-          إِنَّ هَٰذَا الْقُرْآنَ يَهْدِي لِلَّتِي هِيَ أَقْوَمُ
-        </div>
-
-        {/* Main headline */}
-        <h1 style={{ fontFamily:serif, fontSize:"clamp(2.8rem,7vw,5.5rem)", fontWeight:700, color:G.white, margin:"0 0 20px", lineHeight:1.05, maxWidth:900 }}>
-          The Complete Platform<br/>
-          <span style={{ color:G.primary }}>for Hifz Management</span>
-        </h1>
-
-        <p style={{ fontFamily:sans, fontSize:"clamp(14px,2vw,18px)", color:G.dim, maxWidth:580, margin:"0 auto 36px", lineHeight:1.75 }}>
-          Track every student's memorization journey, automate parent updates via WhatsApp, and grow your Hifz program — all in one place. Built for Islamic institutions in Pakistan and beyond.
-        </p>
-
-        {/* CTA buttons */}
-        <div style={{ display:"flex", gap:14, justifyContent:"center", flexWrap:"wrap", marginBottom:48 }}>
-          <Link href="/signup" style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"15px 32px", borderRadius:12, background:G.primary, color:G.dark, fontSize:15, fontWeight:700, textDecoration:"none", fontFamily:sans, boxShadow:"0 6px 28px rgba(16,185,129,0.35)" } as any}>
-            Start Free 14-Day Trial →
-          </Link>
-          <Link href="/signin" style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"15px 28px", borderRadius:12, background:"transparent", color:G.white, fontSize:15, fontWeight:600, textDecoration:"none", fontFamily:sans, border:`1px solid ${G.border}` } as any}>
-            Sign In
-          </Link>
-        </div>
-
-        {/* Stats strip */}
-        <div style={{ display:"flex", gap:0, background:G.card, borderRadius:16, border:`1px solid ${G.border}`, overflow:"hidden", maxWidth:640, width:"100%" }}>
-          {STATS.map((s,i)=>(
-            <div key={i} style={{ flex:1, padding:"16px 8px", textAlign:"center", borderRight:i<3?`1px solid ${G.border}`:"none" }}>
-              <div style={{ fontFamily:mono, fontSize:22, fontWeight:700, color:G.primary }}>{s.val}</div>
-              <div style={{ fontFamily:sans, fontSize:10, color:G.dim, marginTop:2 }}>{s.label}</div>
-              <div style={{ fontFamily:arabic, fontSize:10, color:"rgba(255,255,255,0.2)", marginTop:1 }}>{s.arabic}</div>
+        {/* Stats row */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:24 }}>
+          {[
+            { icon:"👨‍🎓", val:loading?"…":(stats?.activeStudents??0),   label:"Active Students",  color:"#0D5C3A", bg:"#dcfce7", border:"#86efac" },
+            { icon:"👥",  val:loading?"…":(stats?.totalBatches??0),    label:"Active Halqas",    color:"#0369a1", bg:"#f0f9ff", border:"#bae6fd" },
+            { icon:"📖",  val:loading?"…":(stats?.lessonsToday??0),    label:"Lessons Today",    color:"#0f766e", bg:"#f0fdfa", border:"#99f6e4" },
+            { icon:"👨‍🏫", val:loading?"…":(stats?.totalAsatidha??0),  label:"Total Asatidha",   color:"#7c3aed", bg:"#f5f3ff", border:"#c4b5fd" },
+          ].map((s,i)=>(
+            <div key={i} style={{ background:s.bg, borderRadius:14, padding:"16px 14px", border:`1px solid ${s.border}`, textAlign:"center" }}>
+              <div style={{ fontSize:24, marginBottom:6 }}>{s.icon}</div>
+              <div style={{ fontFamily:"'Inter',sans-serif", fontSize:26, fontWeight:700, color:s.color }}>{s.val}</div>
+              <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:s.color, opacity:0.75, marginTop:3 }}>{s.label}</div>
             </div>
           ))}
         </div>
-      </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section style={{ padding:"80px 24px", maxWidth:1000, margin:"0 auto" }}>
-        <div style={{ textAlign:"center", marginBottom:56 }}>
-          <div style={{ fontFamily:mono, fontSize:9, letterSpacing:3, color:G.primary, marginBottom:8 }}>GETTING STARTED</div>
-          <h2 style={{ fontFamily:serif, fontSize:"clamp(1.8rem,4vw,3rem)", fontWeight:700, color:G.white, margin:"0 0 12px" }}>Live in 5 Minutes</h2>
-          <p style={{ fontFamily:sans, fontSize:14, color:G.dim }}>No IT team needed. No training required. Just sign up and go.</p>
+        {/* Search bar */}
+        <div style={{ marginBottom:20 }}>
+          <div style={{ position:"relative" }}>
+            <span style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", fontSize:16 }}>🔍</span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search modules... (Students, Fees, Sanad, Mutashabihat...)"
+              style={{ width:"100%", padding:"12px 16px 12px 42px", border:"1.5px solid #bbf7d0", borderRadius:10, fontSize:13, fontFamily:"'Inter',sans-serif", outline:"none", background:"white", color:"#1a1a1a", boxSizing:"border-box" }}
+            />
+          </div>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:20 }}>
-          {HOW.map((h,i)=>(
-            <div key={i} style={{ background:G.card, borderRadius:16, padding:28, border:`1px solid ${G.border}`, textAlign:"center", position:"relative" }}>
-              <div style={{ fontFamily:mono, fontSize:36, fontWeight:700, color:G.border, position:"absolute", top:16, right:20, lineHeight:1 }}>{h.step}</div>
-              <div style={{ fontSize:36, marginBottom:14 }}>{h.icon}</div>
-              <div style={{ fontFamily:arabic, fontSize:14, color:G.gold, marginBottom:6, opacity:0.7 }}>{h.arabic}</div>
-              <h3 style={{ fontFamily:serif, fontSize:20, fontWeight:700, color:G.white, margin:"0 0 8px" }}>{h.title}</h3>
-              <p style={{ fontFamily:sans, fontSize:13, color:G.dim, lineHeight:1.7, margin:0 }}>{h.desc}</p>
+
+        {/* Module grid */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(245px,1fr))", gap:14, marginBottom:28 }}>
+          {filtered.map(m => {
+            const tc = TAG_COLORS[m.tag] || TAG_COLORS.Core;
+            return (
+              <Link key={m.id} href={m.href} style={{ textDecoration:"none" }}>
+                <div style={{ background:"white", borderRadius:14, padding:"18px 16px", border:"1px solid #e2e8f0", borderTop:`3px solid ${m.color}`, cursor:"pointer", height:"100%", display:"flex", flexDirection:"column", gap:10, boxSizing:"border-box", transition:"box-shadow 0.15s" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                    <span style={{ fontSize:30 }}>{m.icon}</span>
+                    <span style={{ background:tc.bg, color:tc.color, padding:"2px 8px", borderRadius:5, fontSize:9, fontFamily:"monospace", fontWeight:700, border:`1px solid ${tc.border}` }}>
+                      {m.tag}
+                    </span>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily:"'Inter',sans-serif", fontSize:14, fontWeight:700, color:"#1a1a1a" }}>{m.title}</div>
+                    <div style={{ fontFamily:"'Scheherazade New','Cormorant Garamond',serif", fontSize:13, color:m.color, opacity:0.8, marginTop:1 }}>{m.titleUr}</div>
+                  </div>
+                  <div style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"#64748b", lineHeight:1.65, flex:1 }}>{m.desc}</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:4, color:m.color, fontFamily:"'Inter',sans-serif", fontSize:11, fontWeight:700, paddingTop:4, borderTop:"1px solid #f1f5f9" }}>
+                    Open Module <span style={{ fontSize:14 }}>→</span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+
+          {filtered.length === 0 && (
+            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:40, color:"#94a3b8", fontFamily:"'Inter',sans-serif" }}>
+              No modules found for "{search}"
             </div>
+          )}
+        </div>
+
+        {/* Bottom quick links */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+          {[
+            { icon:"📊", label:"View Analytics",     sub:"Dropout risk & health",       href:"/dashboard/admin/analytics",  color:"#0e7490" },
+            { icon:"📱", label:"Parent Portal",       sub:"Mobile-first parent view",    href:"/dashboard/parent",           color:"#7c3aed" },
+            { icon:"🔐", label:"Super Admin Panel",   sub:"SaaS control center",         href:"/superadmin",                 color:"#0D5C3A" },
+          ].map((q,i)=>(
+            <Link key={i} href={q.href} style={{ textDecoration:"none" }}>
+              <div style={{ background:"white", borderRadius:10, padding:"14px 16px", border:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:12, borderLeft:`4px solid ${q.color}` }}>
+                <span style={{ fontSize:22 }}>{q.icon}</span>
+                <div>
+                  <div style={{ fontFamily:"'Inter',sans-serif", fontSize:12, fontWeight:700, color:"#1a1a1a" }}>{q.label}</div>
+                  <div style={{ fontFamily:"'Inter',sans-serif", fontSize:10, color:"#94a3b8" }}>{q.sub}</div>
+                </div>
+                <span style={{ marginLeft:"auto", color:"#94a3b8" }}>→</span>
+              </div>
+            </Link>
           ))}
         </div>
-      </section>
-
-      {/* ── FEATURES / MODULES ── */}
-      <section id="features" style={{ padding:"80px 24px", background:G.dark }}>
-        <div style={{ maxWidth:1200, margin:"0 auto" }}>
-          <div style={{ textAlign:"center", marginBottom:48 }}>
-            <div style={{ fontFamily:mono, fontSize:9, letterSpacing:3, color:G.primary, marginBottom:8 }}>COMPLETE FEATURE SET</div>
-            <h2 style={{ fontFamily:serif, fontSize:"clamp(1.8rem,4vw,3rem)", fontWeight:700, color:G.white, margin:"0 0 12px" }}>Everything Your Institution Needs</h2>
-            <p style={{ fontFamily:sans, fontSize:14, color:G.dim, maxWidth:500, margin:"0 auto" }}>18 fully integrated modules — from lesson diaries to certificates, fees to Mutashabihat intelligence.</p>
-          </div>
-
-          {/* Tag filter */}
-          <div style={{ display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap", marginBottom:36 }}>
-            {["All","Core","Intelligence","Reporting","Premium","Enterprise","Platform"].map(t=>(
-              <button key={t} onClick={()=>setActiveTab(t)} style={{ padding:"7px 16px", borderRadius:8, border:`1px solid ${activeTab===t?TAG_COLORS[t]?.color||G.primary:G.border}`, background:activeTab===t?`${TAG_COLORS[t]?.color||G.primary}15`:G.faint, color:activeTab===t?TAG_COLORS[t]?.color||G.primary:G.dim, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:sans }}>
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {/* Modules grid */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
-            {filteredModules.map((m,i)=>{
-              const tc = TAG_COLORS[m.tag] || { color:G.primary, bg:G.glow };
-              return (
-                <div key={i} style={{ background:G.card, borderRadius:14, padding:"20px 18px", border:`1px solid ${G.border}`, borderTop:`2px solid ${tc.color}`, transition:"transform 0.2s" }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
-                    <span style={{ fontSize:28 }}>{m.icon}</span>
-                    <span style={{ background:tc.bg, color:tc.color, padding:"2px 8px", borderRadius:5, fontSize:9, fontFamily:mono, fontWeight:700 }}>{m.tag}</span>
-                  </div>
-                  <h3 style={{ fontFamily:serif, fontSize:17, fontWeight:700, color:G.white, margin:"0 0 6px" }}>{m.title}</h3>
-                  <p style={{ fontFamily:sans, fontSize:12, color:G.dim, margin:0, lineHeight:1.65 }}>{m.desc}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOR PAKISTAN SECTION ── */}
-      <section style={{ padding:"80px 24px", maxWidth:1000, margin:"0 auto" }}>
-        <div style={{ background:G.card, borderRadius:24, padding:"48px 40px", border:`1px solid ${G.border}`, display:"grid", gridTemplateColumns:"1fr 1fr", gap:40, alignItems:"center" }}>
-          <div>
-            <div style={{ fontFamily:mono, fontSize:9, letterSpacing:3, color:G.gold, marginBottom:12 }}>BUILT FOR YOUR CONTEXT</div>
-            <h2 style={{ fontFamily:serif, fontSize:"clamp(1.6rem,3vw,2.5rem)", fontWeight:700, color:G.white, margin:"0 0 16px", lineHeight:1.2 }}>Designed for Pakistan. Ready for the World.</h2>
-            <p style={{ fontFamily:sans, fontSize:14, color:G.dim, lineHeight:1.8, marginBottom:20 }}>
-              Every detail is tailored to how Pakistani Islamic institutions work — Urdu WhatsApp templates, JazzCash/EasyPaisa fee collection, Madani mushaf page references, Hijri calendar, and Urdu/Arabic bilingual interface.
-            </p>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {[
-                "🇵🇰 Urdu interface & WhatsApp templates",
-                "📱 JazzCash & EasyPaisa payment tracking",
-                "📖 Madani 15-line mushaf page references",
-                "🌙 Hijri date on all certificates",
-                "🕌 Fajr/Asr/Isha session time scheduling",
-                "💳 PKR billing in all fee modules",
-              ].map((f,i)=>(
-                <div key={i} style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:6, height:6, borderRadius:"50%", background:G.primary, flexShrink:0 }}/>
-                  <span style={{ fontFamily:sans, fontSize:13, color:G.dim }}>{f}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div style={{ textAlign:"center" }}>
-            <div style={{ fontFamily:arabic, fontSize:"clamp(36px,5vw,64px)", color:G.gold, lineHeight:1.5, opacity:0.85 }}>
-              حِفْظُ الْقُرْآنِ<br/>
-              <span style={{ fontSize:"0.5em", color:"rgba(255,255,255,0.3)" }}>في عصر التقنية</span>
-            </div>
-            <div style={{ fontFamily:sans, fontSize:12, color:G.dim, marginTop:16 }}>Quran Memorization · In the Age of Technology</div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding:"80px 24px", background:G.dark }}>
-        <div style={{ maxWidth:1100, margin:"0 auto" }}>
-          <div style={{ textAlign:"center", marginBottom:56 }}>
-            <div style={{ fontFamily:mono, fontSize:9, letterSpacing:3, color:G.primary, marginBottom:8 }}>TRANSPARENT PRICING</div>
-            <h2 style={{ fontFamily:serif, fontSize:"clamp(1.8rem,4vw,3rem)", fontWeight:700, color:G.white, margin:"0 0 12px" }}>Simple, Honest Pricing</h2>
-            <p style={{ fontFamily:sans, fontSize:14, color:G.dim }}>No hidden fees. Cancel anytime. All prices in PKR.</p>
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:16 }}>
-            {PLANS.map((p,i)=>(
-              <div key={i} style={{ background:p.highlight?"linear-gradient(160deg,#0A2E1A,#052e16)":G.card, borderRadius:18, padding:24, border:`1px solid ${p.highlight?G.primary:G.border}`, position:"relative", boxShadow:p.highlight?"0 0 40px rgba(16,185,129,0.2)":"none" }}>
-                {p.highlight&&<div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:G.primary, color:G.dark, padding:"4px 14px", borderRadius:999, fontFamily:mono, fontSize:10, fontWeight:700, whiteSpace:"nowrap" }}>MOST POPULAR</div>}
-                <div style={{ fontFamily:arabic, fontSize:14, color:p.color, marginBottom:4, opacity:0.7 }}>{p.nameUr}</div>
-                <div style={{ fontFamily:serif, fontSize:20, fontWeight:700, color:G.white, marginBottom:12 }}>{p.name}</div>
-                <div style={{ marginBottom:8 }}>
-                  {p.price===0
-                    ? <span style={{ fontFamily:mono, fontSize:28, fontWeight:700, color:p.color }}>Free</span>
-                    : <><span style={{ fontFamily:mono, fontSize:28, fontWeight:700, color:p.color }}>PKR {p.price.toLocaleString()}</span><span style={{ fontFamily:sans, fontSize:11, color:G.dim }}>{p.period}</span></>
-                  }
-                </div>
-                <div style={{ fontFamily:sans, fontSize:12, color:G.dim, marginBottom:16 }}>Students: <span style={{ color:p.color, fontWeight:700 }}>{p.students}</span></div>
-                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:20 }}>
-                  {p.features.map((f,j)=>(
-                    <div key={j} style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <span style={{ color:p.color, fontSize:12 }}>✓</span>
-                      <span style={{ fontFamily:sans, fontSize:12, color:G.dim }}>{f}</span>
-                    </div>
-                  ))}
-                </div>
-                <Link href="/signup" style={{ display:"block", textAlign:"center", padding:"11px", borderRadius:10, background:p.highlight?G.primary:G.faint, color:p.highlight?G.dark:G.white, fontSize:13, fontWeight:700, textDecoration:"none", fontFamily:sans, border:p.highlight?"none":`1px solid ${G.border}` } as any}>
-                  {p.price===0?"Start Free Trial":"Get Started"}
-                </Link>
-              </div>
-            ))}
-          </div>
-          <p style={{ textAlign:"center", fontFamily:sans, fontSize:12, color:G.dim, marginTop:24 }}>
-            All plans include 14-day free trial. WhatsApp support available on all plans.
-          </p>
-        </div>
-      </section>
-
-      {/* ── CTA ── */}
-      <section style={{ padding:"100px 24px", textAlign:"center", position:"relative", overflow:"hidden" }}>
-        <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:500, height:500, background:"radial-gradient(circle,rgba(16,185,129,0.10),transparent 70%)", pointerEvents:"none" }}/>
-        <div style={{ fontFamily:arabic, fontSize:28, color:G.gold, marginBottom:16, opacity:0.7 }}>
-          ابدأ رحلة الحفظ الرقمية اليوم
-        </div>
-        <h2 style={{ fontFamily:serif, fontSize:"clamp(2rem,5vw,4rem)", fontWeight:700, color:G.white, margin:"0 0 16px", lineHeight:1.1 }}>
-          Ready to Transform Your<br/>Hifz Program?
-        </h2>
-        <p style={{ fontFamily:sans, fontSize:15, color:G.dim, maxWidth:480, margin:"0 auto 36px", lineHeight:1.8 }}>
-          Join institutions already using HifzPro. Set up in 5 minutes, see results from day one.
-        </p>
-        <Link href="/signup" style={{ display:"inline-flex", alignItems:"center", gap:10, padding:"16px 40px", borderRadius:14, background:G.primary, color:G.dark, fontSize:16, fontWeight:700, textDecoration:"none", fontFamily:sans, boxShadow:"0 8px 32px rgba(16,185,129,0.4)" } as any}>
-          🕌 Start Free 14-Day Trial →
-        </Link>
-        <div style={{ fontFamily:sans, fontSize:12, color:G.dim, marginTop:14 }}>
-          No credit card · Setup in 5 minutes · Cancel anytime
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer style={{ background:G.dark, borderTop:`1px solid ${G.border}`, padding:"48px 28px 32px" }}>
-        <div style={{ maxWidth:1100, margin:"0 auto" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr", gap:32, marginBottom:40 }}>
-            <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                <span style={{ fontSize:22 }}>🕌</span>
-                <span style={{ fontFamily:serif, fontSize:20, fontWeight:700, color:G.white }}>HifzPro</span>
-              </div>
-              <p style={{ fontFamily:sans, fontSize:13, color:G.dim, lineHeight:1.7, maxWidth:280, margin:"0 0 16px" }}>
-                Pakistan's first intelligent Hifz Management platform. Built with love for the preservation of the Holy Quran.
-              </p>
-              <div style={{ fontFamily:arabic, fontSize:16, color:G.gold, opacity:0.6 }}>
-                وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ
-              </div>
-            </div>
-            {[
-              { title:"Platform", links:[["Features","#features"],["Pricing","#pricing"],["Sign Up","/signup"],["Sign In","/signin"]] },
-              { title:"Modules",  links:[["Hifz Diary","#features"],["Attendance","#features"],["Fee Management","#features"],["Sanad/Certificates","#features"]] },
-              { title:"Support",  links:[["WhatsApp","https://wa.me/923000000000"],["Email","mailto:support@hifzpro.com"],["Documentation","#"],["Contact","#"]] },
-            ].map((col,i)=>(
-              <div key={i}>
-                <div style={{ fontFamily:mono, fontSize:9, letterSpacing:2, color:G.dim, marginBottom:14 }}>{col.title.toUpperCase()}</div>
-                {col.links.map(([label,href],j)=>(
-                  <div key={j} style={{ marginBottom:8 }}>
-                    <a href={href} style={{ fontFamily:sans, fontSize:13, color:"rgba(255,255,255,0.4)", textDecoration:"none" }}>{label}</a>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-          <div style={{ borderTop:`1px solid ${G.border}`, paddingTop:24, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
-            <div style={{ fontFamily:sans, fontSize:12, color:"rgba(255,255,255,0.25)" }}>
-              © {new Date().getFullYear()} HifzPro. Built for the Huffaz. All rights reserved.
-            </div>
-            <div style={{ fontFamily:mono, fontSize:10, color:G.primary, opacity:0.5 }}>
-              www.hifzpro.com
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }
