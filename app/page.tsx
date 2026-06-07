@@ -105,10 +105,12 @@ export default function LandingPage() {
 
       {/* ── NAVBAR ── */}
       <nav style={{ position:"fixed", top:0, left:0, right:0, zIndex:100, padding:"0 28px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", background: scrolled?"rgba(5,13,10,0.95)":"transparent", backdropFilter: scrolled?"blur(12px)":"none", borderBottom: scrolled?`1px solid ${G.border}`:"none", transition:"all 0.3s" }}>
-<HifzMark size={60} primary="#10B981" gold="#C4882A" />
-<div>
-  <div style={{ fontFamily:serif, fontSize:22, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
-  <div style={{ fontFamily:mono, fontSize:7, color:G.primary, letterSpacing:2, opacity:0.8 }}>حفظ پرو</div>
+<div style={{ display:"flex", alignItems:"center", gap:12 }}>
+  <HifzMark size={38} primary="#10B981" gold="#C4882A" />
+  <div>
+    <div style={{ fontFamily:serif, fontSize:22, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
+    <div style={{ fontFamily:mono, fontSize:7, color:G.primary, letterSpacing:2, opacity:0.8 }}>حِفزپرو</div>
+  </div>
 </div>
         <div style={{ display:"flex", gap:28, alignItems:"center" }}>
           {["Features","Pricing","About"].map(l=>(
