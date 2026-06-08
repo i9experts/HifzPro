@@ -111,7 +111,9 @@ export default function SanadsPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {filtered.map((sanad, idx) => {
               const prog = PROGRAM_INFO[sanad.program] || PROGRAM_INFO.HIFZ;
-              const issuedDate = new Date(sanad.issuedAt).toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" });
+             const issuedDateObj = new Date(sanad.issuedAt);
+const issuedDate    = issuedDateObj.toLocaleDateString("en-PK", { day: "numeric", month: "long", year: "numeric" });
+const issuedHijri   = formatHijriBilingual(issuedDateObj);
               return (
                 <div key={sanad.id} style={{ background: colors.white, borderRadius: 14, padding: "16px 20px", border: `1px solid ${colors.n200}`, display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                   {/* Student */}
@@ -132,7 +134,8 @@ export default function SanadsPage() {
                     {prog.icon} {prog.label}
                   </span>
                   {/* Sanad number */}
-                  <div style={{ textAlign: "center" }}>
+                <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
+<div style={{ fontFamily: "Scheherazade New,serif", fontSize: 11, color: colors.gold, marginTop: 1 }}>{issuedHijri.hijriAr}</div>
                     <div style={{ fontFamily: fonts.mono, fontSize: 13, fontWeight: 700, color: colors.primary }}>{sanad.sanadNumber}</div>
                     <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
                   </div>
