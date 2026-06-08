@@ -65,6 +65,11 @@ const MODULES = [
     desc:"Structures, payments, outstanding, receipts",
     href:"/dashboard/admin/fees",               color:"#166534", tag:"Finance",
   },
+ {
+  id:"hijri", icon:"🌙", title:"Hijri Calendar", titleUr:"ہجری کیلنڈر",
+  desc:"Islamic calendar with events, Ramadan, Eid, lesson activity overlay",
+  href:"/dashboard/admin/hijri", color:"#C4882A", tag:"Reference",
+},
   {
     id:"whatsapp",    icon:"💬",  title:"WhatsApp Integration", titleUr:"واٹس ایپ",
     desc:"7 bilingual templates, auto-send on lesson entry, OTP & alerts",
