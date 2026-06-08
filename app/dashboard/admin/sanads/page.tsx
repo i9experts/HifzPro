@@ -134,8 +134,9 @@ const issuedHijri   = formatHijriBilingual(issuedDateObj);
                     {prog.icon} {prog.label}
                   </span>
                   {/* Sanad number */}
-                <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
-<div style={{ fontFamily: "Scheherazade New,serif", fontSize: 11, color: colors.gold, marginTop: 1 }}>{issuedHijri.hijriAr}</div>
+                  <div>
+                    <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
+                    <div style={{ fontFamily: "Scheherazade New,serif", fontSize: 11, color: colors.gold, marginTop: 1 }}>{issuedHijri.hijriAr}</div>
                     <div style={{ fontFamily: fonts.mono, fontSize: 13, fontWeight: 700, color: colors.primary }}>{sanad.sanadNumber}</div>
                     <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
                   </div>
