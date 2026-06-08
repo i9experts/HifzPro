@@ -331,10 +331,9 @@ export default function LandingPage() {
         <div style={{ maxWidth:1100, margin:"0 auto" }}>
           <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr", gap:32, marginBottom:40 }}>
             <div>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-                <span style={{ fontSize:22 }}>🕌</span>
-                <span style={{ fontFamily:serif, fontSize:20, fontWeight:700, color:G.white }}>HifzPro</span>
-              </div>
+              <div style={{ marginBottom:12 }}>
+  <HifzWordmark size={36} textColor="#10B981" goldColor="#C4882A" />
+</div>
               <p style={{ fontFamily:sans, fontSize:13, color:G.dim, lineHeight:1.7, maxWidth:280, margin:"0 0 16px" }}>
                 Pakistan's first intelligent Hifz Management platform. Built with love for the preservation of the Holy Quran.
               </p>
