@@ -106,12 +106,12 @@ export default function LandingPage() {
       {/* ── NAVBAR ── */}
       <nav style={{ position:"fixed", top:0, left:0, right:0, zIndex:100, padding:"0 28px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between", background: scrolled?"rgba(5,13,10,0.95)":"transparent", backdropFilter: scrolled?"blur(12px)":"none", borderBottom: scrolled?`1px solid ${G.border}`:"none", transition:"all 0.3s" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <HifzMark size={38} primary="#10B981" gold="#C4882A" />
-          <div>
-            <div style={{ fontFamily:serif, fontSize:20, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
-            <div style={{ fontFamily:arabic, fontSize:14, color:G.gold, opacity:0.8 }}>حِفزپرو</div>
-          </div>
-        </div>
+  <HifzMark size={38} primary="#10B981" gold="#C4882A" />
+  <div>
+    <div style={{ fontFamily:serif, fontSize:20, fontWeight:700, color:G.white, lineHeight:1 }}>HifzPro</div>
+    <div style={{ fontFamily:arabic, fontSize:14, color:G.gold, opacity:0.8 }}>حِفزپرو</div>
+  </div>
+</div>
         <div style={{ display:"flex", gap:28, alignItems:"center" }}>
           {["Features","Pricing","About"].map(l=>(
             <a key={l} href={`#${l.toLowerCase()}`} style={{ fontFamily:sans, fontSize:13, color:G.dim, textDecoration:"none", transition:"color 0.2s" }}>{l}</a>
