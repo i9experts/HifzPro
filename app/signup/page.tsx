@@ -98,16 +98,7 @@ export default function SignupPage() {
     <div style={{ minHeight:"100vh", background:"#0a0f1a", display:"flex", flexDirection:"column" }}>
       {/* Header */}
       <header style={{ background:"#111827", borderBottom:"1px solid #1f2937", padding:"0 28px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-          <div style={{ width:36, height:36, borderRadius:10, background:"#052e16", border:"1px solid #10B98133", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <span style={{ fontSize:20 }}>🕌</span>
-          </div>
-          <div>
-            <div style={{ fontFamily:"Georgia,serif", fontSize:18, fontWeight:700, color:"white", lineHeight:1 }}>HifzPro</div>
-            <div style={{ fontFamily:"monospace", fontSize:8, color:"#10B981", letterSpacing:2 }}>PAKISTAN'S #1 HIFZ PLATFORM</div>
-          </div>
-        </div>
-        <Link href="/signin" style={{ fontFamily:"'Inter',sans-serif", fontSize:12, color:"#9ca3af", textDecoration:"none" }}>
+        <HifzWordmark size={36} textColor="#10B981" goldColor="#C4882A" />
           Already have an account? <span style={{ color:"#10B981" }}>Sign In →</span>
         </Link>
       </header>
