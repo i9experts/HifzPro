@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { HifzWordmark } from "@/components/ui/HifzMark";
 
 const inp = (extra?: any) => ({
   width: "100%", padding: "13px 14px",
@@ -99,6 +100,7 @@ export default function SignupPage() {
       {/* Header */}
       <header style={{ background:"#111827", borderBottom:"1px solid #1f2937", padding:"0 28px", height:64, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <HifzWordmark size={36} textColor="#10B981" goldColor="#C4882A" />
+        <Link href="/signin" style={{ fontFamily:"'Inter',sans-serif", fontSize:12, color:"#9ca3af", textDecoration:"none" }}>
           Already have an account? <span style={{ color:"#10B981" }}>Sign In →</span>
         </Link>
       </header>
