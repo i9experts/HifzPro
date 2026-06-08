@@ -7,52 +7,72 @@ import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api";
 import { sendWhatsApp } from "@/lib/whatsapp";
 
 const schema = z.object({
-  // Institution
-  institutionName: z.string().min(3),
-  city:            z.string().min(2),
-  country:         z.string().default("Pakistan"),
-  // Admin contact
-  adminName:       z.string().min(2),
-  email:           z.string().email(),
-  phone:           z.string().min(10),
-  whatsapp:        z.string().optional(),
-  // Info
+  institutionName:   z.string().min(3),
+  city:              z.string().min(2),
+  country:           z.string().default("Pakistan"),
+  adminName:         z.string().min(2),
+  email:             z.string().email(),
+  phone:             z.string().min(10),
+  whatsapp:          z.string().optional(),
   estimatedStudents: z.number().optional(),
   programs:          z.array(z.string()).optional(),
   referral:          z.string().optional(),
 });
 
 function generateSlug(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Date.now().toString(36);
+  return (
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") +
+    "-" +
+    Date.now().toString(36)
+  );
 }
 
 function generatePassword(): string {
   const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#";
-  return Array.from({length:10}, ()=>chars[Math.floor(Math.random()*chars.length)]).join("") + "!";
+  return (
+    Array.from({ length: 10 }, () =>
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join("") + "!"
+  );
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body   = await req.json();
+    // ── 1. Parse & validate ──
+    const body = await req.json();
     const result = schema.safeParse(body);
-    if (!result.success) return errorResponse(result.error.errors[0].message);
+    if (!result.success)
+      return errorResponse(result.error.errors[0].message);
     const data = result.data;
 
-    // Check email not already used
-    const emailExists = await prisma.user.findUnique({ where: { email: data.email } });
-    if (emailExists) return errorResponse("An account with this email already exists. Please sign in instead.");
+    // ── 2. Email uniqueness ──
+    const emailExists = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (emailExists)
+      return errorResponse(
+        "An account with this email already exists. Please sign in instead."
+      );
 
-    const slug     = generateSlug(data.institutionName);
-    const password = generatePassword();
-    const hashedPw = await bcrypt.hash(password, 12);
+    // ── 3. Phone uniqueness ──
+    const phoneExists = await prisma.user.findFirst({
+      where: { phone: data.phone },
+    });
+    if (phoneExists)
+      return errorResponse(
+        "An account with this phone number already exists. Please sign in instead."
+      );
 
-    // Trial end date — 14 days
-    const trialEnd = new Date();
+    const slug      = generateSlug(data.institutionName);
+    const password  = generatePassword();
+    const hashedPw  = await bcrypt.hash(password, 12);
+    const trialEnd  = new Date();
     trialEnd.setDate(trialEnd.getDate() + 14);
 
-    // Create everything in a transaction
-    const result2 = await prisma.$transaction(async tx => {
-      // 1. Institution
+    // ── 4. Transaction ──
+    console.log("[signup] starting transaction for:", data.email);
+    const txResult = await prisma.$transaction(async (tx) => {
+
       const institution = await tx.institution.create({
         data: {
           name:        data.institutionName,
@@ -65,8 +85,8 @@ export async function POST(req: NextRequest) {
           isOnboarded: false,
         },
       });
+      console.log("[signup] institution created:", institution.id);
 
-      // 2. Default campus
       const campus = await tx.campus.create({
         data: {
           institutionId: institution.id,
@@ -76,23 +96,23 @@ export async function POST(req: NextRequest) {
           isActive:      true,
         },
       });
+      console.log("[signup] campus created:", campus.id);
 
-      // 3. Admin user
       const admin = await tx.user.create({
         data: {
-          name:         data.adminName,
-          email:        data.email,
-          phone:        data.phone,
-          whatsapp:     data.whatsapp || data.phone,
-          passwordHash: hashedPw,
-          role:         "CAMPUS_ADMIN",
-          institutionId:institution.id,
-          campusId:     campus.id,
-          isActive:     true,
+          name:          data.adminName,
+          email:         data.email,
+          phone:         data.phone,
+          whatsapp:      data.whatsapp || data.phone,
+          passwordHash:  hashedPw,
+          role:          "CAMPUS_ADMIN",
+          institutionId: institution.id,
+          campusId:      campus.id,
+          isActive:      true,
         },
       });
+      console.log("[signup] admin user created:", admin.id);
 
-      // 4. Trial subscription
       await tx.subscription.create({
         data: {
           institutionId: institution.id,
@@ -102,11 +122,12 @@ export async function POST(req: NextRequest) {
           trialEndsAt:   trialEnd,
         },
       });
+      console.log("[signup] subscription created");
 
       return { institution, campus, admin };
     });
 
-    // Send WhatsApp credentials to admin
+    // ── 5. WhatsApp welcome message (non-blocking) ──
     const whatsappNum = data.whatsapp || data.phone;
     const welcomeMsg = `🕌 *HifzPro میں خوش آمدید!*
 ━━━━━━━━━━━━━━━
@@ -121,27 +142,46 @@ export async function POST(req: NextRequest) {
 
 *14 دن کا مفت ٹرائل شروع ہو گیا ہے*
 ━━━━━━━━━━━━━━━
-_HifzPro — پاکستان کا پہلا ذہین حفظ مینجمنٹ سسٹم_`;
+_HifzPro — پاکستان کا پہلا انٹیلیجینٹ حفظ مینجمنٹ سسٹم_`;
 
-    await sendWhatsApp(whatsappNum, welcomeMsg).catch(console.error);
+    sendWhatsApp(whatsappNum, welcomeMsg).catch((e) =>
+      console.error("[signup] WhatsApp welcome failed:", e)
+    );
 
-    // Notify super admin
-    const superAdminMsg = `🆕 *نیا ادارہ رجسٹر ہوا*\n🏫 ${data.institutionName}\n📍 ${data.city}\n👤 ${data.adminName}\n📞 ${data.phone}`;
-    const superAdmin = await prisma.user.findFirst({ where: { role: "SUPER_ADMIN" } });
-    if (superAdmin?.whatsapp || superAdmin?.phone) {
-      await sendWhatsApp((superAdmin.whatsapp || superAdmin.phone)!, superAdminMsg).catch(console.error);
-    }
+    // ── 6. Notify super admin (non-blocking) ──
+    prisma.user
+      .findFirst({ where: { role: "SUPER_ADMIN" } })
+      .then((superAdmin) => {
+        const notifyNum = superAdmin?.whatsapp || superAdmin?.phone;
+        if (notifyNum) {
+          const msg = `🆕 *نیا ادارہ رجسٹر ہوا*\n🏫 ${data.institutionName}\n📍 ${data.city}\n👤 ${data.adminName}\n📞 ${data.phone}`;
+          sendWhatsApp(notifyNum, msg).catch((e) =>
+            console.error("[signup] super admin notify failed:", e)
+          );
+        }
+      })
+      .catch((e) => console.error("[signup] super admin lookup failed:", e));
 
-    return successResponse({
-      message:     "Account created successfully",
-      email:       data.email,
-      password,
-      institutionId: result2.institution.id,
-      campusId:    result2.campus.id,
-    }, 201);
+    console.log("[signup] success for:", data.email);
+
+    return successResponse(
+      {
+        message:       "Account created successfully",
+        email:         data.email,
+        password,
+        institutionId: txResult.institution.id,
+        campusId:      txResult.campus.id,
+      },
+      201
+    );
   } catch (error: any) {
-    if (error?.code === "P2002") return errorResponse("Email or institution name already exists");
-    console.error("Signup error:", error);
-    return serverErrorResponse();
+    console.error("[signup] FATAL ERROR:", error?.code, error?.message, error);
+    if (error?.code === "P2002") {
+      const field = error?.meta?.target?.[0] || "field";
+      return errorResponse(`This ${field} is already registered. Please sign in.`);
+    }
+    return serverErrorResponse(
+      "Something went wrong creating your account. Please try again."
+    );
   }
 }
