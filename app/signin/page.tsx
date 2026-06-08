@@ -285,7 +285,7 @@ export default function SignInPage() {
 
           <div style={{ textAlign: "center", marginTop: 20, fontFamily: fonts.body, fontSize: 13, color: colors.n500 }}>
             Don&apos;t have an account?{" "}
-            <Link href="/get-started" style={{ color: colors.primary, fontWeight: 600, textDecoration: "none" }}>
+            <Link href="/signup" style={{ color: colors.primary, fontWeight: 600, textDecoration: "none" }}>
               Get Started Free
             </Link>
           </div>
