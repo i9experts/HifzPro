@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import HifzMark from "@/components/ui/HifzMark";
+import HifzMark, { HifzWordmark } from "@/components/ui/HifzMark";
 import Link from "next/link";
 
 // ── Design tokens ──
