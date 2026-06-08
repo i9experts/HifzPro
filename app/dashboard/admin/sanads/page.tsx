@@ -134,10 +134,10 @@ const issuedHijri   = formatHijriBilingual(issuedDateObj);
                     {prog.icon} {prog.label}
                   </span>
                   {/* Sanad number */}
-                <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
-<div style={{ fontFamily: "Scheherazade New,serif", fontSize: 11, color: colors.gold, marginTop: 1 }}>{issuedHijri.hijriAr}</div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
                     <div style={{ fontFamily: fonts.mono, fontSize: 13, fontWeight: 700, color: colors.primary }}>{sanad.sanadNumber}</div>
                     <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>{issuedDate}</div>
+                    <div style={{ fontFamily: "Scheherazade New,serif", fontSize: 11, color: colors.gold, marginTop: 1 }}>{issuedHijri.hijriAr}</div>
                   </div>
                   {/* Verified badge */}
                   <span style={{ background: colors.successBg, color: colors.successText, padding: "4px 10px", borderRadius: 6, fontFamily: fonts.mono, fontSize: 9, fontWeight: 700 }}>✓ VERIFIED</span>
