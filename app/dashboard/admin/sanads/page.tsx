@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import { colors, fonts } from "@/lib/tokens";
-
+import { formatHijriBilingual } from "@/lib/hijri";
 interface Sanad {
   id: string; sanadNumber: string; program: string; issuedAt: string;
   student: { id: string; name: string; enrollmentNumber: string; photo: string | null; campus: { institution: { name: string } } | null };
