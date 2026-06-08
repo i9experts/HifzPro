@@ -250,28 +250,18 @@ export function nextHijriMonth(year: number, month: number): { year: number; mon
 // ── Approximate Hijri → Gregorian conversion ──
 // Used internally to estimate the Gregorian date for a Hijri date.
 // Based on the Kuwaiti algorithm approximation.
+// Reference anchor: 1 Muharram 1446 AH = 7 July 2024 (verified)
+const REF_GREG  = new Date(2024, 6, 7); // July 7, 2024
+const REF_YEAR  = 1446;
+const REF_MONTH = 1;
+const AVG_MONTH = 29.530589; // mean synodic month in days
+
 export function hijriToGregorianApprox(hYear: number, hMonth: number, hDay: number): Date {
-  const N = hDay + Math.ceil(29.5001 * (hMonth - 1)) +
-    (hYear - 1) * 354 +
-    Math.floor((3 + 11 * hYear) / 30) + 1948440 - 385;
-  
-  let J = N;
-  if (N > 2299160) {
-    const alpha = Math.floor((N - 1867216.25) / 36524.25);
-    J = N + 1 + alpha - Math.floor(alpha / 4);
-  }
-  const B = J + 1524;
-  const C = Math.floor((B - 122.1) / 365.25);
-  const D = Math.floor(365.25 * C);
-  const E = Math.floor((B - D) / 30.6001);
-  
-  const day   = B - D - Math.floor(30.6001 * E);
-  const month = E < 14 ? E - 1 : E - 13;
-  const year  = month > 2 ? C - 4716 : C - 4715;
-  
-  const date  = new Date(year, month - 1, day);
-  date.setFullYear(year); // Handle years < 100
-  return date;
+  const monthsFromRef = (hYear - REF_YEAR) * 12 + (hMonth - REF_MONTH);
+  const daysFromRef   = Math.round(monthsFromRef * AVG_MONTH) + (hDay - 1);
+  const result        = new Date(REF_GREG);
+  result.setDate(result.getDate() + daysFromRef);
+  return result;
 }
 
 // ── Fallback Hijri conversion (without Intl.DateTimeFormat support) ──
