@@ -179,6 +179,9 @@ export default function AdminDashboard() {
           </h1>
           <div style={{ fontFamily:"'Scheherazade New',serif", fontSize:18, color:"#C4882A", opacity:0.8 }}>
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+         <div style={{ fontFamily: fonts.mono, fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 6, letterSpacing: 1 }}>
+  {typeof window !== "undefined" ? require("@/lib/hijri").formatHijri(new Date(), "en") : ""}
+</div>
           </div>
         </div>
 
