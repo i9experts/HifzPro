@@ -66,6 +66,11 @@ const MODULES = [
     href:"/dashboard/admin/fees",               color:"#166534", tag:"Finance",
   },
   {
+    id:"whatsapp",    icon:"💬",  title:"WhatsApp Integration", titleUr:"واٹس ایپ",
+    desc:"7 bilingual templates, auto-send on lesson entry, OTP & alerts",
+    href:"/dashboard/admin/whatsapp",           color:"#16a34a", tag:"Core",
+  },
+  {
     id:"scholarships",icon:"🎓",  title:"Scholarship Manager",  titleUr:"وظائف",
     desc:"Full/partial waivers, merit & need-based, donor-linked",
     href:"/dashboard/admin/fees/scholarships",  color:"#7c3aed", tag:"Finance",
