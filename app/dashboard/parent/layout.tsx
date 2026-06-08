@@ -83,7 +83,6 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
       <PWARegister />
 
       <div style={{
-        minHeight: "100vh",
         minHeight: "100dvh", // dynamic viewport height — respects browser chrome on mobile
         background: "#f8fffe",
         maxWidth: 480,
