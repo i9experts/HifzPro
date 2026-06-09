@@ -101,6 +101,9 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
             </div>
             <div style={{display:"flex",gap:8,flexShrink:0}}>
               <Link href={`/dashboard/admin/students/${id}/edit`} style={{padding:"9px 18px",borderRadius:8,background:colors.gold,color:colors.white,fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>Edit Student</Link>
+           <a href={`/api/admin/students/${id}/report`} target="_blank" rel="noopener noreferrer" style={{padding:"9px 18px",borderRadius:8,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",color:"white",fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>
+  📄 Print Report
+</a>
             </div>
           </div>
 
