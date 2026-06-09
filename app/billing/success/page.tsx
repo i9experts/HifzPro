@@ -1,13 +1,10 @@
-// ════════════════════════════════════════════
-// FILE 1: app/billing/success/page.tsx
-// ════════════════════════════════════════════
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { colors, fonts } from "@/lib/tokens";
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const params  = useSearchParams();
   const session = params.get("session_id");
   const [sub, setSub] = useState<any>(null);
@@ -65,5 +62,17 @@ export default function BillingSuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#050D0A,#052e16)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Loading...</div>
+      </div>
+    }>
+      <BillingSuccessContent />
+    </Suspense>
   );
 }
