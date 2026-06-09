@@ -132,12 +132,14 @@ model Institution {
   isOnboarded  Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  campuses      Campus[]
-  users         User[]
-  donors        Donor[]
+  about        String?
+  established  Int?
+  programs     String?
+  whatsapp     String?
+  campuses     Campus[]
+  users        User[]
+  donors       Donor[]
   subscriptions Subscription[]
-
   @@map("institutions")
 }
 
