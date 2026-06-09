@@ -583,13 +583,13 @@ model FeePayment {
   paymentMethod  String?
   receiptNumber  String        @unique
   notes          String?
-  collectedById  String
+  collectedById  String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   student        Student       @relation(fields: [studentId], references: [id])
   feeStructure   FeeStructure? @relation(fields: [feeStructureId], references: [id])
-  collectedBy    User          @relation("FeeCollectedBy", fields: [collectedById], references: [id])
+  collectedBy    User?   @relation("FeeCollectedBy", fields: [collectedById], references: [id])
 
   @@map("fee_payments")
 }
