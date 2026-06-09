@@ -296,7 +296,7 @@ export default async function InstitutionProfilePage({ params }: Props) {
           {/* Share card */}
           <div style={{ background: "white", borderRadius: 16, padding: "16px 20px", border: "1px solid #e2e8f0" }}>
             <div style={{ fontFamily: "monospace", fontSize: 9, letterSpacing: 2, color: "#94a3b8", marginBottom: 12 }}>SHARE THIS PAGE</div>
-            <div style={{ display: "flex", gap: 8" }}>
+            <div style={{ display: "flex", gap: 8 }}>
               <button
                 onClick={() => { navigator.clipboard.writeText(`https://hifzpro.com/${inst.slug}`); }}
                 style={{ flex: 1, padding: "9px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 11, fontWeight: 600, color: "#374151" }}>
