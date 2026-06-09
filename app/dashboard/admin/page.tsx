@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import { colors, fonts } from "@/lib/tokens";
+import { formatHijri } from "@/lib/hijri";
 
 interface DashboardStats {
   totalStudents:    number;
@@ -37,6 +38,11 @@ const MODULES = [
     desc:"Daily attendance, dot grid, auto-notify parents",
     href:"/dashboard/admin/attendance",         color:"#0f766e", tag:"Core",
   },
+  {
+    id:"whatsapp",    icon:"💬",  title:"WhatsApp Integration", titleUr:"واٹس ایپ",
+    desc:"7 bilingual templates, auto-send on lesson entry, OTP & alerts",
+    href:"/dashboard/admin/whatsapp",           color:"#16a34a", tag:"Core",
+  },
   // ── Academic ──
   {
     id:"tests",       icon:"📝",  title:"Test & Assessment",    titleUr:"امتحانات",
@@ -65,16 +71,6 @@ const MODULES = [
     desc:"Structures, payments, outstanding, receipts",
     href:"/dashboard/admin/fees",               color:"#166534", tag:"Finance",
   },
- {
-  id:"hijri", icon:"🌙", title:"Hijri Calendar", titleUr:"ہجری کیلنڈر",
-  desc:"Islamic calendar with events, Ramadan, Eid, lesson activity overlay",
-  href:"/dashboard/admin/hijri", color:"#C4882A", tag:"Reference",
-},
-  {
-    id:"whatsapp",    icon:"💬",  title:"WhatsApp Integration", titleUr:"واٹس ایپ",
-    desc:"7 bilingual templates, auto-send on lesson entry, OTP & alerts",
-    href:"/dashboard/admin/whatsapp",           color:"#16a34a", tag:"Core",
-  },
   {
     id:"scholarships",icon:"🎓",  title:"Scholarship Manager",  titleUr:"وظائف",
     desc:"Full/partial waivers, merit & need-based, donor-linked",
@@ -98,10 +94,21 @@ const MODULES = [
     href:"/dashboard/admin/campuses",           color:"#0369a1", tag:"Enterprise",
   },
   {
-  id:"quran", icon:"📖", title:"Quran Module", titleUr:"قرآن",
-  desc:"Arabic text, audio recitation, memorization mode",
-  href:"/dashboard/admin/quran", color:"#C4882A", tag:"Reference",
-}
+    id:"billing",     icon:"💳",  title:"Billing & Plans",      titleUr:"بلنگ",
+    desc:"Manage subscription, upgrade plan, download invoices",
+    href:"/billing",                            color:"#C4882A", tag:"Enterprise",
+  },
+  // ── Reference ──
+  {
+    id:"hijri",       icon:"🌙",  title:"Hijri Calendar",       titleUr:"ہجری کیلنڈر",
+    desc:"Islamic calendar with events, Ramadan, Eid, lesson activity overlay",
+    href:"/dashboard/admin/hijri",              color:"#C4882A", tag:"Reference",
+  },
+  {
+    id:"quran",       icon:"📖",  title:"Quran Module",         titleUr:"قرآن",
+    desc:"Arabic text, audio recitation, memorization mode",
+    href:"/dashboard/admin/quran",              color:"#C4882A", tag:"Reference",
+  },
 ];
 
 const TAG_COLORS: Record<string,{color:string;bg:string;border:string}> = {
@@ -112,7 +119,49 @@ const TAG_COLORS: Record<string,{color:string;bg:string;border:string}> = {
   Finance:      { color:"#166534", bg:"#dcfce7", border:"#86efac" },
   Certificates: { color:"#92400e", bg:"#fffbeb", border:"#fde68a" },
   Enterprise:   { color:"#0369a1", bg:"#f0f9ff", border:"#bae6fd" },
+  Reference:    { color:"#C4882A", bg:"#fffbeb", border:"#fde68a" },
 };
+
+// ── Subscription Banner — shown outside AdminDashboard ──
+function SubscriptionBanner() {
+  const [sub, setSub] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/billing/status")
+      .then(r => r.json())
+      .then(d => { if (d.success) setSub(d.data); })
+      .catch(() => {});
+  }, []);
+
+  if (!sub) return null;
+  if (sub.status === "ACTIVE") return null;
+
+  const isPastDue = sub.status === "PAST_DUE";
+  const isTrial   = sub.status === "TRIAL";
+  const trialEnd  = sub.trialEndsAt ? new Date(sub.trialEndsAt) : null;
+  const daysLeft  = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000)) : null;
+
+  const bg     = isPastDue ? "#450a0a" : (daysLeft !== null && daysLeft <= 3) ? "#451a03" : "#1e3a5f";
+  const border = isPastDue ? "#7f1d1d" : (daysLeft !== null && daysLeft <= 3) ? "#78350f" : "#1d4ed8";
+
+  let message = "";
+  if (isPastDue) message = "⚠️ Payment failed — your dashboard will be locked soon.";
+  else if (isTrial && daysLeft !== null && daysLeft <= 3) message = `🔔 Trial expires in ${daysLeft} day${daysLeft !== 1 ? "s" : ""} — upgrade to keep access.`;
+  else if (isTrial && daysLeft !== null && daysLeft > 3)  message = `🎯 Free trial active — ${daysLeft} days remaining.`;
+
+  if (!message) return null;
+
+  return (
+    <div style={{ background: bg, borderRadius: 12, padding: "12px 20px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${border}`, flexWrap: "wrap", gap: 10 }}>
+      <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.85)" }}>
+        {message}
+      </div>
+      <Link href="/billing" style={{ padding: "7px 18px", borderRadius: 8, background: "#C4882A", color: "white", fontSize: 12, fontWeight: 700, textDecoration: "none", fontFamily: "'Inter',sans-serif", whiteSpace: "nowrap" }}>
+        {isPastDue ? "Fix Payment →" : "Upgrade Now →"}
+      </Link>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [stats,     setStats]     = useState<DashboardStats | null>(null);
@@ -138,10 +187,10 @@ export default function AdminDashboard() {
     window.location.href = "/signin";
   };
 
-  const now       = new Date();
-  const hour      = now.getHours();
-  const greeting  = hour < 12 ? "Subh Bakhair" : hour < 17 ? "Assalamu Alaikum" : "Shaam Bakhair";
-  const filtered  = MODULES.filter(m =>
+  const now      = new Date();
+  const hour     = now.getHours();
+  const greeting = hour < 12 ? "Subh Bakhair" : hour < 17 ? "Assalamu Alaikum" : "Shaam Bakhair";
+  const filtered = MODULES.filter(m =>
     !search ||
     m.title.toLowerCase().includes(search.toLowerCase()) ||
     m.titleUr.includes(search) ||
@@ -162,12 +211,12 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+          <Link href="/billing" style={{ padding:"6px 14px", borderRadius:8, background:"rgba(196,136,42,0.15)", border:"1px solid rgba(196,136,42,0.4)", color:"#C4882A", fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:"monospace" }}>
+            💳 Billing
+          </Link>
           <Link href="/dashboard/admin/students/new" style={{ padding:"8px 16px", borderRadius:8, background:"#C4882A", color:"white", fontSize:12, fontWeight:700, textDecoration:"none" }}>
             + Enroll Student
           </Link>
-<Link href="/billing" style={{ padding:"6px 14px", borderRadius:8, background:"rgba(196,136,42,0.15)", border:"1px solid rgba(196,136,42,0.4)", color:colors.gold, fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:"monospace" }}>
-  💳 Billing
-</Link>
           <button onClick={handleSignOut} style={{ padding:"7px 14px", borderRadius:7, background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.7)", fontSize:12, cursor:"pointer" }}>
             Sign Out
           </button>
@@ -187,11 +236,14 @@ export default function AdminDashboard() {
           </h1>
           <div style={{ fontFamily:"'Scheherazade New',serif", fontSize:18, color:"#C4882A", opacity:0.8 }}>
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-         <div style={{ fontFamily: fonts.mono, fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 6, letterSpacing: 1 }}>
-  {typeof window !== "undefined" ? require("@/lib/hijri").formatHijri(new Date(), "en") : ""}
-</div>
+          </div>
+          <div style={{ fontFamily:"monospace", fontSize:9, color:"rgba(255,255,255,0.4)", marginTop:6, letterSpacing:1 }}>
+            {formatHijri(now, "en")}
           </div>
         </div>
+
+        {/* Subscription banner */}
+        <SubscriptionBanner />
 
         {/* Stats row */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:24 }}>
@@ -258,8 +310,8 @@ export default function AdminDashboard() {
         {/* Bottom quick links */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12 }}>
           {[
-            { icon:"📊", label:"View Analytics",     sub:"Dropout risk & health",       href:"/dashboard/admin/analytics",  color:"#0e7490" },
-            { icon:"📱", label:"Parent Portal",       sub:"Mobile-first parent view",    href:"/dashboard/parent",           color:"#7c3aed" },
+            { icon:"📊", label:"View Analytics", sub:"Dropout risk & health",    href:"/dashboard/admin/analytics", color:"#0e7490" },
+            { icon:"📱", label:"Parent Portal",  sub:"Mobile-first parent view", href:"/dashboard/parent",          color:"#7c3aed" },
           ].map((q,i)=>(
             <Link key={i} href={q.href} style={{ textDecoration:"none" }}>
               <div style={{ background:"white", borderRadius:10, padding:"14px 16px", border:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:12, borderLeft:`4px solid ${q.color}` }}>
