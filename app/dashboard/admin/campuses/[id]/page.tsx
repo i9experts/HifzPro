@@ -85,7 +85,7 @@ export default function CampusDetailPage({ params }: { params: Promise<{ id: str
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
             {[
-              {val:c._count.students,       label:"Students",  color:"white"},
+              {val:c.students?.length||0,   label:"Students",  color:"white"},
               {val:c._count.batches,         label:"Batches",   color:"white"},
               {val:stats.weekLessons,        label:"Lessons/wk",color:"white"},
               {val:c.users?.length||0,       label:"Ustadh",    color:"white"},
@@ -195,7 +195,7 @@ export default function CampusDetailPage({ params }: { params: Promise<{ id: str
                   <label style={{display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:5}}>Transfer To Campus *</label>
                   <select value={transferForm.toCampusId} onChange={e=>setTransferForm(f=>({...f,toCampusId:e.target.value,toBatchId:""}))} style={inp}>
                     <option value="">Select destination campus...</option>
-                    {campuses.map((c:any)=><option key={c.id} value={c.id}>{c.name} — {c.city||"—"} ({c._count.students} students)</option>)}
+                  {campuses.map((c:any)=><option key={c.id} value={c.id}>{c.name} — {c.city||"—"} ({c._count?.students||0} students)</option>)}
                   </select>
                 </div>
                 {toCampusBatches.length>0&&(
