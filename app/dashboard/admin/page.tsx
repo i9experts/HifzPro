@@ -165,6 +165,9 @@ export default function AdminDashboard() {
           <Link href="/dashboard/admin/students/new" style={{ padding:"8px 16px", borderRadius:8, background:"#C4882A", color:"white", fontSize:12, fontWeight:700, textDecoration:"none" }}>
             + Enroll Student
           </Link>
+<Link href="/billing" style={{ padding:"6px 14px", borderRadius:8, background:"rgba(196,136,42,0.15)", border:"1px solid rgba(196,136,42,0.4)", color:colors.gold, fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:"monospace" }}>
+  💳 Billing
+</Link>
           <button onClick={handleSignOut} style={{ padding:"7px 14px", borderRadius:7, background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.2)", color:"rgba(255,255,255,0.7)", fontSize:12, cursor:"pointer" }}>
             Sign Out
           </button>
