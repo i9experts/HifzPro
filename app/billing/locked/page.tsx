@@ -1,5 +1,6 @@
 "use client";
 // app/billing/locked/page.tsx
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { colors, fonts } from "@/lib/tokens";
@@ -42,7 +43,7 @@ const REASONS: Record<string, { icon: string; title: string; titleUr: string; bo
   },
 };
 
-export default function BillingLockedPage() {
+function BillingLockedContent() {
   const params = useSearchParams();
   const reason = (params.get("reason") || "no_subscription") as keyof typeof REASONS;
   const info   = REASONS[reason] || REASONS.no_subscription;
@@ -93,5 +94,17 @@ export default function BillingLockedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BillingLockedPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#050D0A,#1a0505)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}>Loading...</div>
+      </div>
+    }>
+      <BillingLockedContent />
+    </Suspense>
   );
 }
