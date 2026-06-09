@@ -253,11 +253,10 @@ export default function AdminDashboard() {
         </div>
 
         {/* Bottom quick links */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:12 }}>
           {[
             { icon:"📊", label:"View Analytics",     sub:"Dropout risk & health",       href:"/dashboard/admin/analytics",  color:"#0e7490" },
             { icon:"📱", label:"Parent Portal",       sub:"Mobile-first parent view",    href:"/dashboard/parent",           color:"#7c3aed" },
-            { icon:"🔐", label:"Super Admin Panel",   sub:"SaaS control center",         href:"/superadmin",                 color:"#0D5C3A" },
           ].map((q,i)=>(
             <Link key={i} href={q.href} style={{ textDecoration:"none" }}>
               <div style={{ background:"white", borderRadius:10, padding:"14px 16px", border:"1px solid #e2e8f0", display:"flex", alignItems:"center", gap:12, borderLeft:`4px solid ${q.color}` }}>
