@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
           interval,
         },
         trial_end: subscription?.status === "TRIAL" && subscription?.trialEndsAt
-          ? "continue" // preserve remaining trial
+          ? Math.floor(new Date(subscription.trialEndsAt).getTime() / 1000) // Unix timestamp to preserve remaining trial
           : undefined,
       },
       allow_promotion_codes: true,
