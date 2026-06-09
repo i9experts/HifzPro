@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
@@ -20,7 +20,7 @@ const inp = { width:"100%", padding:"10px 12px", border:`1.5px solid ${colors.n2
 interface Student { id:string; name:string; enrollmentNumber:string; program:string; }
 interface FeeStructure { id:string; name:string; amount:number; feeType:string; frequency:string; }
 
-export default function RecordPaymentPage() {
+function RecordPaymentContent() {
   const searchParams = useSearchParams();
   const prefilledStudentId = searchParams.get("studentId") || "";
 
@@ -241,5 +241,13 @@ export default function RecordPaymentPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RecordPaymentPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>Loading...</div>}>
+      <RecordPaymentContent />
+    </Suspense>
   );
 }
