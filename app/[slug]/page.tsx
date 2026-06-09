@@ -1,10 +1,8 @@
 // app/[slug]/page.tsx
-// Public institution profile page — no auth required
-// Accessible at hifzpro.com/[slug]
-
 import { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import prisma from "@/lib/prisma";
 
 const PROGRAM_INFO: Record<string, { label: string; labelUr: string; icon: string; color: string; bg: string; desc: string }> = {
   HIFZ:    { label: "Hifz ul Quran",  labelUr: "حفظ القرآن",  icon: "📖", color: "#0D5C3A", bg: "#dcfce7", desc: "Complete memorization of the Holy Quran" },
@@ -15,12 +13,74 @@ const PROGRAM_INFO: Record<string, { label: string; labelUr: string; icon: strin
 
 async function getInstitution(slug: string) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://hifzpro.com";
-    const res = await fetch(`${baseUrl}/api/public/${slug}`, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.success ? data.data : null;
-  } catch { return null; }
+    const institution = await prisma.institution.findUnique({
+      where: { slug, isActive: true },
+      include: {
+        campuses: {
+          where: { isActive: true },
+          select: {
+            id: true, name: true, nameArabic: true,
+            city: true, address: true, phone: true,
+            students: {
+              where:  { status: "ACTIVE" },
+              select: {
+                id: true, program: true,
+                sanads: { select: { id: true } },
+              },
+            },
+          },
+        },
+        users: {
+          where:  { role: "USTADH", isActive: true },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!institution) return null;
+
+    const allStudents   = institution.campuses.flatMap(c => c.students);
+    const sanadsCount   = allStudents.reduce((acc, s) => acc + (s.sanads?.length || 0), 0);
+    const programCounts: Record<string, number> = {};
+    allStudents.forEach(s => { programCounts[s.program] = (programCounts[s.program] || 0) + 1; });
+
+    const inst = institution as any;
+    const storedPrograms: string[] = inst.programs
+      ? inst.programs.split(",").filter(Boolean)
+      : Object.keys(programCounts);
+
+    const campusesPublic = institution.campuses.map(({ students: _s, ...rest }) => rest);
+
+    return {
+      id:          institution.id,
+      name:        institution.name,
+      nameArabic:  institution.nameArabic,
+      slug:        institution.slug,
+      logo:        institution.logo,
+      city:        institution.city,
+      country:     institution.country,
+      address:     institution.address,
+      phone:       institution.phone,
+      email:       institution.email,
+      website:     institution.website,
+      whatsapp:    inst.whatsapp    || null,
+      about:       inst.about       || null,
+      established: inst.established || null,
+      programs:    storedPrograms,
+      campuses:    campusesPublic,
+      stats: {
+        activeStudents: allStudents.length,
+        asatidha:       institution.users.length,
+        campuses:       institution.campuses.length,
+        sanadsIssued:   sanadsCount,
+        programCounts,
+      },
+      createdAt: institution.createdAt,
+    };
+  } catch (e) {
+    console.error("[slug page] DB error:", e);
+    return null;
+  }
 }
 
 type Props = { params: Promise<{ slug: string }> };
@@ -28,11 +88,10 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const inst = await getInstitution(slug);
-  if (!inst) return { title: "Institution Not Found — HifzPro" };
-
+  if (!inst) return { title: "Not Found — HifzPro" };
   return {
     title:       `${inst.name} — HifzPro`,
-    description: inst.about || `${inst.name} is a Quran memorization institute in ${inst.city || "Pakistan"} using HifzPro for student management.`,
+    description: inst.about || `${inst.name} is a Quran memorization institute in ${inst.city || "Pakistan"} using HifzPro.`,
     openGraph: {
       title:       inst.name,
       description: inst.about || `Hifz institute in ${inst.city || "Pakistan"}`,
@@ -51,13 +110,12 @@ export default async function InstitutionProfilePage({ params }: Props) {
     ? `https://wa.me/${inst.whatsapp.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`السلام علیکم، I'm interested in enrolling my child at ${inst.name}. Please share details.`)}`
     : null;
 
-  const joinedYear = inst.createdAt ? new Date(inst.createdAt).getFullYear() : null;
-  const estYear    = inst.established || joinedYear;
+  const estYear = inst.established || (inst.createdAt ? new Date(inst.createdAt).getFullYear() : null);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fffe", fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
 
-      {/* ── Navbar ── */}
+      {/* Navbar */}
       <nav style={{ background: "#0D5C3A", padding: "0 24px", height: 56, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
           <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "white" }}>HifzPro</div>
@@ -68,15 +126,15 @@ export default async function InstitutionProfilePage({ params }: Props) {
         </Link>
       </nav>
 
-      {/* ── Hero / Header ── */}
+      {/* Hero */}
       <div style={{ background: "linear-gradient(135deg,#0D5C3A,#065f46)", position: "relative", overflow: "hidden", padding: "40px 24px 48px" }}>
-        {/* Islamic pattern */}
         <svg style={{ position: "absolute", right: -20, top: -20, opacity: 0.05 }} width="300" height="300" viewBox="0 0 80 80">
-          {[0,1,2,3,4].map(i => <polygon key={i} points={`24,${4+i*4} ${56-i*4},4 76,${24+i*4} ${76-i*4},${56} ${56},${76-i*4} 24,${76-i*4} 4,${56-i*4} ${4+i*4},24`} fill="none" stroke="white" strokeWidth="0.4"/>)}
+          {[0,1,2,3,4].map(i => (
+            <polygon key={i} points={`24,${4+i*4} ${56-i*4},4 76,${24+i*4} ${76-i*4},${56} ${56},${76-i*4} 24,${76-i*4} 4,${56-i*4} ${4+i*4},24`} fill="none" stroke="white" strokeWidth="0.4"/>
+          ))}
         </svg>
 
         <div style={{ maxWidth: 900, margin: "0 auto", display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap", position: "relative" }}>
-
           {/* Logo */}
           <div style={{ width: 110, height: 110, borderRadius: 20, background: "white", boxShadow: "0 8px 32px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden", border: "3px solid rgba(255,255,255,0.3)" }}>
             {inst.logo
@@ -87,37 +145,21 @@ export default async function InstitutionProfilePage({ params }: Props) {
 
           {/* Info */}
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "monospace", fontSize: 9, color: "rgba(255,255,255,0.5)", letterSpacing: 2, marginBottom: 4 }}>
-              HIFZ INSTITUTE · قرآنی مدرسہ
-            </div>
+            <div style={{ fontFamily: "monospace", fontSize: 9, color: "rgba(255,255,255,0.5)", letterSpacing: 2, marginBottom: 4 }}>HIFZ INSTITUTE · قرآنی مدرسہ</div>
             <h1 style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: "clamp(1.8rem,4vw,2.8rem)", fontWeight: 700, color: "white", margin: "0 0 4px", lineHeight: 1.1 }}>
               {inst.name}
             </h1>
             {inst.nameArabic && (
-              <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 20, color: "#C4882A", marginBottom: 8 }}>
-                {inst.nameArabic}
-              </div>
+              <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 20, color: "#C4882A", marginBottom: 8 }}>{inst.nameArabic}</div>
             )}
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 8 }}>
-              {inst.city && (
-                <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-                  📍 {inst.city}{inst.country && inst.country !== "Pakistan" ? `, ${inst.country}` : ", Pakistan"}
-                </span>
-              )}
-              {estYear && (
-                <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-                  🕌 Est. {estYear}
-                </span>
-              )}
-              {inst.stats.campuses > 1 && (
-                <span style={{ fontFamily: "'Inter',sans-serif", fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
-                  🏛️ {inst.stats.campuses} Campuses
-                </span>
-              )}
+              {inst.city && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>📍 {inst.city}{inst.country !== "Pakistan" ? `, ${inst.country}` : ", Pakistan"}</span>}
+              {estYear  && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>🕌 Est. {estYear}</span>}
+              {inst.stats.campuses > 1 && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>🏛️ {inst.stats.campuses} Campuses</span>}
             </div>
           </div>
 
-          {/* CTA buttons */}
+          {/* CTAs */}
           <div style={{ display: "flex", flexDirection: "column", gap: 8, flexShrink: 0 }}>
             <Link href={`/signup?ref=${inst.slug}`} style={{ padding: "12px 24px", borderRadius: 10, background: "#C4882A", color: "white", fontSize: 13, fontWeight: 700, textDecoration: "none", textAlign: "center", boxShadow: "0 4px 16px rgba(196,136,42,0.4)" }}>
               📝 Enroll Now
@@ -131,38 +173,36 @@ export default async function InstitutionProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── Stats strip ── */}
-      <div style={{ background: "white", borderBottom: "1px solid #e2e8f0", padding: "0 24px" }}>
+      {/* Stats strip */}
+      <div style={{ background: "white", borderBottom: "1px solid #e2e8f0" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)" }}>
           {[
-            { val: inst.stats.activeStudents, label: "Active Students",  labelUr: "طلباء",      icon: "👨‍🎓" },
-            { val: inst.stats.asatidha,       label: "Asatidha",         labelUr: "اساتذہ",     icon: "👨‍🏫" },
-            { val: inst.stats.campuses,       label: "Campuses",          labelUr: "کیمپس",      icon: "🏛️" },
-            { val: inst.stats.sanadsIssued,   label: "Sanads Issued",    labelUr: "سند جاری",   icon: "🏆" },
+            { val: inst.stats.activeStudents, label: "Active Students", labelUr: "طلباء",    icon: "👨‍🎓" },
+            { val: inst.stats.asatidha,       label: "Asatidha",        labelUr: "اساتذہ",   icon: "👨‍🏫" },
+            { val: inst.stats.campuses,       label: "Campuses",         labelUr: "کیمپس",    icon: "🏛️" },
+            { val: inst.stats.sanadsIssued,   label: "Sanads Issued",   labelUr: "سند جاری", icon: "🏆" },
           ].map((s, i) => (
             <div key={i} style={{ padding: "16px 12px", textAlign: "center", borderRight: i < 3 ? "1px solid #f1f5f9" : "none" }}>
               <div style={{ fontSize: 20, marginBottom: 4 }}>{s.icon}</div>
               <div style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 700, color: "#0D5C3A" }}>{s.val}</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 10, color: "#64748b" }}>{s.label}</div>
+              <div style={{ fontSize: 10, color: "#64748b" }}>{s.label}</div>
               <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 10, color: "#C4882A", opacity: 0.7 }}>{s.labelUr}</div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ── Main content ── */}
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+      {/* Main content */}
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px", display: "grid", gridTemplateColumns: "1fr 300px", gap: 24, alignItems: "start" }}>
 
-        {/* Left column */}
+        {/* Left */}
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* About */}
           {inst.about && (
             <div style={{ background: "white", borderRadius: 16, padding: "22px 24px", border: "1px solid #e2e8f0" }}>
               <div style={{ fontFamily: "monospace", fontSize: 9, letterSpacing: 2, color: "#0D5C3A", marginBottom: 12 }}>ABOUT · تعارف</div>
-              <p style={{ fontFamily: "'Inter',sans-serif", fontSize: 14, color: "#374151", lineHeight: 1.8, margin: 0 }}>
-                {inst.about}
-              </p>
+              <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.8, margin: 0 }}>{inst.about}</p>
             </div>
           )}
 
@@ -181,7 +221,7 @@ export default async function InstitutionProfilePage({ params }: Props) {
                       <div>
                         <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 700, color: info.color }}>{info.label}</div>
                         <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 13, color: info.color, opacity: 0.8 }}>{info.labelUr}</div>
-                        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "#6b7280", marginTop: 4, lineHeight: 1.5 }}>{info.desc}</div>
+                        <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4, lineHeight: 1.5 }}>{info.desc}</div>
                         {count > 0 && <div style={{ fontFamily: "monospace", fontSize: 10, color: info.color, marginTop: 4, fontWeight: 700 }}>{count} active students</div>}
                       </div>
                     </div>
@@ -202,82 +242,77 @@ export default async function InstitutionProfilePage({ params }: Props) {
                   <div key={campus.id} style={{ display: "flex", gap: 12, padding: "12px 14px", background: "#f8fffe", borderRadius: 10, border: "1px solid #dcfce7", alignItems: "flex-start" }}>
                     <span style={{ fontSize: 20, flexShrink: 0 }}>🏛️</span>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{campus.name}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a" }}>{campus.name}</div>
                       {campus.nameArabic && <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 12, color: "#0D5C3A" }}>{campus.nameArabic}</div>}
-                      {campus.address && <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "#64748b", marginTop: 2 }}>📍 {campus.address}</div>}
-                      {campus.city && !campus.address && <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "#64748b", marginTop: 2 }}>📍 {campus.city}</div>}
+                      {(campus.address || campus.city) && <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>📍 {campus.address || campus.city}</div>}
                     </div>
-                    {campus.phone && (
-                      <a href={`tel:${campus.phone}`} style={{ fontFamily: "monospace", fontSize: 11, color: "#0D5C3A", textDecoration: "none" }}>📞 {campus.phone}</a>
-                    )}
+                    {campus.phone && <a href={`tel:${campus.phone}`} style={{ fontFamily: "monospace", fontSize: 11, color: "#0D5C3A", textDecoration: "none" }}>📞 {campus.phone}</a>}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Powered by HifzPro */}
+          {/* Powered by */}
           <div style={{ background: "linear-gradient(135deg,#050D0A,#0D5C3A)", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 22 }}>📱</div>
             <div style={{ flex: 1 }}>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, fontWeight: 700, color: "white" }}>Managed with HifzPro</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>Pakistan's first intelligent Hifz management platform</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>Pakistan's first intelligent Hifz management platform</div>
             </div>
-            <Link href="/" style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 700, textDecoration: "none", fontFamily: "'Inter',sans-serif", whiteSpace: "nowrap" }}>
+            <Link href="/" style={{ padding: "7px 14px", borderRadius: 8, background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
               Learn More →
             </Link>
           </div>
         </div>
 
-        {/* Right column — Contact card */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, position: "sticky", top: 20 }}>
-
-          {/* Contact card */}
-          <div style={{ background: "white", borderRadius: 16, padding: "20px 20px", border: "1px solid #e2e8f0", overflow: "hidden" }}>
+        {/* Right — Contact card */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ background: "white", borderRadius: 16, padding: "20px", border: "1px solid #e2e8f0" }}>
             <div style={{ fontFamily: "monospace", fontSize: 9, letterSpacing: 2, color: "#0D5C3A", marginBottom: 14 }}>CONTACT · رابطہ</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {inst.phone && (
                 <a href={`tel:${inst.phone}`} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 8, background: "#f8fffe", border: "1px solid #dcfce7", textDecoration: "none" }}>
-                  <span style={{ fontSize: 18 }}>📞</span>
+                  <span>📞</span>
                   <div>
                     <div style={{ fontFamily: "monospace", fontSize: 12, color: "#0D5C3A", fontWeight: 600 }}>{inst.phone}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 9, color: "#94a3b8" }}>Call / Phone</div>
+                    <div style={{ fontSize: 9, color: "#94a3b8" }}>Call</div>
                   </div>
                 </a>
               )}
-              {inst.whatsapp && (
-                <a href={whatsappUrl!} target="_blank" rel="noopener noreferrer" style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #86efac", textDecoration: "none" }}>
-                  <span style={{ fontSize: 18 }}>💬</span>
+              {inst.whatsapp && whatsappUrl && (
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 8, background: "#f0fdf4", border: "1px solid #86efac", textDecoration: "none" }}>
+                  <span>💬</span>
                   <div>
                     <div style={{ fontFamily: "monospace", fontSize: 12, color: "#166534", fontWeight: 600 }}>{inst.whatsapp}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 9, color: "#94a3b8" }}>WhatsApp</div>
+                    <div style={{ fontSize: 9, color: "#94a3b8" }}>WhatsApp</div>
                   </div>
                 </a>
               )}
               {inst.email && (
                 <a href={`mailto:${inst.email}`} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 8, background: "#f0f9ff", border: "1px solid #bae6fd", textDecoration: "none" }}>
-                  <span style={{ fontSize: 18 }}>✉️</span>
+                  <span>✉️</span>
                   <div>
                     <div style={{ fontFamily: "monospace", fontSize: 11, color: "#0369a1", fontWeight: 600, wordBreak: "break-all" }}>{inst.email}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 9, color: "#94a3b8" }}>Email</div>
+                    <div style={{ fontSize: 9, color: "#94a3b8" }}>Email</div>
                   </div>
                 </a>
               )}
               {inst.website && (
                 <a href={inst.website.startsWith("http") ? inst.website : `https://${inst.website}`} target="_blank" rel="noopener noreferrer" style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", borderRadius: 8, background: "#faf5ff", border: "1px solid #e9d5ff", textDecoration: "none" }}>
-                  <span style={{ fontSize: 18 }}>🌐</span>
+                  <span>🌐</span>
                   <div>
                     <div style={{ fontFamily: "monospace", fontSize: 11, color: "#7c3aed", fontWeight: 600, wordBreak: "break-all" }}>{inst.website}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 9, color: "#94a3b8" }}>Website</div>
+                    <div style={{ fontSize: 9, color: "#94a3b8" }}>Website</div>
                   </div>
                 </a>
               )}
               {inst.address && (
                 <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "10px 12px", borderRadius: 8, background: "#fffbeb", border: "1px solid #fde68a" }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>📍</span>
+                  <span style={{ flexShrink: 0 }}>📍</span>
                   <div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "#92400e", fontWeight: 600 }}>{inst.address}</div>
-                    <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 9, color: "#94a3b8" }}>Address</div>
+                    <div style={{ fontSize: 11, color: "#92400e", fontWeight: 600 }}>{inst.address}</div>
+                    <div style={{ fontSize: 9, color: "#94a3b8" }}>Address</div>
                   </div>
                 </div>
               )}
@@ -286,40 +321,24 @@ export default async function InstitutionProfilePage({ params }: Props) {
             {/* Enroll CTA */}
             <div style={{ marginTop: 16, padding: "16px", background: "linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius: 12, textAlign: "center", border: "1px solid #86efac" }}>
               <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 18, color: "#0D5C3A", marginBottom: 6 }}>حفظ القرآن الكريم</div>
-              <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 12, color: "#166534", marginBottom: 12 }}>Enroll your child today</div>
+              <div style={{ fontSize: 12, color: "#166534", marginBottom: 12 }}>Enroll your child today</div>
               <Link href={`/signup?ref=${inst.slug}`} style={{ display: "block", padding: "10px", borderRadius: 8, background: "#0D5C3A", color: "white", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
                 Apply for Admission →
               </Link>
             </div>
           </div>
-
-          {/* Share card */}
-          <div style={{ background: "white", borderRadius: 16, padding: "16px 20px", border: "1px solid #e2e8f0" }}>
-            <div style={{ fontFamily: "monospace", fontSize: 9, letterSpacing: 2, color: "#94a3b8", marginBottom: 12 }}>SHARE THIS PAGE</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => { navigator.clipboard.writeText(`https://hifzpro.com/${inst.slug}`); }}
-                style={{ flex: 1, padding: "9px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#f8fafc", cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 11, fontWeight: 600, color: "#374151" }}>
-                🔗 Copy Link
-              </button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(`Check out ${inst.name} on HifzPro: https://hifzpro.com/${inst.slug}`)}`}
-                target="_blank" rel="noopener noreferrer"
-                style={{ flex: 1, padding: "9px", borderRadius: 8, border: "1px solid #86efac", background: "#f0fdf4", cursor: "pointer", fontFamily: "'Inter',sans-serif", fontSize: 11, fontWeight: 600, color: "#166534", textDecoration: "none", textAlign: "center" }}>
-                💬 Share
-              </a>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <footer style={{ background: "#050D0A", borderTop: "1px solid #1a2e22", padding: "24px", textAlign: "center", marginTop: 16 }}>
         <div style={{ fontFamily: "'Scheherazade New',serif", fontSize: 16, color: "#C4882A", marginBottom: 8, opacity: 0.7 }}>
           وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ
         </div>
-        <div style={{ fontFamily: "'Inter',sans-serif", fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-          Powered by <a href="https://hifzpro.com" style={{ color: "#10B981", textDecoration: "none" }}>HifzPro</a> — Pakistan's first intelligent Hifz management platform
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+          Powered by{" "}
+          <a href="https://hifzpro.com" style={{ color: "#10B981", textDecoration: "none" }}>HifzPro</a>
+          {" "}— Pakistan&apos;s first intelligent Hifz management platform
         </div>
       </footer>
     </div>
