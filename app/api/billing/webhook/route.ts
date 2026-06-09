@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
             currentPeriodEnd:     periodEnd ? new Date(periodEnd * 1000) : undefined,
             lastPaymentAt:        new Date(),
             nextBillingAt:        periodEnd ? new Date(periodEnd * 1000) : undefined,
+            amount: invoice.amount_paid ? invoice.amount_paid / 100 : undefined,
           },
         });
 
