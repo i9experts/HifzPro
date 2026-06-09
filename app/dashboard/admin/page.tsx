@@ -94,6 +94,11 @@ const MODULES = [
     href:"/dashboard/admin/campuses",           color:"#0369a1", tag:"Enterprise",
   },
   {
+  id:"profile", icon:"🏫", title:"Institution Profile", titleUr:"پروفائل",
+  desc:"Edit public page, logo, programs, contact info",
+  href:"/dashboard/admin/profile", color:"#0369a1", tag:"Enterprise",
+},
+  {
     id:"billing",     icon:"💳",  title:"Billing & Plans",      titleUr:"بلنگ",
     desc:"Manage subscription, upgrade plan, download invoices",
     href:"/billing",                            color:"#C4882A", tag:"Enterprise",
