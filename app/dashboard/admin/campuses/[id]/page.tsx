@@ -86,7 +86,7 @@ export default function CampusDetailPage({ params }: { params: Promise<{ id: str
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
             {[
               {val:c.students?.length||0,   label:"Students",  color:"white"},
-              {val:c._count.batches,         label:"Batches",   color:"white"},
+              {val:c.batches?.length||0,     label:"Batches",   color:"white"},
               {val:stats.weekLessons,        label:"Lessons/wk",color:"white"},
               {val:c.users?.length||0,       label:"Ustadh",    color:"white"},
             ].map((s,i)=>(
