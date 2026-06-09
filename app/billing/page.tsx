@@ -3,7 +3,31 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import { colors, fonts } from "@/lib/tokens";
-import { PLAN_META, PlanKey } from "@/lib/stripe";
+import type { PlanKey } from "@/lib/stripe";
+
+const PLAN_META = {
+  basic: {
+    name: "Basic", nameUr: "بنیادی",
+    monthlyUSD: 9.99,  annualUSD: 95.90,
+    monthlyPKR: 2999,  annualPKR: 28790,
+    students: "Up to 50", color: "#3b82f6",
+    features: ["All Core Modules","Attendance Reports","Test & Assessment","Batch Management","WhatsApp Updates","Parent Portal"],
+  },
+  professional: {
+    name: "Professional", nameUr: "پروفیشنل",
+    monthlyUSD: 19.99, annualUSD: 191.90,
+    monthlyPKR: 5999,  annualPKR: 57590,
+    students: "Up to 200", color: "#0D5C3A",
+    features: ["Everything in Basic","Fee Management","Sanad & Certificates","Advanced Analytics","Mutashabihat AI","Hijri Calendar","Priority Support"],
+  },
+  enterprise: {
+    name: "Enterprise", nameUr: "انٹرپرائز",
+    monthlyUSD: 29.99, annualUSD: 287.90,
+    monthlyPKR: 9999,  annualPKR: 95990,
+    students: "Unlimited", color: "#C4882A",
+    features: ["Everything in Professional","Multi-Campus Support","Super Admin Access","Bulk CSV Import","Donor Portal","Dedicated Support","Custom Onboarding"],
+  },
+} as const;
 
 interface CurrentSub {
   plan: string; status: string; billingCycle: string;
