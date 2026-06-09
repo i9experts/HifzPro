@@ -16,17 +16,16 @@ export async function GET(req: NextRequest, { params }: Params) {
       include: {
         campuses: {
           where:   { isActive: true },
-          select:  { id: true, name: true, nameArabic: true, city: true, address: true, phone: true },
+          select:  {
+            id: true, name: true, nameArabic: true, city: true, address: true, phone: true,
+            students: {
+              where:  { status: "ACTIVE" },
+              select: { id: true, program: true, sanads: { select: { id: true } } },
+            },
+          },
         },
         users: {
           where:  { role: "USTADH", isActive: true },
-          select: { id: true },
-        },
-        students: {
-          where:  { status: "ACTIVE" },
-          select: { id: true, program: true },
-        },
-        sanads: {
           select: { id: true },
         },
       },
@@ -36,9 +35,13 @@ export async function GET(req: NextRequest, { params }: Params) {
       return NextResponse.json({ success: false, error: "Institution not found" }, { status: 404 });
     }
 
+    // Flatten students and sanads from nested campuses
+    const allStudents = institution.campuses.flatMap(c => c.students);
+    const allSanads = allStudents.flatMap(s => s.sanads);
+
     // Count programs offered
     const programCounts: Record<string, number> = {};
-    institution.students.forEach(s => {
+    allStudents.forEach(s => {
       programCounts[s.program] = (programCounts[s.program] || 0) + 1;
     });
 
@@ -67,10 +70,10 @@ export async function GET(req: NextRequest, { params }: Params) {
         programs:     storedPrograms,
         campuses:     institution.campuses,
         stats: {
-          activeStudents: institution.students.length,
+          activeStudents: allStudents.length,
           asatidha:       institution.users.length,
           campuses:       institution.campuses.length,
-          sanadsIssued:   institution.sanads.length,
+          sanadsIssued:   allSanads.length,
           programCounts,
         },
         createdAt: institution.createdAt,
