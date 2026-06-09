@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import { colors, fonts } from "@/lib/tokens";
@@ -28,7 +29,7 @@ export default function RecordPaymentPage() {
 
   const now = new Date();
   const [form, setForm] = useState({
-    studentId:      "",
+    studentId: prefilledStudentId,
     feeStructureId: "",
     amount:         0,
     paidAmount:     0,
@@ -39,6 +40,8 @@ export default function RecordPaymentPage() {
     paymentDate:    now.toISOString().split("T")[0],
     notes:          "",
     sendReceipt:    true,
+    const searchParams = useSearchParams();
+const prefilledStudentId = searchParams.get("studentId") || "";
   });
 
   const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
