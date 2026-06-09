@@ -21,6 +21,9 @@ interface Student { id:string; name:string; enrollmentNumber:string; program:str
 interface FeeStructure { id:string; name:string; amount:number; feeType:string; frequency:string; }
 
 export default function RecordPaymentPage() {
+  const searchParams = useSearchParams();
+  const prefilledStudentId = searchParams.get("studentId") || "";
+
   const [students,   setStudents]   = useState<Student[]>([]);
   const [structures, setStructures] = useState<FeeStructure[]>([]);
   const [saving,     setSaving]     = useState(false);
@@ -40,8 +43,6 @@ export default function RecordPaymentPage() {
     paymentDate:    now.toISOString().split("T")[0],
     notes:          "",
     sendReceipt:    true,
-    const searchParams = useSearchParams();
-const prefilledStudentId = searchParams.get("studentId") || "";
   });
 
   const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
