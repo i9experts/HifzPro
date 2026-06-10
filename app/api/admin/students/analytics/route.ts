@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
       },
     }).catch(() => 0);
 
-    const todayMessages = await prisma.notification.count({
+    const todayMessages = await prisma.notificationDelivery.count({
       where: { channel: "WHATSAPP", status: "SENT", createdAt: { gte: today } },
     }).catch(() => 0);
 
