@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       campusIds.length > 0 ? prisma.lessonEntry.count({ where: { student: { campusId: { in: campusIds } } } }).catch(()=>0) : Promise.resolve(0),
       campusIds.length > 0 ? prisma.lessonEntry.count({ where: { student: { campusId: { in: campusIds } }, date: { gte: new Date(Date.now()-7*86400000) } } }).catch(()=>0) : Promise.resolve(0),
       campusIds.length > 0 ? prisma.testRecord.count({ where: { student: { campusId: { in: campusIds } } } }).catch(()=>0) : Promise.resolve(0),
-      campusIds.length > 0 ? prisma.notification.count({ where: { channel: "WHATSAPP", status: "SENT" } }).catch(()=>0) : Promise.resolve(0),
+      campusIds.length > 0 ? prisma.notificationDelivery.count({ where: { channel: "WHATSAPP", status: "SENT" } }).catch(()=>0) : Promise.resolve(0),
     ]);
 
     return successResponse({ institution, stats: { totalLessons, weekLessons, totalTests, totalNotifications } });
