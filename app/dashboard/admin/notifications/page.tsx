@@ -193,7 +193,14 @@ export default function NotificationCenterPage() {
                 {/* Notification card */}
                 <div style={{ background:"rgba(255,255,255,0.95)", borderRadius:14, padding:"12px 14px", margin:"0 4px" }}>
                   <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                    <div style={{ width:18, height:18, borderRadius:5, background:"#0D5C3A", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10 }}>🕌</div>
+                    <div style={{ width:18, height:18, borderRadius:5, background:"#0D5C3A", display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
+  <svg viewBox="0 0 80 80" width="14" height="14" fill="none">
+    <polygon points="40,4 76,20 76,60 40,76 4,60 4,20" stroke="#10B981" strokeWidth="3" fill="none"/>
+    <polygon points="40,14 66,26 66,54 40,66 14,54 14,26" stroke="#C4882A" strokeWidth="2" fill="none"/>
+    <polygon points="40,24 56,32 56,48 40,56 24,48 24,32" stroke="#10B981" strokeWidth="1.5" fill="none"/>
+    <circle cx="40" cy="40" r="5" fill="#C4882A"/>
+  </svg>
+</div>
                     <span style={{ fontFamily:fonts.body, fontSize:10, color:"#666", fontWeight:600 }}>HifzPro</span>
                     <span style={{ fontFamily:fonts.body, fontSize:9, color:"#999", marginLeft:"auto" }}>now</span>
                   </div>
