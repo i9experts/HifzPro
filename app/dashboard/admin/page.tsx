@@ -180,9 +180,16 @@ export default function AdminDashboard() {
   const [search,    setSearch]    = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/analytics")
-      .then(r => r.json())
-      .then(d => { if (d.success) setStats(d.data); })
+  fetch("/api/admin/analytics")
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) setStats({
+      activeStudents: d.data.snapshot?.totalStudents     || 0,
+      totalBatches:   d.data.batchAnalytics?.length      || 0,
+      lessonsToday:   d.data.snapshot?.todayLessons      || 0,
+      totalAsatidha:  d.data.ustadhPerformance?.length   || 0,
+    });
+  })
       .catch(console.error)
       .finally(() => setLoading(false));
 
