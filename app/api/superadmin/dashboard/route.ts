@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       prisma.lessonEntry.count({ where: { date: { gte: month1 } } }),
       prisma.lessonEntry.count({ where: { date: { gte: month2, lt: month1 } } }),
       prisma.testRecord.count({ where: { date: { gte: month1 } } }),
-      prisma.notification.count({ where: { channel: "WHATSAPP", status: "SENT", createdAt: { gte: month1 } } }),
+      prisma.notificationDelivery.count({ where: { channel: "WHATSAPP", status: "SENT", createdAt: { gte: month1 } } }),
       prisma.student.count({ where: { enrolledAt: { gte: month1 } } }),
       prisma.student.count({ where: { enrolledAt: { gte: month2, lt: month1 } } }),
       prisma.institution.count({ where: { createdAt: { gte: month1 } } }),
