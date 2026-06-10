@@ -194,6 +194,8 @@ model User {
   issuedSanads        Sanad[]      @relation("IssuedSanads")
   collectedFees       FeePayment[] @relation("FeeCollectedBy")
   grantedScholarships Scholarship[] @relation("ScholarshipGrantedBy")
+  sentNotifications   Notification[] @relation("SentNotifications")
+  pushSubscriptions   PushSubscription[]
 
   @@map("users")
 }
@@ -531,7 +533,7 @@ model Sanad {
 // NOTIFICATIONS (WhatsApp / Email)
 // ─────────────────────────────────────────
 
-model Notification {
+model NotificationDelivery {
   id          String              @id @default(cuid())
   recipientId String
   channel     NotificationChannel
@@ -545,7 +547,7 @@ model Notification {
   error       String?
   createdAt   DateTime            @default(now())
 
-  @@map("notifications")
+  @@map("notification_deliveries")
 }
 
 // ─────────────────────────────────────────
