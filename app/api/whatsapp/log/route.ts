@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
     if (status) where.status = status;
 
     const [total, notifications] = await Promise.all([
-      prisma.notification.count({ where }),
-      prisma.notification.findMany({
+      prisma.notificationDelivery.count({ where }),
+      prisma.notificationDelivery.findMany({
         where,
         orderBy: { createdAt: "desc" },
         take: limit,
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Stats
-    const stats = await prisma.notification.groupBy({
+    const stats = await prisma.notificationDelivery.groupBy({
       by: ["status"],
       where: { channel: "WHATSAPP" },
       _count: true,
