@@ -184,10 +184,14 @@ export default function AdminDashboard() {
   .then(r => r.json())
   .then(d => {
     if (d.success) setStats({
-      activeStudents: d.data.snapshot?.totalStudents     || 0,
-      totalBatches:   d.data.batchAnalytics?.length      || 0,
-      lessonsToday:   d.data.snapshot?.todayLessons      || 0,
-      totalAsatidha:  d.data.ustadhPerformance?.length   || 0,
+      totalStudents:    d.data.snapshot?.totalStudents     || 0,
+      activeStudents:   d.data.snapshot?.totalStudents     || 0,
+      totalBatches:     d.data.batchAnalytics?.length      || 0,
+      lessonsToday:     d.data.snapshot?.todayLessons      || 0,
+      lessonsThisMonth: d.data.snapshot?.monthLessons      || 0,
+      totalAsatidha:    d.data.ustadhPerformance?.length   || 0,
+      pendingFees:      d.data.snapshot?.pendingFees       || 0,
+      attendanceToday:  d.data.snapshot?.attendanceToday   || 0,
     });
   })
       .catch(console.error)
