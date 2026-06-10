@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import HifzMark from "@/components/ui/HifzMark";
 import { colors, fonts } from "@/lib/tokens";
 import PWARegister, { InstallBanner } from "./pwa-register";
+import PushSubscribe from "@/components/push-subscribe";
 
 // ── Child context so all pages share student data ──
 interface Child { id: string; name: string; nameArabic?: string; photo?: string; program: string; enrollmentNumber?: string; }
@@ -156,8 +157,11 @@ export default function ParentLayout({ children }: { children: React.ReactNode }
           {children}
         </div>
 
-        {/* PWA Install Banner (shows above bottom nav) */}
+       {/* PWA Install Banner (shows above bottom nav) */}
         <InstallBanner />
+
+        {/* Push notification subscribe prompt */}
+        <PushSubscribe />
 
         {/* Bottom navigation */}
         <div style={{
