@@ -65,6 +65,11 @@ const MODULES = [
     desc:"Calendar heatmap, chronic absentees, batch comparison, print",
     href:"/dashboard/admin/attendance/reports", color:"#065f46", tag:"Reports",
   },
+  {
+  id:"notifications", icon:"🔔", title:"Notification Center", titleUr:"اطلاعات",
+  desc:"Push broadcasts to parents — announcements, holidays, urgent notices",
+  href:"/dashboard/admin/notifications", color:"#dc2626", tag:"Core",
+},
   // ── Finance ──
   {
     id:"fees",        icon:"💰",  title:"Fee Management",       titleUr:"فیس مینجمنٹ",
