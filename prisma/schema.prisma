@@ -736,3 +736,34 @@ notes                String?
 
   @@map("subscriptions")
 }
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}
+
+model Notification {
+  id            String   @id @default(cuid())
+  institutionId String
+  title         String
+  body          String
+  url           String?
+  audience      String   @default("All Parents")
+  sentById      String?
+  targetCount   Int      @default(0)
+  sentCount     Int      @default(0)
+  failedCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  sentBy        User?    @relation("SentNotifications", fields: [sentById], references: [id])
+
+  @@map("notifications")
+}
