@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     const todayAttendance = await prisma.attendanceRecord.count({
       where: { student: { campusId: campusId||undefined }, session: { date: { gte: today, lte: todayEnd } }, status: "PRESENT" },
     });
-    const todayMessages = await prisma.notification.count({
+    const todayMessages = await prisma.notificationDelivery.count({
       where: { channel: "WHATSAPP", status: "SENT", createdAt: { gte: today } },
     });
 
