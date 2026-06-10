@@ -162,7 +162,7 @@ async function sendSabaqWhatsApp(
     const result = await sendWhatsApp(phone, message);
 
     // Log
-    await prisma.notification.create({
+    await prisma.notificationDelivery.create({
       data: {
         recipientId: phone,
         channel:     "WHATSAPP",
