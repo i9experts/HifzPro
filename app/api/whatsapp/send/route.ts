@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const sendResult = await sendWhatsApp(to, message);
 
     // Log to database
-    await prisma.notification.create({
+    await prisma.notificationDelivery.create({
       data: {
         recipientId: to,
         channel:     "WHATSAPP",
