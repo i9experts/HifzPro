@@ -180,26 +180,23 @@ export default function AdminDashboard() {
   const [search,    setSearch]    = useState("");
 
   useEffect(() => {
-  fetch("/api/admin/students")
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) setStats(prev => ({ ...prev, activeStudents: d.data.pagination?.total || 0 }));
-    }).catch(() => {});
+    fetch("/api/admin/students")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setStats(prev => ({ ...prev, activeStudents: d.data.pagination?.total || 0 }));
+      }).catch(() => {});
 
-  fetch("/api/admin/batches")
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) setStats(prev => ({ ...prev, totalBatches: d.data.stats?.active || 0 }));
-    }).catch(() => {});
+    fetch("/api/admin/batches")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setStats(prev => ({ ...prev, totalBatches: d.data.stats?.active || 0 }));
+      }).catch(() => {});
 
-  fetch("/api/admin/asatidha")
-    .then(r => r.json())
-    .then(d => {
-      if (d.success) setStats(prev => ({ ...prev, totalAsatidha: d.data.asatidha?.length || 0 }));
-    }).catch(() => {}).finally(() => setLoading(false));
-}, []);
-      .catch(console.error)
-      .finally(() => setLoading(false));
+    fetch("/api/admin/asatidha")
+      .then(r => r.json())
+      .then(d => {
+        if (d.success) setStats(prev => ({ ...prev, totalAsatidha: d.data.asatidha?.length || 0 }));
+      }).catch(() => {}).finally(() => setLoading(false));
 
     fetch("/api/auth/me")
       .then(r => r.json())
