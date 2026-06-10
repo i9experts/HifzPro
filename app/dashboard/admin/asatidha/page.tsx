@@ -33,11 +33,36 @@ Maulana Ibrahim,m.ibrahim@school.com,03111234567,,Tajweed & Qiraah,3,Alim|Gradua
 Hafiz Usman,h.usman@school.com,03211234567,,,8,Hafiz ul Quran`;
 
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+  // Strip UTF-8 BOM if present (Excel adds this)
+  const cleaned = text.replace(/^\uFEFF/, "").trim();
+  const lines   = cleaned.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+
+  // Auto-detect delimiter: semicolon (European Excel) or comma
+  const firstLine = lines[0];
+  const delim     = firstLine.includes(";") && !firstLine.includes(",") ? ";" : ",";
+
+  function splitLine(line: string): string[] {
+    const result: string[] = [];
+    let cur = "", inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuote = !inQuote;
+      } else if (ch === delim && !inQuote) {
+        result.push(cur.trim().replace(/^"|"$/g, ""));
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    result.push(cur.trim().replace(/^"|"$/g, ""));
+    return result;
+  }
+
+  const headers = splitLine(lines[0]).map(h => h.trim().toLowerCase());
   return lines.slice(1).map(line => {
-    const vals = line.split(",").map(v => v.trim());
+    const vals = splitLine(line);
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = vals[i] || ""; });
     return row;
