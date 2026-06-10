@@ -16,6 +16,17 @@ interface DashboardStats {
   attendanceToday:  number;
 }
 
+const DEFAULT_STATS: DashboardStats = {
+  totalStudents: 0,
+  activeStudents: 0,
+  totalBatches: 0,
+  totalAsatidha: 0,
+  lessonsToday: 0,
+  lessonsThisMonth: 0,
+  pendingFees: 0,
+  attendanceToday: 0,
+};
+
 const MODULES = [
   // ── Core ──
   {
@@ -183,19 +194,19 @@ export default function AdminDashboard() {
     fetch("/api/admin/students")
       .then(r => r.json())
       .then(d => {
-        if (d.success) setStats(prev => ({ ...prev, activeStudents: d.data.pagination?.total || 0 }));
+        if (d.success) setStats(prev => ({ ...(prev ?? DEFAULT_STATS), activeStudents: d.data.pagination?.total || 0 }));
       }).catch(() => {});
 
     fetch("/api/admin/batches")
       .then(r => r.json())
       .then(d => {
-        if (d.success) setStats(prev => ({ ...prev, totalBatches: d.data.stats?.active || 0 }));
+        if (d.success) setStats(prev => ({ ...(prev ?? DEFAULT_STATS), totalBatches: d.data.stats?.active || 0 }));
       }).catch(() => {});
 
     fetch("/api/admin/asatidha")
       .then(r => r.json())
       .then(d => {
-        if (d.success) setStats(prev => ({ ...prev, totalAsatidha: d.data.asatidha?.length || 0 }));
+        if (d.success) setStats(prev => ({ ...(prev ?? DEFAULT_STATS), totalAsatidha: d.data.asatidha?.length || 0 }));
       }).catch(() => {}).finally(() => setLoading(false));
 
     fetch("/api/auth/me")
