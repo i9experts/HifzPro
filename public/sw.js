@@ -136,22 +136,27 @@ self.addEventListener("fetch", event => {
   }
 });
 
-// ── Push notifications (future) ──
+// ── REPLACE the existing push handlers in public/sw.js (from line ~139 onwards) with this ──
+
+// ── Push notifications ──
 self.addEventListener("push", event => {
-  if (!event.data) return;
   try {
-    const data = event.data.json();
-    event.waitUntil(
-      self.registration.showNotification(data.title || "HifzPro", {
-        body:  data.body  || "",
-        icon:  "/icons/icon-192.png",
-        badge: "/icons/icon-96.png",
-        tag:   data.tag   || "hifzpro",
-        data:  data.url   || "/dashboard/parent",
-        vibrate: [200, 100, 200],
-        actions: data.actions || [],
-      })
-    );
+    const data = event.data ? event.data.json() : {};
+    const title = data.title || "HifzPro";
+    const options = {
+      body:    data.body || "",
+      icon:    data.icon || "/icons/icon-192.png",
+      badge:   "/icons/icon-192.png",
+      tag:     data.tag || "hifzpro",          // same tag replaces previous notification
+      renotify: true,
+      vibrate: [120, 60, 120],
+      data:    { url: data.url || "/dashboard/parent" },
+      actions: [
+        { action: "open",    title: "📖 Open" },
+        { action: "dismiss", title: "✕ Dismiss" },
+      ],
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
   } catch (e) {
     console.error("Push notification error:", e);
   }
@@ -159,15 +164,21 @@ self.addEventListener("push", event => {
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const url = event.notification.data || "/dashboard/parent";
+  if (event.action === "dismiss") return;
+
+  const url = (event.notification.data && event.notification.data.url) || "/dashboard/parent";
+
   event.waitUntil(
-    clients.matchAll({ type: "window" }).then(list => {
-      for (const client of list) {
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(windowClients => {
+      // Focus an existing tab if one is open
+      for (const client of windowClients) {
         if (client.url.includes("/dashboard/parent") && "focus" in client) {
+          client.navigate(url);
           return client.focus();
         }
       }
-      return clients.openWindow(url);
+      // Otherwise open a new one
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });
