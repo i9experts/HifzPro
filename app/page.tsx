@@ -359,7 +359,7 @@ export default function LandingPage() {
               </div>
             </div>
             {[
-              { title:"Platform", links:[["Features","#features"],["Pricing","#pricing"],["Sign Up","/signup"],["Sign In","/signin"]] },
+              { title:"Platform", links:[["Features","#features"],["Pricing","#pricing"],["About","/about"],["Sign Up","/signup"],["Sign In","/signin"]] },
               { title:"Modules",  links:[["Hifz Diary","#features"],["Attendance","#features"],["Fee Management","#features"],["Sanad/Certificates","#features"]] },
               { title:"Support",  links:[["WhatsApp","https://wa.me/923000000000"],["Email","mailto:support@hifzpro.com"],["Documentation","#"],["Contact","#"]] },
             ].map((col,i)=>(
