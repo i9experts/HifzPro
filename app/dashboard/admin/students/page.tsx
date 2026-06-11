@@ -581,9 +581,6 @@ export default function StudentsPage() {
                     <Link href={`/dashboard/admin/students/${s.id}`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.green50, color: colors.primary, fontSize: 10, fontWeight: 700, textDecoration: "none", fontFamily: fonts.heading }}>View</Link>
                     <Link href={`/dashboard/admin/students/${s.id}/edit`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.n100, color: colors.n600, fontSize: 10, fontWeight: 600, textDecoration: "none", fontFamily: fonts.heading }}>Edit</Link>
                   </div>
-                    <Link href={`/dashboard/admin/students/${s.id}`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.green50, color: colors.primary, fontSize: 10, fontWeight: 700, textDecoration: "none", fontFamily: fonts.heading }}>View</Link>
-                    <Link href={`/dashboard/admin/students/${s.id}/edit`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.n100, color: colors.n600, fontSize: 10, fontWeight: 600, textDecoration: "none", fontFamily: fonts.heading }}>Edit</Link>
-                  </div>
                 </div>
               );
             })
