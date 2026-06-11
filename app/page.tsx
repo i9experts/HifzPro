@@ -105,7 +105,7 @@ export default function LandingPage() {
         {!isMobile && (
           <div style={{ display:"flex", gap:24, alignItems:"center" }}>
             {["Features","Pricing","About"].map(l=>(
-              <a key={l} href={`#${l.toLowerCase()}`} style={{ fontSize:13, color:G.dim, textDecoration:"none" }}>{l}</a>
+             <a key={l} href={l === "About" ? "/about" : `#${l.toLowerCase()}`} style={{ fontSize:13, color:G.dim, textDecoration:"none" }}>{l}</a>
             ))}
             <Link href="/signin" style={{ fontSize:13, color:G.dim, textDecoration:"none" }}>Sign In</Link>
             <Link href="/signup" style={{ padding:"8px 18px", borderRadius:8, background:G.primary, color:G.dark, fontSize:12, fontWeight:700, textDecoration:"none" }}>
