@@ -563,25 +563,24 @@ export default function StudentsPage() {
                   </div>
 
                   <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                   565                <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
-                  <button
-                    onClick={async () => {
-                      setSendingAccess(s.id);
-                      const res  = await fetch(`/api/admin/students/${s.id}/send-parent-access`, { method:"POST" });
-                      const data = await res.json();
-                      if (data.success) setToast(`✅ Portal access sent to ${s.guardian?.name || "guardian"}`);
-                      else setToast(`❌ ${data.error}`);
-                      setSendingAccess(null);
-                      setTimeout(() => setToast(""), 5000);
-                    }}
-                    disabled={sendingAccess === s.id}
-                    title="Send parent portal login instructions via WhatsApp"
-                    style={{ padding:"5px 10px", borderRadius:6, background:"#f0fdf4", color:colors.primary, border:`1px solid ${colors.green200}`, fontSize:10, fontWeight:700, cursor:sendingAccess===s.id?"not-allowed":"pointer", fontFamily:fonts.heading, opacity:sendingAccess===s.id?0.6:1 }}>
-                    {sendingAccess === s.id ? "..." : "📱 Portal"}
-                  </button>
-                  <Link href={`/dashboard/admin/students/${s.id}`} ...>View</Link>
-                  <Link href={`/dashboard/admin/students/${s.id}/edit`} ...>Edit</Link>
-                </div>
+                    <button
+                      onClick={async () => {
+                        setSendingAccess(s.id);
+                        const res  = await fetch(`/api/admin/students/${s.id}/send-parent-access`, { method:"POST" });
+                        const data = await res.json();
+                        if (data.success) setToast(`✅ Portal access sent to ${s.guardian?.name || "guardian"}`);
+                        else setToast(`❌ ${data.error}`);
+                        setSendingAccess(null);
+                        setTimeout(() => setToast(""), 5000);
+                      }}
+                      disabled={sendingAccess === s.id}
+                      title="Send parent portal login instructions via WhatsApp"
+                      style={{ padding:"5px 10px", borderRadius:6, background:"#f0fdf4", color:colors.primary, border:`1px solid ${colors.green200}`, fontSize:10, fontWeight:700, cursor:sendingAccess===s.id?"not-allowed":"pointer", fontFamily:fonts.heading, opacity:sendingAccess===s.id?0.6:1 }}>
+                      {sendingAccess === s.id ? "..." : "📱 Portal"}
+                    </button>
+                    <Link href={`/dashboard/admin/students/${s.id}`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.green50, color: colors.primary, fontSize: 10, fontWeight: 700, textDecoration: "none", fontFamily: fonts.heading }}>View</Link>
+                    <Link href={`/dashboard/admin/students/${s.id}/edit`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.n100, color: colors.n600, fontSize: 10, fontWeight: 600, textDecoration: "none", fontFamily: fonts.heading }}>Edit</Link>
+                  </div>
                     <Link href={`/dashboard/admin/students/${s.id}`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.green50, color: colors.primary, fontSize: 10, fontWeight: 700, textDecoration: "none", fontFamily: fonts.heading }}>View</Link>
                     <Link href={`/dashboard/admin/students/${s.id}/edit`} style={{ padding: "5px 10px", borderRadius: 6, background: colors.n100, color: colors.n600, fontSize: 10, fontWeight: 600, textDecoration: "none", fontFamily: fonts.heading }}>Edit</Link>
                   </div>
