@@ -126,7 +126,7 @@ export default function LandingPage() {
       {isMobile && mobileMenu && (
         <div style={{ position:"fixed", top:60, left:0, right:0, zIndex:99, background:"rgba(5,13,10,0.98)", backdropFilter:"blur(16px)", borderBottom:`1px solid ${G.border}`, padding:"20px", display:"flex", flexDirection:"column", gap:0 }}>
           {["Features","Pricing","About"].map(l=>(
-            href={l === "About" ? "/about" : `#${l.toLowerCase()}`} onClick={()=>setMobileMenu(false)} style={{ padding:"14px 0", fontSize:16, color:G.white, textDecoration:"none", borderBottom:`1px solid ${G.border}`, fontFamily:sans, fontWeight:500 }}>{l}</a>
+            <a key={l} href={l === "About" ? "/about" : `#${l.toLowerCase()}`} onClick={()=>setMobileMenu(false)} style={{ padding:"14px 0", fontSize:16, color:G.white, textDecoration:"none", borderBottom:`1px solid ${G.border}`, fontFamily:sans, fontWeight:500 }}>{l}</a>
           ))}
           <Link href="/signin" onClick={()=>setMobileMenu(false)} style={{ padding:"14px 0", fontSize:16, color:G.dim, textDecoration:"none", borderBottom:`1px solid ${G.border}` }}>Sign In</Link>
           <Link href="/signup" onClick={()=>setMobileMenu(false)} style={{ marginTop:16, padding:"14px", borderRadius:10, background:G.primary, color:G.dark, fontSize:15, fontWeight:700, textDecoration:"none", textAlign:"center" }}>
