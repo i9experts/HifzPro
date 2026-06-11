@@ -310,7 +310,8 @@ export default function AsatidhaPage() {
   const [search,        setSearch]        = useState("");
   const [view,          setView]          = useState<"cards"|"table">("cards");
   const [showBulkModal, setShowBulkModal] = useState(false);
-
+  const [sendingCreds, setSendingCreds] = useState<string | null>(null);
+  const [toast,        setToast]        = useState("");
   const fetchData = () => {
     setLoading(true);
     fetch("/api/admin/asatidha")
@@ -331,9 +332,14 @@ export default function AsatidhaPage() {
     window.location.href = "/signin";
   };
 
-  return (
-    <div style={{ minHeight:"100vh", background:colors.n50 }}>
-
+    return (
+      <div style={{ minHeight:"100vh", background:colors.n50 }}>
+        {toast && (
+          <div style={{ position:"fixed", top:70, left:"50%", transform:"translateX(-50%)", background:colors.n800, color:"white", padding:"10px 20px", borderRadius:10, fontFamily:fonts.heading, fontSize:13, zIndex:999, boxShadow:"0 4px 16px rgba(0,0,0,0.3)", whiteSpace:"nowrap" }}>
+            {toast}
+          </div>
+        )}
+          {/* Bulk Import Modal */}
       {/* Bulk Import Modal */}
       {showBulkModal && (
         <BulkImportModal
@@ -480,6 +486,22 @@ export default function AsatidhaPage() {
                   </div>
                   {u.batches.length > 0 ? (
                     <div style={{ display:"flex",flexWrap:"wrap",gap:4,marginBottom:14 }}>
+                    <button
+                      onClick={async () => {
+                        setSendingCreds(u.id);
+                        cost res  = await fetch(`/api/admin/asatidha/${u.id}/send-credentials`, { method:"POST" });
+                        const data = await res.json();
+                        if (data.success) {
+                          if (data.data.sent) { setToast(`✅ Login sent to ${u.name} via WhatsApp`); }
+                          else { setToast(`⚠️ Password reset. Share manually: ${data.data.password}`); }
+                        } else { setToast(`❌ ${data.error}`); }
+                        setSendingCreds(null);
+                        setTimeout(() => setToast(""), 5000);
+                      }}
+                      disabled={sendingCreds === u.id}
+                      style={{ padding:"7px 12px", borderRadius:8, background:"#f0fdf4", color:colors.primary, border:`1px solid ${colors.green200}`, fontSize:11, fontWeight:700, cursor:sendingCreds===u.id?"not-allowed":"pointer", fontFamily:fonts.heading, opacity:sendingCreds===u.id?0.6:1, whiteSpace:"nowrap" }}>
+                      {sendingCreds === u.id ? "Sending..." : "📨 Send Login"}
+                    </button> 
                       {u.batches.map(b=>(<span key={b.id} style={{ background:`${PROGRAM_COLORS[b.program]||colors.primary}15`,color:PROGRAM_COLORS[b.program]||colors.primary,padding:"3px 8px",borderRadius:6,fontSize:9,fontFamily:fonts.heading,fontWeight:700 }}>{b.name} · {b._count.students}s</span>))}
                     </div>
                   ) : (
