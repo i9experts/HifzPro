@@ -375,7 +375,7 @@ export default function LandingPage() {
           </div>
           <div style={{ borderTop:`1px solid ${G.border}`, paddingTop:24, display:"flex", justifyContent:"space-between", alignItems:"center", flexWrap:"wrap", gap:12 }}>
             <div style={{ fontFamily:sans, fontSize:12, color:"rgba(255,255,255,0.25)" }}>
-              © {new Date().getFullYear()} HifzPro. Built for the Huffaz. All rights reserved.
+              © {new Date().getFullYear()} HifzPro® — A product of Edudeen, LLC, thoughtfully designed and engineered. All rights reserved.
             </div>
             <div style={{ fontFamily:mono, fontSize:10, color:G.primary, opacity:0.5 }}>
               www.hifzpro.com
