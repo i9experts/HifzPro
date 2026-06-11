@@ -1,81 +1,81 @@
-// public/sw.js — HifzPro Parent Portal Service Worker
-const CACHE_VERSION = "hifzpro-v1";
+// public/sw.js — HifzPro Service Worker
+// CACHE_VERSION bump forces all clients to get fresh cache immediately
+const CACHE_VERSION = "hifzpro-v3";
 const STATIC_CACHE  = `${CACHE_VERSION}-static`;
 const API_CACHE     = `${CACHE_VERSION}-api`;
 
-// Pages and assets to cache on install
 const PRECACHE_URLS = [
-  "/dashboard/parent",
-  "/dashboard/parent/diary",
-  "/dashboard/parent/attendance",
-  "/dashboard/parent/progress",
-  "/dashboard/parent/contact",
-  "/signin",
   "/offline",
 ];
 
-// ── Install: precache shell pages ──
+// ── Install ──
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then(cache => {
-      return cache.addAll(PRECACHE_URLS).catch(() => {
-        // Fail silently — some pages may not be available offline
-      });
-    }).then(() => self.skipWaiting())
+    caches.open(STATIC_CACHE)
+      .then(cache => cache.addAll(PRECACHE_URLS).catch(() => {}))
+      .then(() => self.skipWaiting())
   );
 });
 
-// ── Activate: clean old caches ──
+// ── Activate: delete ALL old caches ──
 self.addEventListener("activate", event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(k => k.startsWith("hifzpro-") && k !== STATIC_CACHE && k !== API_CACHE)
-          .map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== STATIC_CACHE && k !== API_CACHE)
+            .map(k => caches.delete(k))
+      ))
+      .then(() => self.clients.claim())
   );
 });
 
-// ── Fetch: network-first for API, cache-first for static ──
+// ── Fetch ──
 self.addEventListener("fetch", event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and browser extensions
+  // Only handle GET over http(s)
   if (request.method !== "GET") return;
   if (!url.protocol.startsWith("http")) return;
   if (url.pathname.startsWith("/_next/webpack-hmr")) return;
 
-  // API routes: network-first, cache fallback with 5-min TTL
+  // ── CRITICAL: Never cache RSC / Next.js internal requests ──
+  // These have special headers and must always go to the network
+  if (
+    request.headers.get("RSC") === "1" ||
+    request.headers.get("Next-Router-Prefetch") === "1" ||
+    request.headers.get("Next-Router-State-Tree") ||
+    url.searchParams.has("_rsc") ||
+    url.pathname.startsWith("/_next/data/")
+  ) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // ── API routes: network-first, offline JSON fallback ──
   if (url.pathname.startsWith("/api/parent/")) {
     event.respondWith(
       fetch(request)
         .then(response => {
           if (response.ok) {
             const clone = response.clone();
-            caches.open(API_CACHE).then(cache => {
-              cache.put(request, clone);
-            });
+            caches.open(API_CACHE).then(cache => cache.put(request, clone));
           }
           return response;
         })
         .catch(() =>
-          caches.match(request).then(cached => {
-            if (cached) return cached;
-            // Return offline JSON for API calls when no cache
-            return new Response(
+          caches.match(request).then(cached => cached ||
+            new Response(
               JSON.stringify({ success: false, error: "offline", offline: true }),
               { headers: { "Content-Type": "application/json" } }
-            );
-          })
+            )
+          )
         )
     );
     return;
   }
 
-  // Next.js static assets: cache-first
+  // ── Next.js static assets: cache-first (these never change) ──
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/") ||
@@ -99,44 +99,35 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // Parent portal pages: network-first, stale fallback
-  if (url.pathname.startsWith("/dashboard/parent") || url.pathname === "/signin") {
+  // ── HTML pages: ALWAYS network-first, NEVER cache HTML responses ──
+  // Caching HTML causes the RSC text bug — only cache static assets above
+  if (
+    url.pathname.startsWith("/dashboard/parent") ||
+    url.pathname === "/signin"
+  ) {
     event.respondWith(
       fetch(request)
-        .then(response => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(STATIC_CACHE).then(cache => cache.put(request, clone));
-          }
-          return response;
-        })
         .catch(() =>
-          caches.match(request).then(cached => {
-            if (cached) return cached;
-            return caches.match("/offline") || new Response(
-              `<!DOCTYPE html><html><head><meta charset="utf-8"><title>HifzPro — Offline</title>
+          caches.match("/offline").then(cached => cached ||
+            new Response(
+              `<!DOCTYPE html><html><head><meta charset="utf-8">
               <meta name="viewport" content="width=device-width,initial-scale=1">
-              <style>body{font-family:system-ui,sans-serif;background:#050D0A;color:white;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:24px}
-              .card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:40px 32px;max-width:320px}
-              h1{font-size:2rem;margin:16px 0 8px;color:#10B981}.sub{color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7}
-              .ar{font-family:serif;font-size:1.4rem;color:#C4882A;margin-bottom:20px}</style></head>
-              <body><div class="card">
-                <div style="font-size:3rem">📵</div>
-                <h1>You're Offline</h1>
-                <div class="ar">لا اتصال بالإنترنت</div>
-                <p class="sub">No internet connection. Your last viewed data is still available — check your previously loaded pages.</p>
-                <button onclick="location.reload()" style="margin-top:20px;padding:12px 28px;border-radius:10px;background:#10B981;color:#050D0A;border:none;font-weight:700;font-size:14px;cursor:pointer">Try Again</button>
+              <title>HifzPro — Offline</title>
+              <style>body{font-family:system-ui,sans-serif;background:#050D0A;color:white;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:24px}.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:40px 32px;max-width:320px}h1{font-size:2rem;margin:16px 0 8px;color:#10B981}.ar{font-family:serif;font-size:1.4rem;color:#C4882A;margin-bottom:20px}.sub{color:rgba(255,255,255,0.5);font-size:14px;line-height:1.7}</style>
+              </head><body><div class="card">
+              <div style="font-size:3rem">📵</div><h1>You're Offline</h1>
+              <div class="ar">لا اتصال بالإنترنت</div>
+              <p class="sub">No internet connection. Please check your connection and try again.</p>
+              <button onclick="location.reload()" style="margin-top:20px;padding:12px 28px;border-radius:10px;background:#10B981;color:#050D0A;border:none;font-weight:700;font-size:14px;cursor:pointer">Try Again</button>
               </div></body></html>`,
               { headers: { "Content-Type": "text/html" } }
-            );
-          })
+            )
+          )
         )
     );
     return;
   }
 });
-
-// ── REPLACE the existing push handlers in public/sw.js (from line ~139 onwards) with this ──
 
 // ── Push notifications ──
 self.addEventListener("push", event => {
@@ -144,13 +135,13 @@ self.addEventListener("push", event => {
     const data = event.data ? event.data.json() : {};
     const title = data.title || "HifzPro";
     const options = {
-      body:    data.body || "",
-      icon:    data.icon || "/icons/icon-192.png",
-      badge:   "/icons/icon-192.png",
-      tag:     data.tag || "hifzpro",          // same tag replaces previous notification
+      body:     data.body || "",
+      icon:     data.icon || "/icons/icon-192.png",
+      badge:    "/icons/icon-192.png",
+      tag:      data.tag || "hifzpro",
       renotify: true,
-      vibrate: [120, 60, 120],
-      data:    { url: data.url || "/dashboard/parent" },
+      vibrate:  [120, 60, 120],
+      data:     { url: data.url || "/dashboard/parent" },
       actions: [
         { action: "open",    title: "📖 Open" },
         { action: "dismiss", title: "✕ Dismiss" },
@@ -165,19 +156,15 @@ self.addEventListener("push", event => {
 self.addEventListener("notificationclick", event => {
   event.notification.close();
   if (event.action === "dismiss") return;
-
-  const url = (event.notification.data && event.notification.data.url) || "/dashboard/parent";
-
+  const url = event.notification.data?.url || "/dashboard/parent";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then(windowClients => {
-      // Focus an existing tab if one is open
       for (const client of windowClients) {
         if (client.url.includes("/dashboard/parent") && "focus" in client) {
           client.navigate(url);
           return client.focus();
         }
       }
-      // Otherwise open a new one
       if (clients.openWindow) return clients.openWindow(url);
     })
   );
