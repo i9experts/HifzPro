@@ -489,7 +489,7 @@ export default function AsatidhaPage() {
                     <button
                       onClick={async () => {
                         setSendingCreds(u.id);
-                        cost res  = await fetch(`/api/admin/asatidha/${u.id}/send-credentials`, { method:"POST" });
+                        const res  = await fetch(`/api/admin/asatidha/${u.id}/send-credentials`, { method:"POST" });
                         const data = await res.json();
                         if (data.success) {
                           if (data.data.sent) { setToast(`✅ Login sent to ${u.name} via WhatsApp`); }
