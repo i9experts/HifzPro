@@ -335,7 +335,7 @@ export default function LandingPage() {
           Join institutions already using HifzPro. Set up in 5 minutes, see results from day one.
         </p>
         <Link href="/signup" style={{ display:"inline-flex", alignItems:"center", gap:10, padding:isMobile?"13px 28px":"16px 40px", borderRadius:14, background:G.primary, color:G.dark, fontSize:isMobile?14:16, fontWeight:700, textDecoration:"none", fontFamily:sans, boxShadow:"0 8px 32px rgba(16,185,129,0.4)" } as any}>
-          🕌 Start Free 14-Day Trial →
+           Start Free 14-Day Trial →
         </Link>
         <div style={{ fontFamily:sans, fontSize:12, color:G.dim, marginTop:14 }}>
           No credit card · Setup in 5 minutes · Cancel anytime
