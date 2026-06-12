@@ -54,7 +54,7 @@ _HifzPro — www.hifzpro.com_`;
     for (const guardian of student.guardians) {
       const phone = guardian.whatsapp || guardian.phone;
       if (phone) {
-        await sendWhatsApp(phone, message).catch(console.error);
+        await sendWhatsApp({ institutionId: payload.institutionId, to: phone, message }).catch(console.error);
         sent++;
       }
     }
