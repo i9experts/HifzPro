@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
-import { sendWhatsApp, normalizePhone } from "@/lib/whatsapp";
+import { sendWhatsApp } from "@/lib/whatsapp";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -90,9 +90,9 @@ _Please change your password after first login._
 جزاك اللهُ خيراً 🤲
 _HifzPro — Memorize · Protect · Excel_`;
 
-    const result = await sendWhatsApp(normalizePhone(phone), message);
+    const result = await sendWhatsApp({ institutionId: payload.institutionId, to: phone, message });
 
-    if (!result.success) {
+    if (!result.ok) {
       // Password was reset but WhatsApp failed — still return success with warning
       return successResponse({
         sent:     false,
