@@ -82,8 +82,8 @@ export async function POST(req: NextRequest, { params }: Params) {
 جزاك اللهُ خيراً 🤲
 _${instName} — Powered by HifzPro_`;
 
-      const result = await sendWhatsApp(normalizePhone(phone), message);
-      if (result.success) {
+      const result = await sendWhatsApp({ institutionId: payload.institutionId, to: normalizePhone(phone), message });
+      if (result.ok) {
         sentCount++;
       } else {
         errors.push(`${guardian.name}: ${result.error}`);
