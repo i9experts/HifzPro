@@ -49,7 +49,8 @@ export default function WhatsAppSettingsPage() {
   useEffect(() => {
     fetch("/api/admin/whatsapp")
       .then((r) => r.json())
-      .then((data) => {
+      .then((json) => {
+        const data = json?.data ?? json; // tolerate { success, data } wrapper
         const cfg: WhatsAppConfigDto | null = data?.config ?? null;
         if (cfg) {
           setProvider(cfg.provider);
@@ -82,9 +83,10 @@ export default function WhatsAppSettingsPage() {
           wabaId,
         }),
       });
-      const data = await res.json();
+      const json = await res.json();
+      const data = json?.data ?? json; // tolerate { success, data } wrapper
       if (!res.ok) {
-        setBanner({ kind: "error", text: data?.error || "Failed to save settings." });
+        setBanner({ kind: "error", text: json?.error || json?.message || "Failed to save settings." });
       } else {
         setStatus(data.status);
         if (data.status === "connected") {
@@ -121,8 +123,9 @@ export default function WhatsAppSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: testNumber }),
       });
-      const data = await res.json();
-      if (data.ok) {
+      const json = await res.json();
+      const data = json?.data ?? json; // tolerate { success, data } wrapper
+      if (res.ok && (data?.ok || json?.success)) {
         setStatus("connected");
         setLastTestedAt(new Date().toISOString());
         setBanner({
@@ -130,7 +133,7 @@ export default function WhatsAppSettingsPage() {
           text: `✅ Test message sent via ${data.provider}. Check WhatsApp on ${testNumber}.`,
         });
       } else {
-        setBanner({ kind: "error", text: data.error || "Test message failed." });
+        setBanner({ kind: "error", text: json?.error || json?.message || data?.error || "Test message failed." });
       }
     } catch {
       setBanner({ kind: "error", text: "Network error while sending test." });
