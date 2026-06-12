@@ -769,3 +769,28 @@ model Notification {
 
   @@map("notifications")
 }
+model WhatsAppConfig {
+  id            String    @id @default(cuid())
+  institutionId String    @unique
+  provider      String    @default("ultramsg") // "ultramsg" | "meta"
+
+  // UltraMsg credentials (per-institute instance)
+  instanceId    String?
+  apiToken      String?
+
+  // Meta Cloud API credentials (Tech Provider / v2 path)
+  phoneNumberId String?
+  wabaId        String?
+
+  displayNumber String    @default("") // e.g. "+92 300 1234567" — shown in admin UI
+  status        String    @default("pending") // pending | connected | disabled
+  lastTestedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+// NOTE: If your Institution model uses relations, you can optionally add:
+//   whatsappConfig WhatsAppConfig?
+// to the Institution model, and on WhatsAppConfig:
+//   institution Institution @relation(fields: [institutionId], references: [id])
+// The code below works either way — it queries by institutionId directly.
