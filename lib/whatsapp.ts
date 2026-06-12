@@ -16,7 +16,7 @@
 //   META_WA_ACCESS_TOKEN=...
 // ============================================================
 
-import { prisma } from "@/lib/prisma"; // adjust if your prisma client lives elsewhere
+import prisma from "@/lib/prisma";
 
 // ---------- Types ----------
 
