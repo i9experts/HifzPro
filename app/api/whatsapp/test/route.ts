@@ -24,9 +24,9 @@ export async function POST(req: NextRequest) {
 
     const instituteName = user?.institution?.name || "HifzPro Institute";
     const message       = testConnectionMessage(instituteName);
-    const result        = await sendWhatsApp(phone, message);
+    const result        = await sendWhatsApp({ institutionId: payload.institutionId, to: phone, message });
 
-    if (result.success) {
+    if (result.ok) {
       return successResponse({
         message:  "Test message sent successfully!",
         provider: result.provider,
