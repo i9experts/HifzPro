@@ -1,114 +1,403 @@
+// ============================================================
 // lib/whatsapp.ts
-// HifzPro WhatsApp Integration Service
-// Supports: UltraMsg (primary), WATI, Meta Business API
+// HifzPro multi-tenant WhatsApp sender
+// Resolves provider + credentials PER INSTITUTION, with fallback
+// to global env vars (your existing single-number UltraMsg setup).
+//
+// Providers:
+//   - "ultramsg" : UltraMsg instance (QR-linked, per-institute number)
+//   - "meta"     : Meta WhatsApp Cloud API (Tech Provider / v2 path)
+//
+// Env fallbacks (legacy global config — keep your existing vars):
+//   WHATSAPP_PROVIDER=ultramsg
+//   ULTRAMSG_INSTANCE_ID=instanceXXXXX
+//   ULTRAMSG_TOKEN=xxxxxxxx
+//   META_WA_PHONE_NUMBER_ID=...
+//   META_WA_ACCESS_TOKEN=...
+// ============================================================
 
-export interface WhatsAppMessage {
-  to:      string;   // Phone number with country code e.g. +923001234567
-  body:    string;   // Message text
-  type?:   "text" | "template";
+import { prisma } from "@/lib/prisma"; // adjust if your prisma client lives elsewhere
+
+// ---------- Types ----------
+
+export type WhatsAppProvider = "ultramsg" | "meta";
+
+export interface ResolvedWhatsAppConfig {
+  provider: WhatsAppProvider;
+  // UltraMsg
+  instanceId?: string;
+  apiToken?: string;
+  // Meta
+  phoneNumberId?: string;
+  accessToken?: string;
+  // Meta source: "tenant" config row or "env" fallback
+  source: "tenant" | "env";
 }
 
-export interface WhatsAppResult {
-  success:  boolean;
-  messageId?: string;
-  error?:   string;
-  provider: string;
+export interface SendResult {
+  ok: boolean;
+  provider: WhatsAppProvider;
+  providerMessageId?: string;
+  error?: string;
 }
 
-// ── Normalize phone number ──
-export function normalizePhone(phone: string): string {
-  let p = phone.replace(/\s+/g, "").replace(/[()-]/g, "");
-  if (p.startsWith("0"))  p = "+92" + p.slice(1);
-  if (p.startsWith("92")) p = "+"  + p;
-  if (!p.startsWith("+")) p = "+"  + p;
-  return p;
-}
+// ---------- Phone normalization (Pakistan-aware) ----------
 
-// ── Send via UltraMsg ──
-async function sendUltraMsg(to: string, body: string): Promise<WhatsAppResult> {
-  const instanceId = process.env.ULTRAMSG_INSTANCE_ID;
-  const token      = process.env.ULTRAMSG_TOKEN;
+/**
+ * Normalizes a phone number to international digits-only format.
+ *  "0300-1234567"   -> "923001234567"
+ *  "+92 300 1234567"-> "923001234567"
+ *  "3001234567"     -> "923001234567"
+ *  "923001234567"   -> "923001234567"
+ * Non-PK numbers with country code pass through unchanged.
+ */
+export function normalizePhone(raw: string): string {
+  let digits = raw.replace(/[^\d]/g, "");
 
-  if (!instanceId || !token) {
-    console.log("[WhatsApp Dev Mode] To:", to);
-    console.log("[WhatsApp Dev Mode] Message:", body);
-    return { success: true, messageId: "dev_" + Date.now(), provider: "dev_mode" };
+  if (digits.startsWith("00")) digits = digits.slice(2);
+
+  // Pakistani local formats
+  if (digits.startsWith("0") && digits.length === 11) {
+    // 0300xxxxxxx -> 92300xxxxxxx
+    digits = "92" + digits.slice(1);
+  } else if (digits.length === 10 && digits.startsWith("3")) {
+    // 300xxxxxxx -> 92300xxxxxxx
+    digits = "92" + digits;
   }
 
+  return digits;
+}
+
+// ---------- Config resolution ----------
+
+/**
+ * Resolves the WhatsApp config for an institution.
+ * Priority:
+ *   1. Per-institution WhatsAppConfig row (status = "connected")
+ *   2. Global env vars (legacy single-number setup)
+ * Returns null if nothing usable is configured.
+ */
+export async function resolveWhatsAppConfig(
+  institutionId: string | null
+): Promise<ResolvedWhatsAppConfig | null> {
+  if (institutionId) {
+    const cfg = await prisma.whatsAppConfig.findUnique({
+      where: { institutionId },
+    });
+
+    if (cfg && cfg.status === "connected") {
+      if (cfg.provider === "ultramsg" && cfg.instanceId && cfg.apiToken) {
+        return {
+          provider: "ultramsg",
+          instanceId: cfg.instanceId,
+          apiToken: cfg.apiToken,
+          source: "tenant",
+        };
+      }
+      if (cfg.provider === "meta" && cfg.phoneNumberId && cfg.apiToken) {
+        return {
+          provider: "meta",
+          phoneNumberId: cfg.phoneNumberId,
+          accessToken: cfg.apiToken,
+          source: "tenant",
+        };
+      }
+    }
+  }
+
+  // ----- Env fallback (your current global setup) -----
+  const envProvider = (process.env.WHATSAPP_PROVIDER || "").toLowerCase();
+
+  if (
+    envProvider === "ultramsg" &&
+    process.env.ULTRAMSG_INSTANCE_ID &&
+    process.env.ULTRAMSG_TOKEN
+  ) {
+    return {
+      provider: "ultramsg",
+      instanceId: process.env.ULTRAMSG_INSTANCE_ID,
+      apiToken: process.env.ULTRAMSG_TOKEN,
+      source: "env",
+    };
+  }
+
+  if (
+    envProvider === "meta" &&
+    process.env.META_WA_PHONE_NUMBER_ID &&
+    process.env.META_WA_ACCESS_TOKEN
+  ) {
+    return {
+      provider: "meta",
+      phoneNumberId: process.env.META_WA_PHONE_NUMBER_ID,
+      accessToken: process.env.META_WA_ACCESS_TOKEN,
+      source: "env",
+    };
+  }
+
+  return null;
+}
+
+// ---------- Provider: UltraMsg ----------
+
+async function sendViaUltraMsg(
+  cfg: ResolvedWhatsAppConfig,
+  to: string,
+  message: string
+): Promise<SendResult> {
   try {
-    const res = await fetch(`https://api.ultramsg.com/${instanceId}/messages/chat`, {
+    const url = `https://api.ultramsg.com/${cfg.instanceId}/messages/chat`;
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        token,
-        to:   normalizePhone(to),
-        body,
-        priority: "10",
+        token: cfg.apiToken!,
+        to,
+        body: message,
       }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
-    if (data.sent === "true" || data.id) {
-      return { success: true, messageId: String(data.id || data.sent), provider: "ultramsg" };
+    // UltraMsg returns { sent: "true", id: ..., message: "ok" } on success
+    const sent =
+      data?.sent === "true" || data?.sent === true || data?.message === "ok";
+
+    if (!res.ok || !sent) {
+      return {
+        ok: false,
+        provider: "ultramsg",
+        error:
+          typeof data?.error === "string"
+            ? data.error
+            : JSON.stringify(data?.error ?? data) || `HTTP ${res.status}`,
+      };
     }
-    return { success: false, error: data.error || "Send failed", provider: "ultramsg" };
-  } catch (error: any) {
-    return { success: false, error: error.message, provider: "ultramsg" };
+
+    return {
+      ok: true,
+      provider: "ultramsg",
+      providerMessageId: data?.id ? String(data.id) : undefined,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      provider: "ultramsg",
+      error: err instanceof Error ? err.message : "UltraMsg request failed",
+    };
   }
 }
 
-// ── Send via WATI ──
-async function sendWATI(to: string, body: string): Promise<WhatsAppResult> {
-  const apiKey   = process.env.WATI_API_KEY;
-  const endpoint = process.env.WATI_ENDPOINT; // e.g. https://live-mt-server.wati.io/12345
+/** Checks an UltraMsg instance's connection status (QR linked or not). */
+export async function checkUltraMsgStatus(
+  instanceId: string,
+  apiToken: string
+): Promise<{ connected: boolean; raw?: unknown; error?: string }> {
+  try {
+    const url = `https://api.ultramsg.com/${instanceId}/instance/status?token=${encodeURIComponent(
+      apiToken
+    )}`;
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
 
-  if (!apiKey || !endpoint) {
-    return { success: false, error: "WATI not configured", provider: "wati" };
+    // Connected instances report status.accountStatus.status === "authenticated"
+    const status =
+      data?.status?.accountStatus?.status ?? data?.status ?? data?.accountStatus;
+
+    return {
+      connected: status === "authenticated" || status === "connected",
+      raw: data,
+    };
+  } catch (err) {
+    return {
+      connected: false,
+      error: err instanceof Error ? err.message : "Status check failed",
+    };
+  }
+}
+
+// ---------- Provider: Meta Cloud API ----------
+
+const META_GRAPH_VERSION = "v21.0";
+
+async function sendViaMeta(
+  cfg: ResolvedWhatsAppConfig,
+  to: string,
+  message: string
+): Promise<SendResult> {
+  try {
+    const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${cfg.phoneNumberId}/messages`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfg.accessToken}`,
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: { preview_url: false, body: message },
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        provider: "meta",
+        error:
+          data?.error?.message ||
+          `Meta API HTTP ${res.status}: ${JSON.stringify(data)}`,
+      };
+    }
+
+    return {
+      ok: true,
+      provider: "meta",
+      providerMessageId: data?.messages?.[0]?.id,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      provider: "meta",
+      error: err instanceof Error ? err.message : "Meta request failed",
+    };
+  }
+}
+
+/**
+ * Sends a Meta TEMPLATE message (required for business-initiated messages
+ * outside the 24h service window). Free-form text (sendViaMeta) only works
+ * inside an open service window.
+ */
+export async function sendMetaTemplate(opts: {
+  institutionId: string | null;
+  to: string;
+  templateName: string;
+  languageCode?: string; // e.g. "en", "ur"
+  bodyParams?: string[]; // {{1}}, {{2}}, ...
+}): Promise<SendResult> {
+  const cfg = await resolveWhatsAppConfig(opts.institutionId);
+  if (!cfg || cfg.provider !== "meta") {
+    return {
+      ok: false,
+      provider: "meta",
+      error: "No Meta WhatsApp config for this institution",
+    };
   }
 
   try {
-    const phone = normalizePhone(to).replace("+", "");
-    const res   = await fetch(`${endpoint}/api/v1/sendSessionMessage/${phone}`, {
-      method:  "POST",
-      headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body:    JSON.stringify({ messageText: body }),
+    const url = `https://graph.facebook.com/${META_GRAPH_VERSION}/${cfg.phoneNumberId}/messages`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${cfg.accessToken}`,
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: normalizePhone(opts.to),
+        type: "template",
+        template: {
+          name: opts.templateName,
+          language: { code: opts.languageCode || "en" },
+          components: opts.bodyParams?.length
+            ? [
+                {
+                  type: "body",
+                  parameters: opts.bodyParams.map((text) => ({
+                    type: "text",
+                    text,
+                  })),
+                },
+              ]
+            : undefined,
+        },
+      }),
     });
-    const data = await res.json();
-    return data.result
-      ? { success: true, messageId: data.id, provider: "wati" }
-      : { success: false, error: data.info, provider: "wati" };
-  } catch (error: any) {
-    return { success: false, error: error.message, provider: "wati" };
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return {
+        ok: false,
+        provider: "meta",
+        error: data?.error?.message || `Meta API HTTP ${res.status}`,
+      };
+    }
+    return {
+      ok: true,
+      provider: "meta",
+      providerMessageId: data?.messages?.[0]?.id,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      provider: "meta",
+      error: err instanceof Error ? err.message : "Meta template send failed",
+    };
   }
 }
 
-// ── Main send function ──
-export async function sendWhatsApp(to: string, body: string): Promise<WhatsAppResult> {
-  if (process.env.WHATSAPP_ENABLED !== "true") {
-    console.log("[WhatsApp DISABLED] Would send to:", to);
-    return { success: true, messageId: "disabled", provider: "disabled" };
+// ---------- Public API ----------
+
+/**
+ * Main entry point. Use this everywhere in the app.
+ *
+ *   await sendWhatsApp({
+ *     institutionId: token.institutionId, // or null for global fallback
+ *     to: parent.phone,
+ *     message: "Assalamualaikum! ...",
+ *   });
+ */
+export async function sendWhatsApp(opts: {
+  institutionId: string | null;
+  to: string;
+  message: string;
+}): Promise<SendResult> {
+  const cfg = await resolveWhatsAppConfig(opts.institutionId);
+
+  if (!cfg) {
+    return {
+      ok: false,
+      provider: "ultramsg",
+      error:
+        "WhatsApp is not configured for this institution. Connect a number in Settings → WhatsApp.",
+    };
   }
 
-  const provider = process.env.WHATSAPP_PROVIDER || "ultramsg";
-
-  switch (provider) {
-    case "wati":     return sendWATI(to, body);
-    case "ultramsg":
-    default:         return sendUltraMsg(to, body);
+  const to = normalizePhone(opts.to);
+  if (to.length < 11) {
+    return { ok: false, provider: cfg.provider, error: `Invalid phone number: ${opts.to}` };
   }
+
+  if (cfg.provider === "meta") {
+    return sendViaMeta(cfg, to, opts.message);
+  }
+  return sendViaUltraMsg(cfg, to, opts.message);
 }
 
-// ── Bulk send ──
-export async function sendWhatsAppBulk(
-  messages: { to: string; body: string }[],
-  delayMs = 500
-): Promise<WhatsAppResult[]> {
-  const results: WhatsAppResult[] = [];
-  for (const msg of messages) {
-    const result = await sendWhatsApp(msg.to, msg.body);
-    results.push(result);
-    if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
+/**
+ * Bulk helper with gentle pacing (avoids UltraMsg flooding / bans).
+ * Sends sequentially with a small delay; returns per-recipient results.
+ */
+export async function sendWhatsAppBulk(opts: {
+  institutionId: string | null;
+  recipients: { to: string; message: string }[];
+  delayMs?: number; // default 1500ms between messages
+}): Promise<{ to: string; result: SendResult }[]> {
+  const results: { to: string; result: SendResult }[] = [];
+  const delay = opts.delayMs ?? 1500;
+
+  for (const r of opts.recipients) {
+    const result = await sendWhatsApp({
+      institutionId: opts.institutionId,
+      to: r.to,
+      message: r.message,
+    });
+    results.push({ to: r.to, result });
+    if (delay > 0) await new Promise((res) => setTimeout(res, delay));
   }
   return results;
 }
