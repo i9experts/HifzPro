@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
       const message = `🧾 *رسید / Fee Receipt*\n━━━━━━━━━━━━━━━\n🏫 ${instituteName}\n👤 طالب علم: ${payment.student.name}\n📅 ${MONTHS[data.month]} ${data.year}\n💰 رقم ادا: PKR ${data.paidAmount.toLocaleString()}\n🧾 رسید نمبر: ${receiptNumber}\n✅ ادائیگی موصول ہوگئی\n━━━━━━━━━━━━━━━\n_HifzPro — www.hifzpro.com_`;
       for (const guardian of payment.student.guardians) {
         const phone = guardian.whatsapp || guardian.phone;
-        if (phone) await sendWhatsApp(phone, message).catch(console.error);
+        if (phone) await sendWhatsApp({ institutionId: payload.institutionId, to: phone, message }).catch(console.error);
       }
     }
 
