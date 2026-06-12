@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     const { to, message, type, studentId } = result.data;
 
     // Send message
-    const sendResult = await sendWhatsApp(to, message);
+    const sendResult = await sendWhatsApp({ institutionId: payload.institutionId, to, message });
 
     // Log to database
     await prisma.notificationDelivery.create({
@@ -36,14 +36,14 @@ export async function POST(req: NextRequest) {
         channel:     "WHATSAPP",
         type:        type || "manual",
         body:        message,
-        status:      sendResult.success ? "SENT" : "FAILED",
-        sentAt:      sendResult.success ? new Date() : null,
+        status:      sendResult.ok ? "SENT" : "FAILED",
+        sentAt:      sendResult.ok ? new Date() : null,
         error:       sendResult.error || null,
         metadata:    studentId ? { studentId } : undefined,
       },
     });
 
-    if (sendResult.success) return successResponse({ messageId: sendResult.messageId, provider: sendResult.provider });
+    if (sendResult.ok) return successResponse({ messageId: sendResult.providerMessageId, provider: sendResult.provider });
     return errorResponse(`WhatsApp send failed: ${sendResult.error}`);
   } catch (error) {
     console.error("WhatsApp send error:", error);
