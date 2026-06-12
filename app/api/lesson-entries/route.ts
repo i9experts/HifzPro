@@ -159,7 +159,7 @@ async function sendSabaqWhatsApp(
     const phone = guardian.whatsapp || guardian.phone;
     if (!phone) continue;
 
-    const result = await sendWhatsApp(phone, message);
+    const result = await sendWhatsApp({ institutionId: student?.campus?.institution?.id ?? null, to: phone, message });
 
     // Log
     await prisma.notificationDelivery.create({
@@ -168,8 +168,8 @@ async function sendSabaqWhatsApp(
         channel:     "WHATSAPP",
         type:        "sabaq",
         body:        message,
-        status:      result.success ? "SENT" : "FAILED",
-        sentAt:      result.success ? new Date() : null,
+        status:      result.ok ? "SENT" : "FAILED",
+        sentAt:      result.ok ? new Date() : null,
         error:       result.error || null,
         metadata:    { studentId, lessonType: data.lessonType },
       },
