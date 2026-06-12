@@ -49,6 +49,11 @@ const MODULES = [
     desc:"Daily attendance, dot grid, auto-notify parents",
     href:"/dashboard/admin/attendance",         color:"#0f766e", tag:"Core",
   },
+ {
+    id:"whatsapp-connect", icon:"🔗", title:"WhatsApp Connection", titleUr:"واٹس ایپ کنکشن",
+    desc:"Connect your institute's own WhatsApp number — QR link or Official API",
+    href:"/dashboard/admin/whatsapp/settings",  color:"#16a34a", tag:"Core",
+  },
   {
     id:"whatsapp",    icon:"💬",  title:"WhatsApp Integration", titleUr:"واٹس ایپ",
     desc:"7 bilingual templates, auto-send on lesson entry, OTP & alerts",
