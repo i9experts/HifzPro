@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
+import PhotoUpload from "@/components/ui/PhotoUpload";
+import DocumentUpload, { UploadedDoc } from "@/components/ui/DocumentUpload";
 import { colors, fonts } from "@/lib/tokens";
 
 const RELATIONS = ["Father","Mother","Grandfather","Grandmother","Uncle","Aunt","Brother","Sister","Guardian","Other"];
@@ -25,18 +27,20 @@ function FieldRow({label,required,children}:{label:string;required?:boolean;chil
 
 export default function EditStudentPage({params}:{params:Promise<{id:string}>}) {
   const {id} = use(params);
-  const [loading, setLoading]  = useState(true);
-  const [saving,  setSaving]   = useState(false);
-  const [saved,   setSaved]    = useState(false);
-  const [error,   setError]    = useState("");
-  const [form,    setForm]     = useState({
-    name:"",nameArabic:"",dateOfBirth:"",gender:"MALE",
-    program:"HIFZ",status:"ACTIVE",batchId:"",expectedKhatmAt:"",startingJuz:1,
-    guardianName:"",guardianRelation:"Father",guardianCnic:"",
-    guardianPhone:"",guardianWhatsapp:"",guardianEmail:"",receiveUpdates:true,
+  const [loading,   setLoading]   = useState(true);
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [error,     setError]     = useState("");
+  const [photo,     setPhoto]     = useState("");
+  const [documents, setDocuments] = useState<UploadedDoc[]>([]);
+  const [form,      setForm]      = useState({
+    name:"", nameArabic:"", dateOfBirth:"", gender:"MALE",
+    program:"HIFZ", status:"ACTIVE", batchId:"", expectedKhatmAt:"", startingJuz:1,
+    guardianName:"", guardianRelation:"Father", guardianCnic:"",
+    guardianPhone:"", guardianWhatsapp:"", guardianEmail:"", receiveUpdates:true,
   });
 
-  const set = (key:string,val:any)=>setForm(prev=>({...prev,[key]:val}));
+  const set = (key:string, val:any) => setForm(prev=>({...prev,[key]:val}));
 
   useEffect(()=>{
     fetch(`/api/admin/students/${id}`)
@@ -45,6 +49,7 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
         if(d.success){
           const s = d.data.student;
           const g = s.guardians?.find((g:any)=>g.isEmergency)||s.guardians?.[0];
+          setPhoto(s.photo||"");
           setForm({
             name:s.name||"", nameArabic:s.nameArabic||"",
             dateOfBirth:s.dateOfBirth?s.dateOfBirth.split("T")[0]:"",
@@ -64,14 +69,18 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
 
   const handleSave = async()=>{
     if(!form.name||!form.guardianPhone){setError("Name and guardian phone are required");return;}
-    setSaving(true);setError("");
+    setSaving(true); setError("");
     try{
       const res  = await fetch(`/api/admin/students/${id}`,{
-        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(form),
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({...form, photo: photo||undefined}),
       });
       const data = await res.json();
-      if(data.success){setSaved(true);setTimeout(()=>window.location.href=`/dashboard/admin/students/${id}`,1500);}
-      else setError(data.error||"Failed to update");
+      if(data.success){
+        setSaved(true);
+        setTimeout(()=>window.location.href=`/dashboard/admin/students/${id}`,1500);
+      } else setError(data.error||"Failed to update");
     }catch{setError("Connection error");}finally{setSaving(false);}
   };
 
@@ -79,13 +88,18 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
     if(!confirm("Are you sure you want to withdraw this student? This can be reversed."))return;
     const res  = await fetch(`/api/admin/students/${id}?action=withdraw`,{method:"DELETE"});
     const data = await res.json();
-    if(data.success)window.location.href="/dashboard/admin/students";
+    if(data.success) window.location.href="/dashboard/admin/students";
   };
 
-  if(loading)return<div style={{minHeight:"100vh",background:colors.deep,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontFamily:fonts.body,color:"rgba(255,255,255,0.4)"}}>Loading...</div></div>;
+  if(loading) return (
+    <div style={{minHeight:"100vh",background:colors.deep,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{fontFamily:fonts.body,color:"rgba(255,255,255,0.4)"}}>Loading...</div>
+    </div>
+  );
 
   return(
     <div style={{minHeight:"100vh",background:colors.n50}}>
+      {/* Nav */}
       <nav style={{background:colors.deep,padding:"0 24px",height:60,display:"flex",alignItems:"center",gap:12,position:"sticky",top:0,zIndex:50}}>
         <Link href={`/dashboard/admin/students/${id}`} style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",color:colors.white,fontSize:16}}>←</Link>
         <div style={{fontFamily:fonts.heading,fontSize:15,fontWeight:700,color:colors.white}}>Edit Student</div>
@@ -100,20 +114,54 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
       </nav>
 
       <div style={{maxWidth:800,margin:"0 auto",padding:"28px 20px"}}>
-        {saved&&<div style={{background:colors.successBg,borderRadius:10,padding:"12px 16px",marginBottom:16,textAlign:"center"}}><span style={{fontFamily:fonts.heading,fontSize:13,fontWeight:600,color:colors.successText}}>✓ Student updated successfully! Redirecting...</span></div>}
-        {error&&<div style={{background:colors.errorBg,borderRadius:10,padding:"12px 16px",marginBottom:16}}><span style={{fontFamily:fonts.body,fontSize:13,color:colors.errorText}}>⚠ {error}</span></div>}
+        {saved && (
+          <div style={{background:colors.successBg,borderRadius:10,padding:"12px 16px",marginBottom:16,textAlign:"center"}}>
+            <span style={{fontFamily:fonts.heading,fontSize:13,fontWeight:600,color:colors.successText}}>✓ Student updated successfully! Redirecting...</span>
+          </div>
+        )}
+        {error && (
+          <div style={{background:colors.errorBg,borderRadius:10,padding:"12px 16px",marginBottom:16}}>
+            <span style={{fontFamily:fonts.body,fontSize:13,color:colors.errorText}}>⚠ {error}</span>
+          </div>
+        )}
 
-        {/* Personal */}
+        {/* ── Photo ── */}
+        <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`,marginBottom:16}}>
+          <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:18}}>📷 Student Photo</div>
+          <div style={{display:"flex",justifyContent:"center"}}>
+            <PhotoUpload
+              value={photo}
+              onChange={url=>setPhoto(url)}
+              label="Student Photo"
+              size={100}
+              shape="square"
+              initials={form.name?form.name.charAt(0).toUpperCase():"?"}
+            />
+          </div>
+          <p style={{fontFamily:fonts.body,fontSize:11,color:colors.n400,textAlign:"center",marginTop:10}}>
+            Click the photo to upload a new one from your device. Stored securely on Cloudinary.
+          </p>
+        </div>
+
+        {/* ── Personal ── */}
         <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`,marginBottom:16}}>
           <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:18}}>👤 Personal Information</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            <div style={{gridColumn:"1/-1"}}><FieldRow label="Full Name" required><input value={form.name} onChange={e=>set("name",e.target.value)} style={inputStyle}/></FieldRow></div>
-            <FieldRow label="Arabic / Urdu Name"><input value={form.nameArabic} onChange={e=>set("nameArabic",e.target.value)} style={{...inputStyle,direction:"rtl",fontFamily:"'Cormorant Garamond',serif",fontSize:15}}/></FieldRow>
-            <FieldRow label="Date of Birth"><input type="date" value={form.dateOfBirth} onChange={e=>set("dateOfBirth",e.target.value)} style={inputStyle}/></FieldRow>
+            <div style={{gridColumn:"1/-1"}}>
+              <FieldRow label="Full Name" required>
+                <input value={form.name} onChange={e=>set("name",e.target.value)} style={inputStyle}/>
+              </FieldRow>
+            </div>
+            <FieldRow label="Arabic / Urdu Name">
+              <input value={form.nameArabic} onChange={e=>set("nameArabic",e.target.value)} style={{...inputStyle,direction:"rtl",fontFamily:"'Cormorant Garamond',serif",fontSize:15}}/>
+            </FieldRow>
+            <FieldRow label="Date of Birth">
+              <input type="date" value={form.dateOfBirth} onChange={e=>set("dateOfBirth",e.target.value)} style={inputStyle}/>
+            </FieldRow>
           </div>
         </div>
 
-        {/* Program */}
+        {/* ── Program ── */}
         <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`,marginBottom:16}}>
           <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:18}}>📖 Program Details</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
@@ -136,20 +184,30 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
           </div>
         </div>
 
-        {/* Guardian */}
+        {/* ── Guardian ── */}
         <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`,marginBottom:16}}>
           <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:18}}>👨‍👩‍👦 Guardian Information</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            <FieldRow label="Full Name" required><input value={form.guardianName} onChange={e=>set("guardianName",e.target.value)} style={inputStyle}/></FieldRow>
+            <FieldRow label="Full Name" required>
+              <input value={form.guardianName} onChange={e=>set("guardianName",e.target.value)} style={inputStyle}/>
+            </FieldRow>
             <FieldRow label="Relation">
               <select value={form.guardianRelation} onChange={e=>set("guardianRelation",e.target.value)} style={inputStyle}>
                 {RELATIONS.map(r=><option key={r} value={r}>{r}</option>)}
               </select>
             </FieldRow>
-            <FieldRow label="CNIC"><input value={form.guardianCnic} onChange={e=>set("guardianCnic",e.target.value)} placeholder="42101-1234567-1" style={inputStyle}/></FieldRow>
-            <FieldRow label="Phone" required><input value={form.guardianPhone} onChange={e=>set("guardianPhone",e.target.value)} style={inputStyle}/></FieldRow>
-            <FieldRow label="WhatsApp"><input value={form.guardianWhatsapp} onChange={e=>set("guardianWhatsapp",e.target.value)} style={inputStyle}/></FieldRow>
-            <FieldRow label="Email"><input type="email" value={form.guardianEmail} onChange={e=>set("guardianEmail",e.target.value)} style={inputStyle}/></FieldRow>
+            <FieldRow label="CNIC">
+              <input value={form.guardianCnic} onChange={e=>set("guardianCnic",e.target.value)} placeholder="42101-1234567-1" style={inputStyle}/>
+            </FieldRow>
+            <FieldRow label="Phone" required>
+              <input value={form.guardianPhone} onChange={e=>set("guardianPhone",e.target.value)} style={inputStyle}/>
+            </FieldRow>
+            <FieldRow label="WhatsApp">
+              <input value={form.guardianWhatsapp} onChange={e=>set("guardianWhatsapp",e.target.value)} style={inputStyle}/>
+            </FieldRow>
+            <FieldRow label="Email">
+              <input type="email" value={form.guardianEmail} onChange={e=>set("guardianEmail",e.target.value)} style={inputStyle}/>
+            </FieldRow>
             <div style={{gridColumn:"1/-1"}}>
               <label style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
                 <input type="checkbox" checked={form.receiveUpdates} onChange={e=>set("receiveUpdates",e.target.checked)} style={{width:16,height:16,accentColor:colors.primary}}/>
@@ -159,14 +217,42 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
           </div>
         </div>
 
-        <div style={{display:"flex",justifyContent:"flex-end",gap:10}}>
-          <Link href={`/dashboard/admin/students/${id}`} style={{padding:"12px 24px",borderRadius:10,background:colors.n100,border:`1px solid ${colors.n200}`,color:colors.n700,fontSize:13,textDecoration:"none",fontFamily:fonts.heading}}>Cancel</Link>
-          <button onClick={handleSave} disabled={saving} style={{padding:"12px 28px",borderRadius:10,background:saving?colors.n300:colors.primary,color:colors.white,fontSize:13,fontWeight:700,border:"none",cursor:saving?"not-allowed":"pointer",fontFamily:fonts.heading}}>
-            {saving?"Saving...":"Save Changes"}
+        {/* ── Documents ── */}
+        <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`,marginBottom:16}}>
+          <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:6}}>📁 Documents</div>
+          <p style={{fontFamily:fonts.body,fontSize:12,color:colors.n400,marginBottom:16}}>
+            Upload or update student documents (B-Form, transfer letter, medical notes, etc.)
+          </p>
+          <div style={{background:colors.n50,borderRadius:12,padding:16,border:`1px solid ${colors.n200}`}}>
+            <DocumentUpload
+              documents={documents}
+              onChange={docs=>setDocuments(docs)}
+              label="Student Documents"
+              maxFiles={8}
+            />
+          </div>
+          <div style={{background:colors.warningBg,borderRadius:10,padding:10,border:`1px solid ${colors.warning}44`,marginTop:12}}>
+            <span style={{fontFamily:fonts.body,fontSize:11,color:colors.warningText}}>
+              ℹ️ Documents added here are stored on Cloudinary. Previously uploaded documents are shown in the student profile timeline.
+            </span>
+          </div>
+        </div>
+
+        {/* ── Footer buttons ── */}
+        <div style={{display:"flex",justifyContent:"space-between",gap:10}}>
+          <button onClick={handleWithdraw} style={{padding:"12px 20px",borderRadius:10,background:colors.errorBg,border:`1px solid ${colors.error}44`,color:colors.errorText,fontSize:13,cursor:"pointer",fontFamily:fonts.heading}}>
+            Withdraw Student
           </button>
+          <div style={{display:"flex",gap:10}}>
+            <Link href={`/dashboard/admin/students/${id}`} style={{padding:"12px 24px",borderRadius:10,background:colors.n100,border:`1px solid ${colors.n200}`,color:colors.n700,fontSize:13,textDecoration:"none",fontFamily:fonts.heading}}>
+              Cancel
+            </Link>
+            <button onClick={handleSave} disabled={saving} style={{padding:"12px 28px",borderRadius:10,background:saving?colors.n300:colors.primary,color:colors.white,fontSize:13,fontWeight:700,border:"none",cursor:saving?"not-allowed":"pointer",fontFamily:fonts.heading}}>
+              {saving?"Saving...":"Save Changes"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
