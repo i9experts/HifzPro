@@ -4,7 +4,7 @@
 // DELETE -> remove config
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { getTokenFromRequest, verifyToken } from "@/lib/auth";
+import { getTokenFromRequest, verifyToken, TokenPayload } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
 import { checkUltraMsgStatus, normalizePhone } from "@/lib/whatsapp";
 
@@ -14,13 +14,13 @@ function maskToken(token: string | null): string | null {
   return token.slice(0, 4) + "••••••••" + token.slice(-4);
 }
 
-function getAuth(req: NextRequest) {
+function getAuth(req: NextRequest): (TokenPayload & { institutionId: string }) | null {
   const token = getTokenFromRequest(req);
   if (!token) return null;
   const payload = verifyToken(token);
   if (!payload || !["CAMPUS_ADMIN", "SUPER_ADMIN"].includes(payload.role)) return null;
   if (!payload.institutionId) return null;
-  return payload;
+  return payload as TokenPayload & { institutionId: string };
 }
 
 export async function GET(req: NextRequest) {
