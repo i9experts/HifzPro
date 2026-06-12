@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     if (data.sendInvite && data.phone) {
       const institution = await prisma.institution.findUnique({ where:{ id:institutionId }, select:{ name:true } });
       const msg = `🕌 *HifzPro Donor Portal*\nالسلام علیکم ${data.name} صاحب/صاحبہ،\n\nآپ کو ${institution?.name||"ہمارے ادارے"} کے طلبہ کی مالی معاونت کرنے پر جزاک اللہ خیراً۔\n\n*آپ کا Donor اکاؤنٹ تیار ہے:*\n🌐 portal.hifzpro.com/donor\n📧 ${data.email||"—"}\n🔑 ${rawPassword}\n\nلاگ ان کریں اور اپنے طلبہ کی ترقی دیکھیں۔\n_HifzPro — حفظ القرآن کی ڈیجیٹل خدمت_`;
-      await sendWhatsApp(data.phone, msg).catch(console.error);
+      await sendWhatsApp({ institutionId, to: data.phone, message: msg }).catch(console.error);
     }
 
     return successResponse({ donor, password: rawPassword }, 201);
