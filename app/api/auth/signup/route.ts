@@ -109,10 +109,10 @@ export async function POST(req: NextRequest) {
   // ── 8. WhatsApp (non-blocking) ──
   const whatsappNum = data.whatsapp || data.phone;
   const welcomeMsg = `🕌 *HifzPro میں خوش آمدید!*\nالسلام علیکم ${data.adminName} صاحب،\n\n🌐 www.hifzpro.com/signin\n📧 ${data.email}\n🔑 ${password}\n\n14 دن کا مفت ٹرائل شروع ہو گیا ہے`;
-  sendWhatsApp(whatsappNum, welcomeMsg).catch(e => console.error("[signup] WA failed:", e));
+  sendWhatsApp({ institutionId: institution.id, to: whatsappNum, message: welcomeMsg }).catch(e => console.error("[signup] WA failed:", e));
 
   prisma.user.findFirst({ where: { role: "SUPER_ADMIN" } })
-    .then(sa => { if (sa?.whatsapp || sa?.phone) sendWhatsApp((sa.whatsapp || sa.phone)!, `🆕 نیا ادارہ: ${data.institutionName} — ${data.city}`).catch(() => {}); })
+    .then(sa => { if (sa?.whatsapp || sa?.phone) sendWhatsApp({ institutionId: null, to: (sa.whatsapp || sa.phone)!, message: `🆕 نیا ادارہ: ${data.institutionName} — ${data.city}` }).catch(() => {}); })
     .catch(() => {});
 
   return successResponse({ message: "Account created successfully", email: data.email, password, institutionId: institution.id, campusId: campus.id }, 201);
