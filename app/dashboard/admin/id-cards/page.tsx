@@ -439,11 +439,13 @@ export default function IDCardStudioPage() {
     if (tab === "staff" && staff.length === 0) {
       setLoadingCards(true);
       fetch("/api/admin/asatidha")
-        .then(r=>r.json())
-        .then(d => {
-          const json = d?.data ?? d;
-          setStaff(json?.asatidha ?? []);
-        })
+  .then(r=>r.json())
+  .then(d => {
+    const json = d?.data ?? d;
+    const list = (json?.asatidha ?? json?.data ?? []) as any[];
+    // Only keep records that have a valid user object
+    setStaff(list.filter(s => s?.user?.name));
+  })
         .catch(()=>{})
         .finally(()=>setLoadingCards(false));
     }
