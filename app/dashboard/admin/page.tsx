@@ -98,6 +98,12 @@ const MODULES = [
     href:"/dashboard/admin/fees",               color:"#166534", tag:"Finance",
   },
   {
+    id:"finance-export", icon:"🔌", title:"Finance Data Bridge", titleUr:"اکاؤنٹنگ ایکسپورٹ",
+    desc:"Export fee data to ERPNext, Tally, Peachtree or any accounting ERP — CSV, Excel, Journal Entries",
+    href:"/dashboard/admin/finance/export", color:"#166534", tag:"Finance",
+  },
+
+  {
     id:"scholarships",icon:"🎓",  title:"Scholarship Manager",  titleUr:"وظائف",
     desc:"Full/partial waivers, merit & need-based, donor-linked",
     href:"/dashboard/admin/fees/scholarships",  color:"#7c3aed", tag:"Finance",
