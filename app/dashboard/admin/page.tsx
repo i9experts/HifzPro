@@ -81,6 +81,11 @@ const MODULES = [
     desc:"Calendar heatmap, chronic absentees, batch comparison, print",
     href:"/dashboard/admin/attendance/reports", color:"#065f46", tag:"Reports",
   },
+   {
+    id:"id-cards", icon:"🪪", title:"ID Card Studio", titleUr:"شناختی کارڈ",
+    desc:"Design & print student + staff ID cards with QR codes for ZKTeco attendance",
+    href:"/dashboard/admin/id-cards", color:"#0D5C3A", tag:"Core",
+  },
   {
   id:"notifications", icon:"🔔", title:"Notification Center", titleUr:"اطلاعات",
   desc:"Push broadcasts to parents — announcements, holidays, urgent notices",
