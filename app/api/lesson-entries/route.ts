@@ -1,5 +1,6 @@
 // app/api/lesson-entries/route.ts
 // Auto-sends WhatsApp Sabaq summary to parent after each entry
+// Auto-detects Mutashabihat confusions from mistake locations
 
 import { NextRequest } from "next/server";
 import { z } from "zod";
@@ -93,6 +94,14 @@ export async function POST(req: NextRequest) {
     const healthScore = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length * 10) / 10;
     await prisma.manzilHealth.create({ data: { studentId: data.studentId, score: healthScore } });
 
+    // ── Auto-detect Mutashabihat confusions ──────────────────
+    // Runs silently — never blocks the lesson entry response
+    try {
+      await autoDetectMutashabihat(data.studentId, entry.id, entry.mistakes);
+    } catch (mutErr) {
+      console.error("Mutashabihat auto-detect error (non-blocking):", mutErr);
+    }
+
     // ── Auto-send WhatsApp to parent ──
     try {
       await sendSabaqWhatsApp(data.studentId, data, healthScore, payload.name);
@@ -107,27 +116,129 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// Mutashabihat Auto-Detection
+// For each mistake that has a surah+ayah location, check if
+// that ayah appears in any Mutashabihat pair. If yes, upsert
+// a StudentMutashabihat record (increment confusionCount if
+// already exists, create if new).
+// Priority formula: min(100, 50 + confusionCount * 10)
+// Only ATAK mistakes are checked — these are hesitation/
+// confusion mistakes most likely caused by Mutashabihat.
+// ─────────────────────────────────────────────────────────────
+async function autoDetectMutashabihat(
+  studentId:  string,
+  entryId:    string,
+  mistakes:   { mistakeType: string; surah: number | null; ayah: number | null }[]
+) {
+  // Only process ATAK mistakes that have surah+ayah location
+  const atakMistakes = mistakes.filter(
+    m => m.mistakeType === "ATAK" && m.surah && m.ayah
+  );
+  if (atakMistakes.length === 0) return;
+
+  for (const mistake of atakMistakes) {
+    const surah = mistake.surah!;
+    const ayah  = mistake.ayah!;
+
+    // Find any Mutashabihat pair where this ayah appears
+    // (either as ayah1 or ayah2 in the pair)
+    const pair = await prisma.mutashabihatPair.findFirst({
+      where: {
+        OR: [
+          { surah1: surah, ayah1: ayah },
+          { surah2: surah, ayah2: ayah },
+        ],
+      },
+    });
+
+    if (!pair) continue; // No known Mutashabihat pair for this ayah
+
+    // Determine which is "correct" and which is "confused with"
+    // The ayah the student was AT is the one they got wrong
+    // The OTHER ayah in the pair is what they confused it with
+    const isFirst    = pair.surah1 === surah && pair.ayah1 === ayah;
+    const correctSurah      = isFirst ? pair.surah1 : pair.surah2;
+    const correctAyah       = isFirst ? pair.ayah1  : pair.ayah2;
+    const correctJuz        = isFirst ? pair.juz1   : pair.juz2;
+    const correctText       = isFirst ? pair.text1  : pair.text2;
+    const confusedWithSurah = isFirst ? pair.surah2 : pair.surah1;
+    const confusedWithAyah  = isFirst ? pair.ayah2  : pair.ayah1;
+    const confusedWithJuz   = isFirst ? pair.juz2   : pair.juz1;
+    const confusedText      = isFirst ? pair.text2  : pair.text1;
+
+    // Check if this exact confusion already exists for this student
+    const existing = await prisma.studentMutashabihat.findFirst({
+      where: {
+        studentId,
+        correctSurah,
+        correctAyah,
+        confusedWithSurah,
+        confusedWithAyah,
+        isResolved: false,
+      },
+    });
+
+    if (existing) {
+      // Increment confusion count and raise priority
+      const newCount    = existing.confusionCount + 1;
+      const newPriority = Math.min(100, 50 + newCount * 10);
+      await prisma.studentMutashabihat.update({
+        where: { id: existing.id },
+        data: {
+          confusionCount: newCount,
+          lastConfusedAt: new Date(),
+          priority:       newPriority,
+          lessonEntryId:  entryId,
+        },
+      });
+    } else {
+      // Create new confusion record
+      await prisma.studentMutashabihat.create({
+        data: {
+          studentId,
+          pairId:           pair.id,
+          correctSurah,
+          correctAyah,
+          correctJuz,
+          correctText:      correctText || null,
+          confusedWithSurah,
+          confusedWithAyah,
+          confusedWithJuz,
+          confusedText:     confusedText || null,
+          confusionCount:   1,
+          priority:         60, // starts higher than default (50) since it's a confirmed confusion
+          lessonEntryId:    entryId,
+          firstConfusedAt:  new Date(),
+          lastConfusedAt:   new Date(),
+        },
+      });
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// WhatsApp parent notification (unchanged)
+// ─────────────────────────────────────────────────────────────
 async function sendSabaqWhatsApp(
   studentId: string,
   data:      any,
   healthScore: number,
   ustadhName: string
 ) {
-  // Get student, guardian, institution
   const student = await prisma.student.findUnique({
     where: { id: studentId },
     include: {
-      guardians:   { where: { receiveUpdates: true }, take: 3 },
-      campus:      { include: { institution: true } },
+      guardians: { where: { receiveUpdates: true }, take: 3 },
+      campus:    { include: { institution: true } },
     },
   });
 
   if (!student || student.guardians.length === 0) return;
 
-  // Build sabaq/sabqi/manzil from the entry
   const sabaqData = data.lessonType === "SABAQ" && data.juzFrom ? {
-    juz:      data.juzFrom, pageFrom: data.pageFrom || 0,
-    pageTo:   data.pageTo   || 0, grade: data.grade || "GOOD",
+    juz: data.juzFrom, pageFrom: data.pageFrom || 0,
+    pageTo: data.pageTo || 0, grade: data.grade || "GOOD",
     mistakes: data.mistakeCount || 0,
   } : undefined;
 
@@ -154,14 +265,16 @@ async function sendSabaqWhatsApp(
     lang:          "ur",
   });
 
-  // Send to all guardians who opted in
   for (const guardian of student.guardians) {
     const phone = guardian.whatsapp || guardian.phone;
     if (!phone) continue;
 
-    const result = await sendWhatsApp({ institutionId: student?.campus?.institution?.id ?? null, to: phone, message });
+    const result = await sendWhatsApp({
+      institutionId: student?.campus?.institution?.id ?? null,
+      to: phone,
+      message,
+    });
 
-    // Log
     await prisma.notificationDelivery.create({
       data: {
         recipientId: phone,
