@@ -795,3 +795,39 @@ model WhatsAppConfig {
 // to the Institution model, and on WhatsAppConfig:
 //   institution Institution @relation(fields: [institutionId], references: [id])
 // The code below works either way — it queries by institutionId directly.
+// Add this model to prisma/schema.prisma
+
+model CardDesign {
+  id            String   @id @default(cuid())
+  institutionId String   @unique
+
+  // Branding
+  primaryColor  String   @default("#0D5C3A")
+  accentColor   String   @default("#C4882A")
+  logoUrl       String?
+
+  // Background: solid | gradient | image
+  bgType        String   @default("gradient")
+  bgValue       String   @default("#0D5C3A")
+
+  // Typography: classic | modern | arabic
+  fontStyle     String   @default("classic")
+
+  // Institute info on card
+  instituteName String   @default("")
+  tagline       String?
+  address       String?
+  footerText    String?
+
+  // App download URLs for QR codes
+  parentAppUrl  String   @default("https://hifzpro.com/parent-app")
+  ustadhAppUrl  String   @default("https://hifzpro.com/ustadh-app")
+
+  // JSON array of visible field keys
+  visibleFields String   @default("[\"guardian\",\"batch\",\"program\",\"bloodGroup\"]")
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("card_designs")
+}
