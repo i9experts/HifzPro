@@ -3,16 +3,18 @@
 // POST -> save/update card design
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { getTokenFromRequest, verifyToken } from "@/lib/auth";
+import { getTokenFromRequest, verifyToken, TokenPayload } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
 
-function getAuth(req: NextRequest) {
+type AuthPayload = Omit<TokenPayload, "institutionId"> & { institutionId: string };
+
+function getAuth(req: NextRequest): AuthPayload | null {
   const token = getTokenFromRequest(req);
   if (!token) return null;
   const payload = verifyToken(token);
   if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return null;
   if (!payload.institutionId) return null;
-  return payload;
+  return { ...payload, institutionId: payload.institutionId };
 }
 
 export async function GET(req: NextRequest) {
