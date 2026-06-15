@@ -1,5 +1,6 @@
 // app/api/lesson-entries/route.ts
 // Auto-sends WhatsApp Sabaq summary to parent after each entry
+// (respects NotificationPreferences.sendOnSabaq toggle)
 // Auto-detects Mutashabihat confusions from mistake locations
 
 import { NextRequest } from "next/server";
@@ -218,7 +219,10 @@ async function autoDetectMutashabihat(
 }
 
 // ─────────────────────────────────────────────────────────────
-// WhatsApp parent notification (unchanged)
+// WhatsApp parent notification
+// Checks NotificationPreferences.sendOnSabaq before sending —
+// if the institution has disabled Daily Sabaq Report, this
+// returns early without sending anything.
 // ─────────────────────────────────────────────────────────────
 async function sendSabaqWhatsApp(
   studentId: string,
@@ -235,6 +239,20 @@ async function sendSabaqWhatsApp(
   });
 
   if (!student || student.guardians.length === 0) return;
+
+  const institutionId = student?.campus?.institution?.id ?? null;
+  let lang: "ur" | "en" = "ur";
+
+  // ── Check notification preferences ──
+  if (institutionId) {
+    const prefs = await prisma.notificationPreferences.findUnique({
+      where: { institutionId },
+      select: { sendOnSabaq: true, language: true },
+    });
+    // If a preferences row exists and sendOnSabaq is explicitly false, skip
+    if (prefs && prefs.sendOnSabaq === false) return;
+    if (prefs?.language === "en") lang = "en";
+  }
 
   const sabaqData = data.lessonType === "SABAQ" && data.juzFrom ? {
     juz: data.juzFrom, pageFrom: data.pageFrom || 0,
@@ -262,7 +280,7 @@ async function sendSabaqWhatsApp(
     manzil:        manzilData,
     manzilHealth:  healthScore,
     notes:         data.notes,
-    lang:          "ur",
+    lang,
   });
 
   for (const guardian of student.guardians) {
@@ -270,7 +288,7 @@ async function sendSabaqWhatsApp(
     if (!phone) continue;
 
     const result = await sendWhatsApp({
-      institutionId: student?.campus?.institution?.id ?? null,
+      institutionId,
       to: phone,
       message,
     });
