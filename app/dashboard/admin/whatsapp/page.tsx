@@ -40,6 +40,26 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
   );
 }
 
+interface NotificationPrefs {
+  sendOnSabaq: boolean;
+  sendOnAbsence: boolean;
+  sendOnTest: boolean;
+  sendHealthAlert: boolean;
+  sendWeekly: boolean;
+  sendWelcome: boolean;
+  language: "ur" | "en";
+}
+
+const DEFAULT_PREFS: NotificationPrefs = {
+  sendOnSabaq: true,
+  sendOnAbsence: true,
+  sendOnTest: true,
+  sendHealthAlert: true,
+  sendWeekly: true,
+  sendWelcome: true,
+  language: "ur",
+};
+
 export default function WhatsAppPage() {
   const [stats,      setStats]      = useState<Stats>({ sent: 0, failed: 0, pending: 0 });
   const [logs,       setLogs]       = useState<LogEntry[]>([]);
@@ -50,16 +70,12 @@ export default function WhatsAppPage() {
   const [activeTab,  setActiveTab]  = useState<"overview" | "log" | "settings">("overview");
   const [expandLog,  setExpandLog]  = useState<string | null>(null);
 
-  const [notifications, setNotifications] = useState({
-    sendOnSabaq:    true,
-    sendOnAbsence:  true,
-    sendOnTest:     true,
-    sendHealthAlert:true,
-    sendWeekly:     true,
-    sendWelcome:    true,
-  });
+  const [notifications, setNotifications] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  const [prefsLoading, setPrefsLoading] = useState(true);
+  const [savingPrefs,  setSavingPrefs]  = useState(false);
+  const [savedBanner,  setSavedBanner]  = useState(false);
 
-  const [language, setLanguage] = useState<"ur" | "en">("ur");
+  const language = notifications.language;
 
   const fetchLogs = () => {
     setLoading(true);
@@ -74,29 +90,72 @@ export default function WhatsAppPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    fetchLogs();
-    // Load saved settings from localStorage
-    try {
-      const saved = localStorage.getItem("hifzpro_wa_settings");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setNotifications(n => ({ ...n, ...parsed.notifications }));
-        if (parsed.language) setLanguage(parsed.language);
-      }
-    } catch {}
-  }, []);
-
-  // Save settings to localStorage when changed
-  const updateNotification = (key: string, val: boolean) => {
-    const updated = { ...notifications, [key]: val };
-    setNotifications(updated);
-    localStorage.setItem("hifzpro_wa_settings", JSON.stringify({ notifications: updated, language }));
+  const fetchPreferences = () => {
+    setPrefsLoading(true);
+    fetch("/api/admin/notification-preferences")
+      .then(r => r.json())
+      .then(d => {
+        const data = d?.data ?? d;
+        if (data?.preferences) {
+          const p = data.preferences;
+          setNotifications({
+            sendOnSabaq:     p.sendOnSabaq,
+            sendOnAbsence:   p.sendOnAbsence,
+            sendOnTest:      p.sendOnTest,
+            sendHealthAlert: p.sendHealthAlert,
+            sendWeekly:      p.sendWeekly,
+            sendWelcome:     p.sendWelcome,
+            language:        p.language === "en" ? "en" : "ur",
+          });
+        }
+      })
+      .catch(() => {})
+      .finally(() => setPrefsLoading(false));
   };
 
-  const updateLanguage = (lang: "ur" | "en") => {
-    setLanguage(lang);
-    localStorage.setItem("hifzpro_wa_settings", JSON.stringify({ notifications, language: lang }));
+  useEffect(() => {
+    fetchLogs();
+    fetchPreferences();
+  }, []);
+
+  // Save a single preference change to the database immediately
+  const updateNotification = async (key: keyof NotificationPrefs, val: boolean) => {
+    const updated = { ...notifications, [key]: val };
+    setNotifications(updated);
+    setSavingPrefs(true);
+    try {
+      await fetch("/api/admin/notification-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: val }),
+      });
+      setSavedBanner(true);
+      setTimeout(() => setSavedBanner(false), 2000);
+    } catch {
+      // Revert on failure
+      setNotifications(notifications);
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const updateLanguage = async (lang: "ur" | "en") => {
+    const updated = { ...notifications, language: lang };
+    setNotifications(updated);
+    setSavingPrefs(true);
+    try {
+      await fetch("/api/admin/notification-preferences", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: lang }),
+      });
+      setSavedBanner(true);
+      setTimeout(() => setSavedBanner(false), 2000);
+    } catch {
+      setNotifications(notifications);
+    } finally {
+      setSavingPrefs(false);
+    }
   };
 
   const handleTest = async () => {
@@ -122,7 +181,7 @@ export default function WhatsAppPage() {
 
   const totalSent = stats.sent + stats.failed + stats.pending;
 
-  const NOTIFICATION_ITEMS = [
+  const NOTIFICATION_ITEMS: { key: keyof NotificationPrefs; icon: string; title: string; desc: string; color: string }[] = [
     {
       key:   "sendOnSabaq",
       icon:  "📖",
@@ -178,6 +237,9 @@ export default function WhatsAppPage() {
           <div style={{ fontFamily: fonts.mono, fontSize: 8, color: colors.gold, opacity: 0.8, letterSpacing: 1 }}>PARENT COMMUNICATION</div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+          {savedBanner && (
+            <span style={{ fontFamily: fonts.mono, fontSize: 10, color: colors.success, marginRight: 4 }}>✓ Saved</span>
+          )}
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: colors.success, boxShadow: `0 0 6px ${colors.success}` }} />
           <span style={{ fontFamily: fonts.mono, fontSize: 10, color: colors.success }}>ACTIVE</span>
         </div>
@@ -261,14 +323,17 @@ export default function WhatsAppPage() {
               )}
             </div>
 
-            {/* Notification toggles — all active, no SOON */}
+            {/* Notification toggles — now backed by database, applies to all admins */}
             <div style={{ background: colors.white, borderRadius: 14, padding: 24, border: `1px solid ${colors.n200}` }}>
-              <div style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: colors.n800, marginBottom: 4 }}>🔔 Automatic Notifications</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom: 4 }}>
+                <div style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: colors.n800 }}>🔔 Automatic Notifications</div>
+                {prefsLoading && <span style={{ fontFamily: fonts.body, fontSize: 11, color: colors.n400 }}>Loading…</span>}
+              </div>
               <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.n500, marginBottom: 18 }}>
-                All notifications are sent automatically. Toggle to enable or disable each type.
+                These settings control whether HifzPro sends WhatsApp messages to parents. Changes apply immediately and institution-wide.
               </div>
               {NOTIFICATION_ITEMS.map((item, i) => (
-                <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: i < NOTIFICATION_ITEMS.length - 1 ? `1px solid ${colors.n100}` : "none" }}>
+                <div key={item.key} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: i < NOTIFICATION_ITEMS.length - 1 ? `1px solid ${colors.n100}` : "none", opacity: prefsLoading ? 0.5 : 1 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: `${item.color}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 20 }}>{item.icon}</span>
                   </div>
@@ -277,7 +342,7 @@ export default function WhatsAppPage() {
                     <div style={{ fontFamily: fonts.body, fontSize: 11, color: colors.n500, marginTop: 2, lineHeight: 1.6 }}>{item.desc}</div>
                   </div>
                   <Toggle
-                    on={(notifications as any)[item.key]}
+                    on={notifications[item.key] as boolean}
                     onChange={val => updateNotification(item.key, val)}
                   />
                 </div>
@@ -445,7 +510,7 @@ export default function WhatsAppPage() {
                   { id: "ur", label: "اردو — Urdu",  desc: "Recommended for Pakistani parents",   flag: "🇵🇰" },
                   { id: "en", label: "English",         desc: "For international institutions",    flag: "🇬🇧" },
                 ].map(l => (
-                  <button key={l.id} onClick={() => updateLanguage(l.id as any)} style={{
+                  <button key={l.id} onClick={() => updateLanguage(l.id as "ur"|"en")} style={{
                     flex: 1, padding: "16px", borderRadius: 12,
                     border: `2px solid ${language === l.id ? colors.primary : colors.n200}`,
                     background: language === l.id ? colors.green50 : colors.white, cursor: "pointer", textAlign: "center",
@@ -463,9 +528,9 @@ export default function WhatsAppPage() {
               <div style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: colors.n800, marginBottom: 16 }}>📋 How It Works</div>
               {[
                 { step: "1", title: "Ustadh records Sabaq",         desc: "In the Hifz Diary, Ustadh taps grades and saves the lesson entry." },
-                { step: "2", title: "System auto-triggers message",  desc: "HifzPro instantly formats the Urdu message with all lesson details." },
-                { step: "3", title: "UltraMsg sends to parent",      desc: "The message is sent to all guardians who have 'receive updates' enabled." },
-                { step: "4", title: "Logged in message history",     desc: "Every message is recorded with delivery status — sent, failed, or pending." },
+                { step: "2", title: "System checks your settings",  desc: "HifzPro checks the toggles above — if Daily Sabaq Report is off, no message is sent." },
+                { step: "3", title: "UltraMsg sends to parent",      desc: "If enabled, the message is sent to all guardians who have 'receive updates' enabled." },
+                { step: "4", title: "Logged in message history",     desc: "Every sent message is recorded with delivery status — sent, failed, or pending." },
               ].map(s => (
                 <div key={s.step} style={{ display: "flex", gap: 14, marginBottom: 16 }}>
                   <div style={{ width: 32, height: 32, borderRadius: 10, background: colors.primary, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
