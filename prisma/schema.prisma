@@ -831,3 +831,23 @@ model CardDesign {
 
   @@map("card_designs")
 }
+// Add this model to prisma/schema.prisma
+
+model NotificationPreferences {
+  id            String   @id @default(cuid())
+  institutionId String   @unique
+
+  sendOnSabaq     Boolean @default(true)
+  sendOnAbsence   Boolean @default(true)
+  sendOnTest      Boolean @default(true)
+  sendHealthAlert Boolean @default(true)
+  sendWeekly      Boolean @default(true)
+  sendWelcome     Boolean @default(true)
+
+  language      String   @default("ur") // "ur" | "en"
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
