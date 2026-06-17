@@ -78,7 +78,7 @@ export function dailySabaqMessage(data: {
 
     msg += `👨‍🏫 *استاذ:* ${ustadhName}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `🌐 _HifzPro — حفظ کی ذہین نگرانی_\n`;
+    msg += `🌐 _HifzPro — حفظ کی جدید نگرانی _\n`;
     msg += `_www.hifzpro.com_`;
 
     return msg;
