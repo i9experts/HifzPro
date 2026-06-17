@@ -213,16 +213,18 @@ export function manzilHealthAlertMessage(data: {
 export function testResultMessage(data: {
   studentName:   string;
   instituteName: string;
+  examinerName?: string;
   testType:      string;
   result:        string;
   score?:        number;
   juzFrom?:      number;
   juzTo?:        number;
+  mistakeCount?: number;
   date:          Date;
   notes?:        string;
   lang?:         "ur" | "en";
 }): string {
-  const { studentName, instituteName, testType, result, score, juzFrom, juzTo, date, notes, lang = "ur" } = data;
+  const { studentName, instituteName, examinerName, testType, result, score, juzFrom, juzTo, mistakeCount, date, notes, lang = "ur" } = data;
   const passed = result === "PASS";
 
   if (lang === "ur") {
@@ -234,9 +236,11 @@ export function testResultMessage(data: {
     if (juzFrom) msg += `📖 *حصہ:* جز ${juzFrom}${juzTo&&juzTo!==juzFrom?`–${juzTo}`:""}\n`;
     msg += `\n${passed ? "✅ *نتیجہ: پاس* 🎉" : "❌ *نتیجہ: فیل*"}\n`;
     if (score !== undefined) msg += `📊 *اسکور:* ${score}%\n`;
+    if (mistakeCount !== undefined && mistakeCount > 0) msg += `⚠️ *غلطیاں:* ${mistakeCount}\n`;
     if (notes) msg += `\n📝 *نوٹس:* ${notes}\n`;
     if (passed) msg += `\nماشاءاللہ! بہت اچھی کارکردگی۔\n`;
     else msg += `\nمزید محنت اور مراجعہ کی ضرورت ہے۔\n`;
+    if (examinerName) msg += `\n👨‍🏫 *امتحان لینے والے:* ${examinerName}\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `_HifzPro — www.hifzpro.com_`;
     return msg;
@@ -250,7 +254,9 @@ export function testResultMessage(data: {
   if (juzFrom) msg += `📖 *Scope:* Juz ${juzFrom}${juzTo&&juzTo!==juzFrom?`–${juzTo}`:""}\n`;
   msg += `\n${passed ? "✅ *Result: PASS* 🎉" : "❌ *Result: FAIL*"}\n`;
   if (score !== undefined) msg += `📊 *Score:* ${score}%\n`;
+  if (mistakeCount !== undefined && mistakeCount > 0) msg += `⚠️ *Mistakes:* ${mistakeCount}\n`;
   if (notes) msg += `\n📝 *Notes:* ${notes}\n`;
+  if (examinerName) msg += `\n👨‍🏫 *Examiner:* ${examinerName}\n`;
   msg += `━━━━━━━━━━━━━━━━━━━━\n`;
   msg += `_HifzPro — www.hifzpro.com_`;
   return msg;
