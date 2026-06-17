@@ -47,6 +47,17 @@ const MODULES = [
     border: "#a5f3fc",
     badge: "TODAY",
   },
+   {
+    href: "/dashboard/ustadh/tests",
+    icon: "📝",
+    title: "Tests & Assessment",
+    titleUrdu: "امتحان",
+    desc: "Record Para, Sabaq & Sanad test results",
+    color: "#7c3aed",
+    bg: "#f5f3ff",
+    border: "#ddd6fe",
+    badge: null,
+  },
   {
     href: "/dashboard/ustadh/nazrah",
     icon: "📚",
