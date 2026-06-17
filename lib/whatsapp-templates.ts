@@ -213,16 +213,18 @@ export function manzilHealthAlertMessage(data: {
 export function testResultMessage(data: {
   studentName:   string;
   instituteName: string;
+  examinerName?: string;
   testType:      string;
   result:        string;
   score?:        number;
   juzFrom?:      number;
   juzTo?:        number;
+  mistakeCount?: number;
   date:          Date;
   notes?:        string;
   lang?:         "ur" | "en";
 }): string {
-  const { studentName, instituteName, testType, result, score, juzFrom, juzTo, date, notes, lang = "ur" } = data;
+  const { studentName, instituteName, examinerName, testType, result, score, juzFrom, juzTo, mistakeCount, date, notes, lang = "ur" } = data;
   const passed = result === "PASS";
 
   if (lang === "ur") {
