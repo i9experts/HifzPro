@@ -13,12 +13,33 @@ function decodeJWT(token: string): any {
   }
 }
 
+// ── Which roles are allowed under which dashboard prefix ──
+// Order matters: more specific prefixes first.
+const ROLE_ROUTES: { prefix: string; roles: string[] }[] = [
+  { prefix: "/dashboard/admin",   roles: ["CAMPUS_ADMIN", "SUPER_ADMIN"] },
+  { prefix: "/dashboard/ustadh",  roles: ["USTADH", "SUPER_ADMIN"] },
+  { prefix: "/dashboard/parent",  roles: ["PARENT", "SUPER_ADMIN"] },
+  { prefix: "/superadmin",        roles: ["SUPER_ADMIN"] },
+];
+
+// Where to send each role when they hit a section they're not allowed in
+function homeFor(role: string): string {
+  if (role === "SUPER_ADMIN") return "/superadmin";
+  if (role === "PARENT")      return "/dashboard/parent";
+  if (role === "USTADH")      return "/dashboard/ustadh";
+  return "/dashboard/admin"; // CAMPUS_ADMIN and fallback
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const token = req.cookies.get(COOKIE_NAME)?.value;
 
-  // ── Protect dashboard and billing routes ──
-  if (pathname.startsWith("/dashboard") || pathname.startsWith("/billing")) {
+  // ── Protect dashboard, superadmin, and billing routes ──
+  if (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/billing") ||
+    pathname.startsWith("/superadmin")
+  ) {
     if (!token) {
       const url = new URL("/signin", req.url);
       url.searchParams.set("from", pathname);
@@ -26,12 +47,21 @@ export function middleware(req: NextRequest) {
     }
 
     const payload = decodeJWT(token);
-    if (!payload) {
-      return NextResponse.redirect(new URL("/signin", req.url));
+    if (!payload || !payload.role) {
+      const url = new URL("/signin", req.url);
+      url.searchParams.set("from", pathname);
+      return NextResponse.redirect(url);
     }
 
-    // All authenticated users pass through — subscription lockout
-    // is handled client-side on the billing page (no internal fetch in Edge)
+    // ── Role-based section check ──
+    // Find the most specific matching route rule for this path
+    const rule = ROLE_ROUTES.find(r => pathname.startsWith(r.prefix));
+    if (rule && !rule.roles.includes(payload.role)) {
+      // Logged in, but wrong role for this section — send them home
+      return NextResponse.redirect(new URL(homeFor(payload.role), req.url));
+    }
+
+    // /billing is open to any authenticated role (no rule above matches it)
     return NextResponse.next();
   }
 
@@ -39,14 +69,8 @@ export function middleware(req: NextRequest) {
   if (pathname === "/signin" || pathname === "/get-started") {
     if (token) {
       const payload = decodeJWT(token);
-      if (payload) {
-        if (payload.role === "SUPER_ADMIN") {
-          return NextResponse.redirect(new URL("/superadmin", req.url));
-        }
-        if (payload.role === "PARENT") {
-          return NextResponse.redirect(new URL("/dashboard/parent", req.url));
-        }
-        return NextResponse.redirect(new URL("/dashboard/admin", req.url));
+      if (payload?.role) {
+        return NextResponse.redirect(new URL(homeFor(payload.role), req.url));
       }
     }
     return NextResponse.next();
@@ -59,6 +83,7 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/billing/:path*",
+    "/superadmin/:path*",
     "/signin",
     "/get-started",
   ],
