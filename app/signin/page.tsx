@@ -7,6 +7,12 @@ import { colors, fonts } from "@/lib/tokens";
 type Role = "admin" | "ustadh" | "parent";
 type Step = "phone" | "otp";
 
+// Maps the UI tab to the actual DB role enum sent to the API
+const ROLE_TO_DB: Record<"admin" | "ustadh", string> = {
+  admin:  "CAMPUS_ADMIN",
+  ustadh: "USTADH",
+};
+
 export default function SignInPage() {
   const [role, setRole]       = useState<Role>("admin");
   const [step, setStep]       = useState<Step>("phone");
@@ -34,7 +40,13 @@ export default function SignInPage() {
       const res = await fetch("/api/auth/signin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          // Tell the backend which tab was selected so it can verify
+          // the account's actual role matches before logging in.
+          expectedRole: role === "admin" || role === "ustadh" ? ROLE_TO_DB[role] : undefined,
+        }),
       });
 
       const data = await res.json();
@@ -285,7 +297,7 @@ export default function SignInPage() {
 
           <div style={{ textAlign: "center", marginTop: 20, fontFamily: fonts.body, fontSize: 13, color: colors.n500 }}>
             Don&apos;t have an account?{" "}
-            <Link href="/signup" style={{ color: colors.primary, fontWeight: 600, textDecoration: "none" }}>
+            <Link href="/get-started" style={{ color: colors.primary, fontWeight: 600, textDecoration: "none" }}>
               Get Started Free
             </Link>
           </div>
