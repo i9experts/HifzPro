@@ -1,8 +1,6 @@
 "use client";
 import Link from "next/link";
-import MarketingNav from "@/components/ui/MarketingNav";
-import MarketingFooter from "@/components/ui/MarketingFooter";
-import { LegalPage } from "./legal-shared"; // adjust import to match your actual path
+import { LegalPage } from "./legal-shared";
 
 const TOC = [
   { label: "1. Who We Are",                 id: "priv-1" },
