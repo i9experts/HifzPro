@@ -181,7 +181,7 @@ export default function MarketingNav() {
                 <button
                   onClick={() => toggle(item.label)}
                   style={{
-                    background: "none", border: "none", cursor: "pointer",
+                    border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 4,
                     padding: "8px 14px", borderRadius: 8,
                     fontFamily: sans, fontSize: 14, fontWeight: 500,
