@@ -30,7 +30,7 @@ const VALUES = [
   { icon: "🤝", title: "Accessible to All", titleAr: "في متناول الجميع", desc: "From a 10-student Halqa in a mosque to a 500-student institute — HifzPro works for every size, with pricing that reflects that reality." },
 ];
 const TEAM = [
-  { avatar: "👨‍💼", name: "Muhammad Atiq",        role: "Founder & CEO",          roleUr: "بانی و سی ای او",   bio: "Passionate about combining Islamic education with modern technology. Built HifzPro to solve real challenges faced by Hifz institutes across Pakistan." },
+  { avatar: "👨‍💼", name: "Atiq ur Rehman Ayubi",        role: "Founder & CEO",          roleUr: "بانی و سی ای او",   bio: "Passionate about combining Islamic education with modern technology. Built HifzPro to solve real challenges faced by Hifz institutes across Pakistan." },
   { avatar: "👨‍💻", name: "Technology Team",       role: "Platform & Engineering", roleUr: "ٹیکنالوجی ٹیم",     bio: "A dedicated team of developers and designers working to build the world's most comprehensive Hifz management platform." },
   { avatar: "🕌",  name: "Islamic Advisory Board", role: "Shariah & Curriculum",   roleUr: "شرعی مشاورتی بورڈ",  bio: "Senior Asatidha and Ulama ensuring every feature aligns with Islamic pedagogical principles and the sanctity of Quran education." },
 ];
