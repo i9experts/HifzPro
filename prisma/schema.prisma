@@ -353,6 +353,23 @@ model Guardian {
 
 
 // ─────────────────────────────────────────
+// PARENT
+// ─────────────────────────────────────────
+
+model Parent {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  guardianId  String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardian    Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@map("parents")
+}
+
+// ─────────────────────────────────────────
 // LESSON ENTRY (Core of HifzPro)
 // ─────────────────────────────────────────
 
