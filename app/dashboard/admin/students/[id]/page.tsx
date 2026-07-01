@@ -36,6 +36,39 @@ function InfoRow({label,val}:{label:string;val:string|null|undefined}) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// ROOT FIX: derive which Juz have actually been memorized
+// from the lesson entries themselves — not from currentJuz alone.
+// This works regardless of whether the student started at Juz 30,
+// Juz 1, or any other starting point.
+// ─────────────────────────────────────────────────────────────
+function getMemorizedJuzSet(lessonEntries: any[]): Set<number> {
+  const memorized = new Set<number>();
+  if (!lessonEntries?.length) return memorized;
+  for (const entry of lessonEntries) {
+    // Only SABAQ entries represent newly memorized Juz
+    if (entry.lessonType === "SABAQ" && entry.juzFrom) {
+      memorized.add(entry.juzFrom);
+      // If the lesson spans multiple Juz (juzTo differs from juzFrom)
+      if (entry.juzTo && entry.juzTo !== entry.juzFrom) {
+        for (let j = Math.min(entry.juzFrom, entry.juzTo); j <= Math.max(entry.juzFrom, entry.juzTo); j++) {
+          memorized.add(j);
+        }
+      }
+    }
+  }
+  return memorized;
+}
+
+function getCurrentJuzFromEntries(lessonEntries: any[]): number | null {
+  if (!lessonEntries?.length) return null;
+  // Most recent SABAQ entry's Juz = current active Juz
+  const sabaqEntries = lessonEntries
+    .filter((e: any) => e.lessonType === "SABAQ" && e.juzFrom)
+    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return sabaqEntries[0]?.juzFrom ?? null;
+}
+
 export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
   const {id} = use(params);
   const [tab,      setTab]      = useState<Tab>("overview");
@@ -62,6 +95,17 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
   const stat  = STATUS_STYLES[s.status]||STATUS_STYLES.ACTIVE;
   const primaryGuardian = s.guardians?.find((g:any)=>g.isEmergency) || s.guardians?.[0];
 
+  // ── ROOT FIX: build the memorized set from actual lesson entries ──
+  const memorizedJuzSet  = getMemorizedJuzSet(s.lessonEntries || []);
+  const currentJuzFromEntries = getCurrentJuzFromEntries(s.lessonEntries || []);
+  // Fall back to API-supplied currentJuz only if no entries yet
+  const activeJuz        = currentJuzFromEntries ?? s.progress?.currentJuz ?? null;
+  const memorizedCount   = memorizedJuzSet.size;
+  // Correct completion % = memorized Juz count / 30
+  const correctPercent   = Math.round((memorizedCount / 30) * 100);
+  // Remaining = 30 minus however many distinct Juz have been memorized
+  const juzRemaining     = 30 - memorizedCount;
+
   return (
     <div style={{minHeight:"100vh",background:colors.n50}}>
       {/* Header */}
@@ -78,7 +122,6 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
 
           {/* Profile header */}
           <div style={{display:"flex",alignItems:"flex-start",gap:20,paddingBottom:0,paddingTop:8,flexWrap:"wrap"}}>
-            {/* Avatar */}
             <div style={{width:72,height:72,borderRadius:16,background:colors.primary,border:"3px solid rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
               <span style={{fontFamily:fonts.display,fontSize:28,fontWeight:700,color:colors.white}}>{s.name.charAt(0)}</span>
             </div>
@@ -99,22 +142,22 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
                 ))}
               </div>
             </div>
-           <div style={{display:"flex",gap:8,flexShrink:0}}>
-  <a href={`/api/admin/students/${id}/report`} target="_blank" rel="noopener noreferrer" style={{padding:"9px 18px",borderRadius:8,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",color:"white",fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>
-    📄 Print Report
-  </a>
-  <Link href={`/dashboard/admin/students/${id}/edit`} style={{padding:"9px 18px",borderRadius:8,background:colors.gold,color:colors.white,fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>Edit Student</Link>
-</div>
+            <div style={{display:"flex",gap:8,flexShrink:0}}>
+              <a href={`/api/admin/students/${id}/report`} target="_blank" rel="noopener noreferrer" style={{padding:"9px 18px",borderRadius:8,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",color:"white",fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>
+                📄 Print Report
+              </a>
+              <Link href={`/dashboard/admin/students/${id}/edit`} style={{padding:"9px 18px",borderRadius:8,background:colors.gold,color:colors.white,fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>Edit Student</Link>
+            </div>
           </div>
 
-          {/* Quick stats */}
+          {/* Quick stats — uses corrected values */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:0,borderTop:"1px solid rgba(255,255,255,0.08)",marginTop:16}}>
             {[
-              {val:stats.daysSinceEnrolled,label:"Days Enrolled"},
-              {val:s.progress?.currentJuz||"—",label:"Current Juz"},
-              {val:`${Math.round(s.progress?.percentComplete||0)}%`,label:"Quran Done"},
-              {val:`${stats.attendancePct}%`,label:"Attendance"},
-              {val:stats.currentHealth?`${Math.round(stats.currentHealth)}%`:"—",label:"Manzil Health"},
+              {val:stats.daysSinceEnrolled,                                   label:"Days Enrolled"},
+              {val:activeJuz ? `Juz ${activeJuz}` : "—",                     label:"Current Juz"},
+              {val:`${correctPercent}%`,                                       label:"Quran Done"},
+              {val:`${stats.attendancePct}%`,                                  label:"Attendance"},
+              {val:stats.currentHealth?`${Math.round(stats.currentHealth)}%`:"—", label:"Manzil Health"},
             ].map((q,i)=>(
               <div key={i} style={{padding:"14px 12px",textAlign:"center",borderRight:i<4?"1px solid rgba(255,255,255,0.08)":"none"}}>
                 <div style={{fontFamily:fonts.heading,fontSize:20,fontWeight:700,color:colors.white}}>{q.val}</div>
@@ -144,11 +187,8 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
         {/* OVERVIEW TAB */}
         {tab==="overview" && (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-            {/* Personal info */}
             <div style={{background:colors.white,borderRadius:14,padding:20,border:`1px solid ${colors.n200}`}}>
-              <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800,marginBottom:14,display:"flex",justifyContent:"space-between"}}>
-                <span>👤 Personal Information</span>
-              </div>
+              <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800,marginBottom:14}}>👤 Personal Information</div>
               <InfoRow label="Full Name"      val={s.name}/>
               <InfoRow label="Arabic Name"    val={s.nameArabic}/>
               <InfoRow label="Date of Birth"  val={s.dateOfBirth?new Date(s.dateOfBirth).toLocaleDateString("en-PK",{year:"numeric",month:"long",day:"numeric"}):null}/>
@@ -157,7 +197,6 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
               <InfoRow label="Previous Inst." val={null}/>
             </div>
 
-            {/* Primary Guardian */}
             <div style={{background:colors.white,borderRadius:14,padding:20,border:`1px solid ${colors.n200}`}}>
               <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800,marginBottom:14}}>👨‍👩‍👦 Guardian Details</div>
               {primaryGuardian ? (
@@ -172,26 +211,24 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
               ) : <div style={{fontFamily:fonts.body,fontSize:13,color:colors.n400}}>No guardian on record</div>}
             </div>
 
-            {/* Program details */}
             <div style={{background:colors.white,borderRadius:14,padding:20,border:`1px solid ${colors.n200}`}}>
               <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800,marginBottom:14}}>📖 Program Details</div>
-              <InfoRow label="Program"      val={PROGRAM_LABELS[s.program]||s.program}/>
-              <InfoRow label="Batch/Halqa"  val={s.batch?.name}/>
-              <InfoRow label="Ustadh"       val={s.batch?.ustadh?.user?.name}/>
-              <InfoRow label="Status"       val={s.status.replace("_"," ")}/>
-              <InfoRow label="Enrolled"     val={new Date(s.enrolledAt).toLocaleDateString("en-PK",{year:"numeric",month:"long",day:"numeric"})}/>
+              <InfoRow label="Program"        val={PROGRAM_LABELS[s.program]||s.program}/>
+              <InfoRow label="Batch/Halqa"    val={s.batch?.name}/>
+              <InfoRow label="Ustadh"         val={s.batch?.ustadh?.user?.name}/>
+              <InfoRow label="Status"         val={s.status.replace("_"," ")}/>
+              <InfoRow label="Enrolled"       val={new Date(s.enrolledAt).toLocaleDateString("en-PK",{year:"numeric",month:"long",day:"numeric"})}/>
               <InfoRow label="Expected Khatm" val={s.expectedKhatmAt?new Date(s.expectedKhatmAt).toLocaleDateString("en-PK",{year:"numeric",month:"long",day:"numeric"}):null}/>
             </div>
 
-            {/* Activity summary */}
             <div style={{background:colors.white,borderRadius:14,padding:20,border:`1px solid ${colors.n200}`}}>
               <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800,marginBottom:14}}>📊 Activity Summary</div>
-              <InfoRow label="Total Lessons"    val={String(stats.totalLessons)}/>
-              <InfoRow label="Total Tests"      val={String(stats.totalTests)}/>
-              <InfoRow label="Days Enrolled"    val={String(stats.daysSinceEnrolled)}/>
-              <InfoRow label="Present"          val={`${stats.presentCount} sessions`}/>
-              <InfoRow label="Absent"           val={`${stats.absentCount} sessions`}/>
-              <InfoRow label="Attendance Rate"  val={`${stats.attendancePct}%`}/>
+              <InfoRow label="Total Lessons"   val={String(stats.totalLessons)}/>
+              <InfoRow label="Total Tests"     val={String(stats.totalTests)}/>
+              <InfoRow label="Days Enrolled"   val={String(stats.daysSinceEnrolled)}/>
+              <InfoRow label="Juz Memorized"   val={`${memorizedCount} of 30`}/>
+              <InfoRow label="Present"         val={`${stats.presentCount} sessions`}/>
+              <InfoRow label="Attendance Rate" val={`${stats.attendancePct}%`}/>
             </div>
           </div>
         )}
@@ -204,10 +241,11 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
               <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:16}}>📍 Current Position</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
                 {[
-                  {label:"Juz",val:s.progress?.currentJuz||"—",color:colors.primary},
-                  {label:"Page",val:s.progress?.currentPage||"—",color:colors.primary},
-                  {label:"% Done",val:`${Math.round(s.progress?.percentComplete||0)}%`,color:colors.success},
-                  {label:"Manzil",val:stats.currentHealth?`${Math.round(stats.currentHealth)}%`:"—",color:stats.currentHealth>=75?colors.success:stats.currentHealth>=55?colors.warning:colors.error},
+                  {label:"Active Juz",  val:activeJuz ? `Juz ${activeJuz}` : "—",             color:colors.primary},
+                  {label:"Page",        val:s.progress?.currentPage||"—",                       color:colors.primary},
+                  {label:"Juz Done",    val:`${memorizedCount} / 30`,                           color:colors.success},
+                  {label:"Manzil",      val:stats.currentHealth?`${Math.round(stats.currentHealth)}%`:"—",
+                    color:stats.currentHealth>=75?colors.success:stats.currentHealth>=55?colors.warning:colors.error},
                 ].map((q,i)=>(
                   <div key={i} style={{background:colors.n50,borderRadius:10,padding:"14px 12px",textAlign:"center",border:`1px solid ${colors.n200}`}}>
                     <div style={{fontFamily:fonts.heading,fontSize:22,fontWeight:700,color:q.color}}>{q.val}</div>
@@ -215,41 +253,76 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
                   </div>
                 ))}
               </div>
-              {/* Quran progress bar */}
+              {/* Progress bar — uses correctedPercent */}
               <div>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                   <span style={{fontFamily:fonts.body,fontSize:12,color:colors.n500}}>Quran Completion</span>
-                  <span style={{fontFamily:fonts.mono,fontSize:12,fontWeight:700,color:colors.primary}}>{Math.round(s.progress?.percentComplete||0)}%</span>
+                  <span style={{fontFamily:fonts.mono,fontSize:12,fontWeight:700,color:colors.primary}}>{correctPercent}%</span>
                 </div>
                 <div style={{height:10,background:colors.n100,borderRadius:5,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${s.progress?.percentComplete||0}%`,background:`linear-gradient(90deg,${colors.primary},${colors.success})`,borderRadius:5,transition:"width 0.5s"}}/>
+                  <div style={{height:"100%",width:`${correctPercent}%`,background:`linear-gradient(90deg,${colors.primary},${colors.success})`,borderRadius:5,transition:"width 0.5s"}}/>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}>
+                  <span style={{fontFamily:fonts.body,fontSize:11,color:colors.n400}}>{memorizedCount} Juz memorized</span>
+                  <span style={{fontFamily:fonts.body,fontSize:11,color:colors.n400}}>{juzRemaining} Juz remaining</span>
                 </div>
               </div>
             </div>
 
-            {/* 30 Juz grid */}
+            {/* 30-Juz grid — ROOT FIX APPLIED HERE */}
             <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`}}>
-              <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:16}}>📗 Quran Progress (30 Juz)</div>
+              <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:4}}>📗 Quran Progress (30 Juz)</div>
+              <div style={{fontFamily:fonts.body,fontSize:12,color:colors.n500,marginBottom:16}}>
+                Green = memorized · Highlighted = currently active · Grey = not yet started
+                {memorizedCount > 0 && (
+                  <span style={{marginLeft:8,fontFamily:fonts.mono,fontSize:11,color:colors.primary,fontWeight:700}}>
+                    {memorizedCount}/30 complete
+                  </span>
+                )}
+              </div>
               <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
                 {Array.from({length:30},(_,i)=>i+1).map(juz=>{
-                  const completed = juz < (s.progress?.currentJuz||1);
-                  const current   = juz === (s.progress?.currentJuz||1);
+                  // ── THE FIX: check the SET, not the number comparison ──
+                  const isMemorized = memorizedJuzSet.has(juz);
+                  const isCurrent   = juz === activeJuz;
+                  // A Juz is "in progress" if it's the active one AND not yet
+                  // fully memorized (i.e., not in the completed set yet)
+                  const isInProgress = isCurrent && !isMemorized;
+
                   return (
                     <div key={juz} style={{
-                      width:48,height:48,borderRadius:10,
-                      background:completed?colors.primary:current?`${colors.primary}20`:colors.n50,
-                      border:`2px solid ${completed?colors.primary:current?colors.primary:colors.n200}`,
-                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                      width:48, height:48, borderRadius:10,
+                      background: isMemorized
+                        ? colors.primary
+                        : isInProgress
+                          ? `${colors.primary}20`
+                          : colors.n50,
+                      border:`2px solid ${
+                        isMemorized   ? colors.primary  :
+                        isInProgress  ? colors.primary  :
+                        colors.n200
+                      }`,
+                      display:"flex", flexDirection:"column",
+                      alignItems:"center", justifyContent:"center",
                     }}>
-                      <span style={{fontFamily:fonts.mono,fontSize:11,fontWeight:700,color:completed?"white":current?colors.primary:colors.n400}}>{juz}</span>
-                      {completed&&<span style={{fontSize:8,color:"rgba(255,255,255,0.7)"}}>✓</span>}
-                      {current&&<span style={{fontSize:8,color:colors.primary}}>●</span>}
+                      <span style={{
+                        fontFamily:fonts.mono, fontSize:11, fontWeight:700,
+                        color: isMemorized   ? "white"          :
+                               isInProgress  ? colors.primary    :
+                               colors.n400,
+                      }}>{juz}</span>
+                      {isMemorized   && <span style={{fontSize:8,color:"rgba(255,255,255,0.7)"}}>✓</span>}
+                      {isInProgress  && <span style={{fontSize:8,color:colors.primary}}>●</span>}
                     </div>
                   );
                 })}
               </div>
               <div style={{display:"flex",gap:16,marginTop:14}}>
-                {[{color:colors.primary,label:"Completed"},{color:`${colors.primary}20`,label:"In Progress",border:colors.primary},{color:colors.n50,label:"Not Started",border:colors.n200}].map((l,i)=>(
+                {[
+                  {color:colors.primary,              label:"Memorized"},
+                  {color:`${colors.primary}20`,       label:"In Progress", border:colors.primary},
+                  {color:colors.n50,                  label:"Not Started",  border:colors.n200},
+                ].map((l,i)=>(
                   <div key={i} style={{display:"flex",alignItems:"center",gap:5}}>
                     <div style={{width:12,height:12,borderRadius:3,background:l.color,border:`1px solid ${(l as any).border||l.color}`}}/>
                     <span style={{fontFamily:fonts.body,fontSize:11,color:colors.n500}}>{l.label}</span>
@@ -338,9 +411,7 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
                       <span style={{fontSize:18}}>{t.result==="PASS"?"✅":t.result==="FAIL"?"❌":"⚠️"}</span>
                     </div>
                     <div style={{flex:1}}>
-                      <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800}}>
-                        {t.testType.replace(/_/g," ")}
-                      </div>
+                      <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800}}>{t.testType.replace(/_/g," ")}</div>
                       <div style={{fontFamily:fonts.body,fontSize:11,color:colors.n500,marginTop:2}}>
                         {t.juzFrom&&`Juz ${t.juzFrom}`}{t.juzTo&&t.juzTo!==t.juzFrom&&`–${t.juzTo}`}
                         {" · "}{new Date(t.date).toLocaleDateString("en-PK",{day:"numeric",month:"short",year:"numeric"})}
@@ -382,7 +453,6 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
                 </div>
               )}
             </div>
-
             <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`}}>
               <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:16}}>🧾 Fee Records</div>
               <div style={{fontFamily:fonts.body,fontSize:13,color:colors.n400,textAlign:"center",padding:24}}>
@@ -430,4 +500,3 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
     </div>
   );
 }
-
