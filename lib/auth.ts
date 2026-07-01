@@ -5,9 +5,9 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
-const JWT_SECRET = process.env.JWT_SECRET || "HifzPro2026SecureJWTKeyAuthentication";
+const JWT_SECRET    = process.env.JWT_SECRET || "HifzPro2026SecureJWTKeyAuthentication";
 const JWT_EXPIRES_IN = "7d";
-const COOKIE_NAME = "hifzpro_token";
+const COOKIE_NAME   = "hifzpro_token";
 
 export interface TokenPayload {
   userId:        string;
@@ -37,7 +37,7 @@ export function getTokenFromRequest(req: NextRequest): string | null {
   const cookieToken = req.cookies.get(COOKIE_NAME)?.value;
   if (cookieToken) return cookieToken;
 
-  // Check Authorization header
+  // Check Authorization header (for mobile app / Flutter)
   const authHeader = req.headers.get("Authorization");
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.substring(7);
@@ -59,6 +59,10 @@ export async function getCurrentUser(): Promise<TokenPayload | null> {
 }
 
 // ── Cookie options ──
+// domain: ".hifzpro.com" (with leading dot) makes the cookie valid for
+// both hifzpro.com AND www.hifzpro.com — without this, signing in on
+// www.hifzpro.com sets a cookie that the API on hifzpro.com rejects,
+// causing Unauthorized errors even after a successful login.
 export const cookieOptions = {
   name:     COOKIE_NAME,
   httpOnly: true,
@@ -66,6 +70,7 @@ export const cookieOptions = {
   sameSite: "lax" as const,
   maxAge:   60 * 60 * 24 * 7, // 7 days
   path:     "/",
+  domain:   process.env.NODE_ENV === "production" ? ".hifzpro.com" : undefined,
 };
 
 // ── Generate 6-digit OTP ──
