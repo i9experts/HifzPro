@@ -36,12 +36,12 @@ export async function GET(req: NextRequest) {
       prisma.student.findMany({
         where, skip, take: limit, orderBy: { enrolledAt: "desc" },
         include: {
-          batch:        { select: { id: true, name: true } },
-          guardians:    { take: 1, select: { name: true, phone: true, whatsapp: true, relation: true } },
-          progress:     true,
-          manzilHealth: { orderBy: { calculatedAt: "desc" }, take: 1 },
-          lessonEntries:{ orderBy: { date: "desc" }, take: 1, select: { date: true, grade: true, lessonType: true } },
-          _count:       { select: { lessonEntries: true } },
+          batch:         { select: { id: true, name: true } },
+          guardians:     { take: 1, select: { name: true, phone: true, whatsapp: true, relation: true } },
+          progress:      true,
+          manzilHealth:  { orderBy: { calculatedAt: "desc" }, take: 1 },
+          lessonEntries: { orderBy: { date: "desc" }, take: 1, select: { date: true, grade: true, lessonType: true } },
+          _count:        { select: { lessonEntries: true } },
         },
       }),
     ]);
@@ -114,86 +114,157 @@ export async function POST(req: NextRequest) {
     const payload = verifyToken(token);
     if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
 
+    // ── FIX 1: resolve campusId safely — never use ! non-null assertion ──
+    const campusId = payload.campusId ?? null;
+    if (!campusId) {
+      return errorResponse("Campus not assigned to your account. Please contact your administrator.");
+    }
+
+    // ── FIX 2: resolve institutionId safely ──
+    const institutionId = payload.institutionId ?? null;
+    if (!institutionId) {
+      return errorResponse("Institution not found in your session. Please sign out and sign in again.");
+    }
+
     const body = await req.json();
     const result = createSchema.safeParse(body);
-    if (!result.success) return errorResponse(result.error.errors[0].message);
+    if (!result.success) {
+      return errorResponse(result.error.errors[0].message);
+    }
     const data = result.data;
 
-    const count = await prisma.student.count({ where: { campusId: payload.campusId || undefined } });
-    const year  = new Date().getFullYear().toString().slice(-2);
+    // ── Enrollment number: use institutionId scope to avoid duplicates across campuses ──
+    const count = await prisma.student.count({
+      where: { campus: { institutionId } },
+    });
+    const year             = new Date().getFullYear().toString().slice(-2);
     const enrollmentNumber = `HP-${year}-${String(count + 1).padStart(4, "0")}`;
 
     const student = await prisma.$transaction(async (tx) => {
+
+      // 1. Create student
       const s = await tx.student.create({
         data: {
-          campusId:        payload.campusId!,
+          campusId,
           batchId:         data.batchId || null,
           enrollmentNumber,
           name:            data.name,
-          nameArabic:      data.nameArabic,
+          nameArabic:      data.nameArabic     || null,
           program:         data.program,
           status:          "ACTIVE",
-          enrolledAt:      data.enrolledAt ? new Date(data.enrolledAt) : new Date(),
+          enrolledAt:      data.enrolledAt     ? new Date(data.enrolledAt)     : new Date(),
           expectedKhatmAt: data.expectedKhatmAt ? new Date(data.expectedKhatmAt) : null,
-          dateOfBirth:     data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-          startingJuz:     data.startingJuz || 1,
-          startingSurah:   data.startingSurah,
-          startingAyah:    data.startingAyah,
+          dateOfBirth:     data.dateOfBirth    ? new Date(data.dateOfBirth)    : null,
+          startingJuz:     data.startingJuz    ?? 1,
+          startingSurah:   data.startingSurah  ?? null,
+          startingAyah:    data.startingAyah   ?? null,
         },
       });
 
-      await tx.guardian.create({
+      // 2. Create primary guardian
+      const guardian = await tx.guardian.create({
         data: {
-          studentId: s.id, name: data.guardianName, relation: data.guardianRelation,
-          cnic: data.guardianCnic, phone: data.guardianPhone,
-          whatsapp: data.guardianWhatsapp || data.guardianPhone,
-          email: data.guardianEmail, isEmergency: true,
-          receiveUpdates: data.receiveUpdates ?? true,
+          studentId:      s.id,
+          name:           data.guardianName,
+          relation:       data.guardianRelation,
+          cnic:           data.guardianCnic           || null,
+          phone:          data.guardianPhone,
+          whatsapp:       data.guardianWhatsapp        || data.guardianPhone,
+          email:          data.guardianEmail           || null,
+          isEmergency:    true,
+          receiveUpdates: data.receiveUpdates          ?? true,
         },
       });
 
+      // 3. Optional secondary guardian
       if (data.guardian2Name && data.guardian2Phone) {
         await tx.guardian.create({
           data: {
-            studentId: s.id, name: data.guardian2Name,
-            relation: data.guardian2Relation || "Guardian",
-            phone: data.guardian2Phone, isEmergency: false, receiveUpdates: false,
+            studentId:      s.id,
+            name:           data.guardian2Name,
+            relation:       data.guardian2Relation || "Guardian",
+            phone:          data.guardian2Phone,
+            isEmergency:    false,
+            receiveUpdates: false,
           },
         });
       }
 
+      // 4. Create student progress
+      // ── FIX 3: percentComplete starts at 0 for new students.
+      //    previousHifzJuz is prior memorization BEFORE joining —
+      //    it is stored for context but does NOT count toward current progress.
+      //    Progress is derived from lesson entries (getMemorizedJuzSet).
       await tx.studentProgress.create({
         data: {
-          studentId: s.id, currentJuz: data.startingJuz || 1,
-          currentSurah: data.startingSurah, currentAyah: data.startingAyah,
-          currentPage: data.startingPage,
-          totalJuzMemorized: data.previousHifzJuz || 0,
-          percentComplete: ((data.previousHifzJuz || 0) / 30) * 100,
+          studentId:         s.id,
+          currentJuz:        data.startingJuz   ?? 1,
+          currentSurah:      data.startingSurah ?? null,
+          currentAyah:       data.startingAyah  ?? null,
+          currentPage:       data.startingPage   ?? null,
+          totalJuzMemorized: 0,   // starts at 0; updated as lessons are recorded
+          percentComplete:   0,   // starts at 0; derived from lesson entries
         },
       });
 
-      await tx.manzilHealth.create({ data: { studentId: s.id, score: 100 } });
+      // 5. Initial manzil health entry
+      await tx.manzilHealth.create({
+        data: { studentId: s.id, score: 100 },
+      });
 
+      // 6. Create parent portal user — only if phone not already registered
       const phone = data.guardianWhatsapp || data.guardianPhone;
-      const existing = await tx.user.findFirst({ where: { OR: [{ phone }, { whatsapp: phone }] } });
-      if (!existing && phone) {
-        const parentUser = await tx.user.create({
-          data: {
-            institutionId: payload.institutionId, campusId: payload.campusId,
-            role: "PARENT", name: data.guardianName, phone, whatsapp: phone,
-          },
+      if (phone) {
+        const existing = await tx.user.findFirst({
+          where: { OR: [{ phone }, { whatsapp: phone }] },
         });
-        const guardian = await tx.guardian.findFirst({ where: { studentId: s.id } });
-        if (guardian) await tx.parent.create({ data: { userId: parentUser.id, guardianId: guardian.id } });
+
+        if (!existing) {
+          const parentUser = await tx.user.create({
+            data: {
+              institutionId, // ── FIX 2: guaranteed non-null above
+              campusId,      // ── FIX 1: guaranteed non-null above
+              role:      "PARENT",
+              name:      data.guardianName,
+              phone,
+              whatsapp:  phone,
+            },
+          });
+
+          await tx.parent.create({
+            data: {
+              userId:     parentUser.id,
+              guardianId: guardian.id,
+            },
+          });
+        }
       }
 
       return s;
     });
 
-    return successResponse({ student: { id: student.id, enrollmentNumber: student.enrollmentNumber, name: student.name } }, 201);
-  } catch (error) {
+    return successResponse(
+      {
+        student: {
+          id:               student.id,
+          enrollmentNumber: student.enrollmentNumber,
+          name:             student.name,
+        },
+      },
+      201,
+    );
+
+  } catch (error: any) {
     console.error("Create student error:", error);
+
+    // ── Surface useful Prisma errors to help debug without exposing internals ──
+    if (error?.code === "P2002") {
+      return errorResponse("A student with this enrollment number already exists. Please try again.");
+    }
+    if (error?.code === "P2003") {
+      return errorResponse("Invalid batch or campus reference. Please check the enrollment details.");
+    }
+
     return serverErrorResponse();
   }
 }
-
