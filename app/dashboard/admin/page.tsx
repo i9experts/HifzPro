@@ -49,7 +49,7 @@ const MODULES = [
     desc:"Daily attendance, dot grid, auto-notify parents",
     href:"/dashboard/admin/attendance",         color:"#0f766e", tag:"Core",
   },
- {
+  {
     id:"whatsapp-connect", icon:"🔗", title:"WhatsApp Connection", titleUr:"واٹس ایپ کنکشن",
     desc:"Connect your institute's own WhatsApp number — QR link or Official API",
     href:"/dashboard/admin/whatsapp/settings",  color:"#16a34a", tag:"Core",
@@ -81,16 +81,16 @@ const MODULES = [
     desc:"Calendar heatmap, chronic absentees, batch comparison, print",
     href:"/dashboard/admin/attendance/reports", color:"#065f46", tag:"Reports",
   },
-   {
+  {
     id:"id-cards", icon:"🪪", title:"ID Card Studio", titleUr:"شناختی کارڈ",
     desc:"Design & print student + staff ID cards with QR codes for ZKTeco attendance",
     href:"/dashboard/admin/id-cards", color:"#0D5C3A", tag:"Core",
   },
   {
-  id:"notifications", icon:"🔔", title:"Notification Center", titleUr:"اطلاعات",
-  desc:"Push broadcasts to parents — announcements, holidays, urgent notices",
-  href:"/dashboard/admin/notifications", color:"#dc2626", tag:"Core",
-},
+    id:"notifications", icon:"🔔", title:"Notification Center", titleUr:"اطلاعات",
+    desc:"Push broadcasts to parents — announcements, holidays, urgent notices",
+    href:"/dashboard/admin/notifications", color:"#dc2626", tag:"Core",
+  },
   // ── Finance ──
   {
     id:"fees",        icon:"💰",  title:"Fee Management",       titleUr:"فیس مینجمنٹ",
@@ -102,7 +102,6 @@ const MODULES = [
     desc:"Export fee data to ERPNext, Tally, Peachtree or any accounting ERP — CSV, Excel, Journal Entries",
     href:"/dashboard/admin/finance/export", color:"#166534", tag:"Finance",
   },
-
   {
     id:"scholarships",icon:"🎓",  title:"Scholarship Manager",  titleUr:"وظائف",
     desc:"Full/partial waivers, merit & need-based, donor-linked",
@@ -126,10 +125,10 @@ const MODULES = [
     href:"/dashboard/admin/campuses",           color:"#0369a1", tag:"Enterprise",
   },
   {
-  id:"profile", icon:"🏫", title:"Institution Profile", titleUr:"پروفائل",
-  desc:"Edit public page, logo, programs, contact info",
-  href:"/dashboard/admin/profile", color:"#0369a1", tag:"Enterprise",
-},
+    id:"profile", icon:"🏫", title:"Institution Profile", titleUr:"پروفائل",
+    desc:"Edit public page, logo, programs, contact info",
+    href:"/dashboard/admin/profile", color:"#0369a1", tag:"Enterprise",
+  },
   {
     id:"billing",     icon:"💳",  title:"Billing & Plans",      titleUr:"بلنگ",
     desc:"Manage subscription, upgrade plan, download invoices",
@@ -159,7 +158,6 @@ const TAG_COLORS: Record<string,{color:string;bg:string;border:string}> = {
   Reference:    { color:"#C4882A", bg:"#fffbeb", border:"#fde68a" },
 };
 
-// ── Subscription Banner — shown outside AdminDashboard ──
 function SubscriptionBanner() {
   const [sub, setSub] = useState<any>(null);
 
@@ -207,10 +205,19 @@ export default function AdminDashboard() {
   const [search,    setSearch]    = useState("");
 
   useEffect(() => {
-    fetch("/api/admin/students")
+    // ── FIX: read stats.active from the students API response ──
+    // The GET /api/admin/students route returns a stats object with
+    // { active, completed, onLeave, atRisk } — use that instead of
+    // pagination.total which counts ALL students regardless of status.
+    fetch("/api/admin/students?limit=1")
       .then(r => r.json())
       .then(d => {
-        if (d.success) setStats(prev => ({ ...(prev ?? DEFAULT_STATS), activeStudents: d.data.pagination?.total || 0 }));
+        if (d.success) {
+          setStats(prev => ({
+            ...(prev ?? DEFAULT_STATS),
+            activeStudents: d.data.stats?.active ?? d.data.pagination?.total ?? 0,
+          }));
+        }
       }).catch(() => {});
 
     fetch("/api/admin/batches")
@@ -297,10 +304,10 @@ export default function AdminDashboard() {
         {/* Stats row */}
         <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:24 }}>
           {[
-            { icon:"👨‍🎓", val:loading?"…":(stats?.activeStudents??0),   label:"Active Students",  color:"#0D5C3A", bg:"#dcfce7", border:"#86efac" },
-            { icon:"👥",  val:loading?"…":(stats?.totalBatches??0),    label:"Active Halqas",    color:"#0369a1", bg:"#f0f9ff", border:"#bae6fd" },
-            { icon:"📖",  val:loading?"…":(stats?.lessonsToday??0),    label:"Lessons Today",    color:"#0f766e", bg:"#f0fdfa", border:"#99f6e4" },
-            { icon:"👨‍🏫", val:loading?"…":(stats?.totalAsatidha??0),  label:"Total Asatidha",   color:"#7c3aed", bg:"#f5f3ff", border:"#c4b5fd" },
+            { icon:"👨‍🎓", val:loading?"…":(stats?.activeStudents??0),  label:"Active Students", color:"#0D5C3A", bg:"#dcfce7", border:"#86efac" },
+            { icon:"👥",  val:loading?"…":(stats?.totalBatches??0),    label:"Active Halqas",   color:"#0369a1", bg:"#f0f9ff", border:"#bae6fd" },
+            { icon:"📖",  val:loading?"…":(stats?.lessonsToday??0),    label:"Lessons Today",   color:"#0f766e", bg:"#f0fdfa", border:"#99f6e4" },
+            { icon:"👨‍🏫", val:loading?"…":(stats?.totalAsatidha??0),  label:"Total Asatidha",  color:"#7c3aed", bg:"#f5f3ff", border:"#c4b5fd" },
           ].map((s,i)=>(
             <div key={i} style={{ background:s.bg, borderRadius:14, padding:"16px 14px", border:`1px solid ${s.border}`, textAlign:"center" }}>
               <div style={{ fontSize:24, marginBottom:6 }}>{s.icon}</div>
