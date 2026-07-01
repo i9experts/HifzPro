@@ -41,14 +41,11 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     if (!student) return notFoundResponse("Student not found");
 
-    // Calculate attendance stats
     const totalSessions  = student.attendanceRecords.length;
     const presentCount   = student.attendanceRecords.filter(r => r.status === "PRESENT").length;
     const absentCount    = student.attendanceRecords.filter(r => r.status === "ABSENT").length;
     const lateCount      = student.attendanceRecords.filter(r => r.status === "LATE").length;
     const attendancePct  = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
-
-    // Days since enrolled
     const daysSinceEnrolled = Math.floor((Date.now() - new Date(student.enrolledAt).getTime()) / (1000 * 60 * 60 * 24));
 
     return successResponse({
@@ -56,15 +53,15 @@ export async function GET(req: NextRequest, { params }: Params) {
         ...student,
         stats: {
           daysSinceEnrolled,
-          totalLessons:   student.lessonEntries.length,
-          totalTests:     student.testRecords.length,
+          totalLessons:  student.lessonEntries.length,
+          totalTests:    student.testRecords.length,
           attendancePct,
           totalSessions,
           presentCount,
           absentCount,
           lateCount,
-          currentHealth:  student.manzilHealth[0]?.score ?? null,
-          healthTrend:    student.manzilHealth.slice(0, 5).map(h => ({ score: h.score, date: h.calculatedAt })),
+          currentHealth: student.manzilHealth[0]?.score ?? null,
+          healthTrend:   student.manzilHealth.slice(0, 5).map(h => ({ score: h.score, date: h.calculatedAt })),
         },
       },
     });
@@ -84,37 +81,100 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const { id } = await params;
     const body   = await req.json();
 
+    // ── FIX: save ALL fields including photo, gender, address, etc. ──
     const student = await prisma.student.update({
       where: { id },
       data: {
-        name:           body.name,
-        nameArabic:     body.nameArabic,
-        dateOfBirth:    body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,
-        program:        body.program,
-        batchId:        body.batchId || null,
-        status:         body.status,
-        expectedKhatmAt:body.expectedKhatmAt ? new Date(body.expectedKhatmAt) : undefined,
-        startingJuz:    body.startingJuz,
+        // Core
+        name:                body.name           ?? undefined,
+        nameArabic:          body.nameArabic     ?? undefined,
+        dateOfBirth:         body.dateOfBirth    ? new Date(body.dateOfBirth) : undefined,
+        program:             body.program        ?? undefined,
+        batchId:             body.batchId        || null,
+        status:              body.status         ?? undefined,
+        enrolledAt:          body.enrolledAt     ? new Date(body.enrolledAt) : undefined,
+        expectedKhatmAt:     body.expectedKhatmAt ? new Date(body.expectedKhatmAt) : undefined,
+
+        // ── PHOTO FIX: was missing, photo never saved to DB ──
+        photo:               body.photo          ?? undefined,
+
+        // Personal fields — were all missing from PUT
+        gender:              body.gender         ?? undefined,
+        bloodGroup:          body.bloodGroup     || null,
+        address:             body.address        || null,
+        city:                body.city           || null,
+        transport:           body.transport      || null,
+        previousInstitution: body.previousInstitution || null,
+        medicalNotes:        body.medicalNotes   || null,
+        specialNeeds:        body.specialNeeds   || null,
+
+        // Quran position
+        startingJuz:         body.startingJuz    ?? undefined,
+        startingAyah:        body.startingAyah   ?? undefined,
+
+        // Notes
+        notes:               body.notes          || null,
       },
     });
 
     // Update primary guardian
     if (body.guardianName) {
-      const guardian = await prisma.guardian.findFirst({ where: { studentId: id }, orderBy: { createdAt: "asc" } });
+      const guardian = await prisma.guardian.findFirst({
+        where: { studentId: id, isEmergency: true },
+        orderBy: { createdAt: "asc" },
+      });
       if (guardian) {
         await prisma.guardian.update({
           where: { id: guardian.id },
           data: {
-            name:           body.guardianName,
-            relation:       body.guardianRelation,
-            phone:          body.guardianPhone,
-            whatsapp:       body.guardianWhatsapp,
-            email:          body.guardianEmail,
-            cnic:           body.guardianCnic,
-            receiveUpdates: body.receiveUpdates,
+            name:           body.guardianName      ?? undefined,
+            relation:       body.guardianRelation  ?? undefined,
+            phone:          body.guardianPhone     ?? undefined,
+            whatsapp:       body.guardianWhatsapp  || body.guardianPhone || undefined,
+            email:          body.guardianEmail     || null,
+            cnic:           body.guardianCnic      || null,
+            occupation:     body.guardianOccupation || null,
+            receiveUpdates: body.receiveUpdates    ?? true,
           },
         });
       }
+    }
+
+    // Update or create secondary guardian
+    if (body.guardian2Name && body.guardian2Phone) {
+      const guardian2 = await prisma.guardian.findFirst({
+        where: { studentId: id, isEmergency: false },
+        orderBy: { createdAt: "asc" },
+      });
+      if (guardian2) {
+        await prisma.guardian.update({
+          where: { id: guardian2.id },
+          data: {
+            name:     body.guardian2Name,
+            relation: body.guardian2Relation || "Guardian",
+            phone:    body.guardian2Phone,
+          },
+        });
+      } else {
+        await prisma.guardian.create({
+          data: {
+            studentId:      id,
+            name:           body.guardian2Name,
+            relation:       body.guardian2Relation || "Guardian",
+            phone:          body.guardian2Phone,
+            isEmergency:    false,
+            receiveUpdates: false,
+          },
+        });
+      }
+    }
+
+    // Update student progress starting page if provided
+    if (body.startingPage) {
+      await prisma.studentProgress.updateMany({
+        where: { studentId: id },
+        data:  { currentPage: body.startingPage },
+      });
     }
 
     return successResponse({ student: { id: student.id, name: student.name } });
