@@ -274,46 +274,61 @@ model Batch {
 }
 
 // ─────────────────────────────────────────
-// STUDENT
+// STUDENT — replace the existing Student model in prisma/schema.prisma
 // ─────────────────────────────────────────
 
 model Student {
-  id                String        @id @default(cuid())
-  campusId          String
-  batchId           String?
-  enrollmentNumber  String?       @unique
-  name              String
-  nameArabic        String?
-  dateOfBirth       DateTime?
-  photo             String?
-  program           Program
-  status            StudentStatus @default(ACTIVE)
-  enrolledAt        DateTime      @default(now())
-  expectedKhatmAt   DateTime?
-  actualKhatmAt     DateTime?
+  id                  String        @id @default(cuid())
+  campusId            String
+  batchId             String?
+  enrollmentNumber    String?       @unique
+  name                String
+  nameArabic          String?
+  dateOfBirth         DateTime?
+  photo               String?
+  program             Program
+  status              StudentStatus @default(ACTIVE)
+  enrolledAt          DateTime      @default(now())
+  expectedKhatmAt     DateTime?
+  actualKhatmAt       DateTime?
 
-  startingJuz       Int?          @default(1)
-  startingSurah     Int?
-  startingAyah      Int?
+  startingJuz         Int?          @default(1)
+  startingSurah       Int?
+  startingAyah        Int?
 
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  // ── Personal & administrative fields ──
+  gender              String?       @default("MALE")
+  bloodGroup          String?
+  address             String?
+  city                String?
+  transport           String?
+  previousInstitution String?
+  medicalNotes        String?
+  specialNeeds        String?
+  notes               String?
 
-  campus            Campus        @relation(fields: [campusId], references: [id])
-  batch             Batch?        @relation(fields: [batchId], references: [id])
-  guardians         Guardian[]
-  lessonEntries     LessonEntry[]
-  attendanceRecords AttendanceRecord[]
-  testRecords       TestRecord[]
-  manzilHealth      ManzilHealth[]
-  progress          StudentProgress?
-  sanads            Sanad[]
-  scholarships      Scholarship[]
-  feePayments       FeePayment[]
-  mutashabihat      StudentMutashabihat[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  campus              Campus        @relation(fields: [campusId], references: [id])
+  batch               Batch?        @relation(fields: [batchId], references: [id])
+  guardians           Guardian[]
+  lessonEntries       LessonEntry[]
+  attendanceRecords   AttendanceRecord[]
+  testRecords         TestRecord[]
+  manzilHealth        ManzilHealth[]
+  progress            StudentProgress?
+  sanads              Sanad[]
+  scholarships        Scholarship[]
+  feePayments         FeePayment[]
+  mutashabihat        StudentMutashabihat[]
 
   @@map("students")
 }
+
+// ─────────────────────────────────────────
+// GUARDIAN — replace the existing Guardian model in prisma/schema.prisma
+// ─────────────────────────────────────────
 
 model Guardian {
   id             String   @id @default(cuid())
@@ -324,6 +339,7 @@ model Guardian {
   phone          String
   whatsapp       String?
   email          String?
+  occupation     String?
   isEmergency    Boolean  @default(false)
   receiveUpdates Boolean  @default(true)
   createdAt      DateTime @default(now())
@@ -335,17 +351,6 @@ model Guardian {
   @@map("guardians")
 }
 
-model Parent {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  guardianId  String?  @unique
-  createdAt   DateTime @default(now())
-
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guardian    Guardian? @relation(fields: [guardianId], references: [id])
-
-  @@map("parents")
-}
 
 // ─────────────────────────────────────────
 // LESSON ENTRY (Core of HifzPro)
