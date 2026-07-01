@@ -122,8 +122,11 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
 
           {/* Profile header */}
           <div style={{display:"flex",alignItems:"flex-start",gap:20,paddingBottom:0,paddingTop:8,flexWrap:"wrap"}}>
-            <div style={{width:72,height:72,borderRadius:16,background:colors.primary,border:"3px solid rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-              <span style={{fontFamily:fonts.display,fontSize:28,fontWeight:700,color:colors.white}}>{s.name.charAt(0)}</span>
+            <div style={{width:72,height:72,borderRadius:16,background:colors.primary,border:"3px solid rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,overflow:"hidden"}}>
+              {s.photo
+                ? <img src={s.photo} alt={s.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                : <span style={{fontFamily:fonts.display,fontSize:28,fontWeight:700,color:colors.white}}>{s.name.charAt(0)}</span>
+              }
             </div>
             <div style={{flex:1,minWidth:200}}>
               <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:4}}>
