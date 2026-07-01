@@ -6,27 +6,61 @@ const PROGRAM_LABELS: Record<string,string> = {
   HIFZ:"Hifz ul Quran",NAZRA:"Nazrah",TAJWEED:"Tajweed",GIRDAAN:"Girdaan"
 };
 
+// ─────────────────────────────────────────────────────────────
+// ROOT FIX: derive memorized Juz from lesson entries, not from
+// currentJuz number comparison. Works for any starting Juz.
+// ─────────────────────────────────────────────────────────────
+function getMemorizedJuzSet(lessonEntries: any[]): Set<number> {
+  const memorized = new Set<number>();
+  if (!lessonEntries?.length) return memorized;
+  for (const entry of lessonEntries) {
+    if (entry.lessonType === "SABAQ" && entry.juzFrom) {
+      memorized.add(entry.juzFrom);
+      if (entry.juzTo && entry.juzTo !== entry.juzFrom) {
+        for (let j = Math.min(entry.juzFrom, entry.juzTo); j <= Math.max(entry.juzFrom, entry.juzTo); j++) {
+          memorized.add(j);
+        }
+      }
+    }
+  }
+  return memorized;
+}
+
+function getCurrentJuzFromEntries(lessonEntries: any[]): number | null {
+  if (!lessonEntries?.length) return null;
+  const sabaqEntries = lessonEntries
+    .filter((e: any) => e.lessonType === "SABAQ" && e.juzFrom)
+    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return sabaqEntries[0]?.juzFrom ?? null;
+}
+
 export default function ProgressPage() {
   const { student, loading } = useParent();
 
   if (loading) return <div style={{ padding:40, textAlign:"center", color:colors.n400, fontFamily:fonts.body }}>Loading progress...</div>;
   if (!student) return null;
 
-  const prog   = student.progress;
-  const health = student.stats.currentHealth;
+  const prog        = student.progress;
+  const health      = student.stats.currentHealth;
   const healthTrend = student.stats.healthTrend || [];
 
   const healthColor = health === null ? colors.n400 : health >= 75 ? colors.successText : health >= 55 ? colors.warningText : colors.errorText;
   const healthBg    = health === null ? colors.n50  : health >= 75 ? colors.successBg  : health >= 55 ? colors.warningBg  : colors.errorBg;
 
-  // Days enrolled
-  const daysEnrolled = Math.floor((Date.now() - new Date(student.enrolledAt).getTime()) / (1000*60*60*24));
+  const daysEnrolled   = Math.floor((Date.now() - new Date(student.enrolledAt).getTime()) / (1000*60*60*24));
   const monthsEnrolled = Math.floor(daysEnrolled / 30);
 
-  // Estimated completion
-  const juzLeft = 30 - (prog.currentJuz || 1);
-  const avgDaily = prog.avgLinesPerDay || 0;
-  const estimatedDays = avgDaily > 0 ? Math.ceil((juzLeft * 200) / avgDaily) : null;
+  // ── ROOT FIX: use lesson entries as source of truth ──
+  const memorizedJuzSet       = getMemorizedJuzSet(student.lessonEntries || []);
+  const currentJuzFromEntries = getCurrentJuzFromEntries(student.lessonEntries || []);
+  const activeJuz             = currentJuzFromEntries ?? prog.currentJuz ?? null;
+  const memorizedCount        = memorizedJuzSet.size;
+  const correctPercent        = Math.round((memorizedCount / 30) * 100);
+  const juzRemaining          = 30 - memorizedCount;
+
+  // Estimated completion — based on memorized count, not Juz number arithmetic
+  const avgDaily     = prog.avgLinesPerDay || 0;
+  const estimatedDays = avgDaily > 0 ? Math.ceil((juzRemaining * 200) / avgDaily) : null;
 
   return (
     <div style={{ padding:"16px" }}>
@@ -44,19 +78,19 @@ export default function ProgressPage() {
         </svg>
         <div style={{ fontFamily:fonts.mono, fontSize:8, color:"rgba(255,255,255,0.4)", letterSpacing:2, marginBottom:12 }}>QURAN COMPLETION</div>
         <div style={{ display:"flex", alignItems:"flex-end", gap:8, marginBottom:16 }}>
-          <div style={{ fontFamily:fonts.heading, fontSize:56, fontWeight:700, color:"white", lineHeight:1 }}>{prog.percentComplete}</div>
+          <div style={{ fontFamily:fonts.heading, fontSize:56, fontWeight:700, color:"white", lineHeight:1 }}>{correctPercent}</div>
           <div style={{ fontFamily:fonts.heading, fontSize:24, color:"rgba(255,255,255,0.5)", marginBottom:8 }}>%</div>
         </div>
-        {/* Big progress bar */}
+        {/* Progress bar — driven by memorized count */}
         <div style={{ height:12, background:"rgba(255,255,255,0.15)", borderRadius:6, overflow:"hidden", marginBottom:12 }}>
-          <div style={{ height:"100%", width:`${prog.percentComplete}%`, background:`linear-gradient(90deg,#4ade80,#86efac)`, borderRadius:6, transition:"width 1s" }}/>
+          <div style={{ height:"100%", width:`${correctPercent}%`, background:`linear-gradient(90deg,#4ade80,#86efac)`, borderRadius:6, transition:"width 1s" }}/>
         </div>
         <div style={{ display:"flex", justifyContent:"space-between" }}>
           <div style={{ fontFamily:fonts.body, fontSize:12, color:"rgba(255,255,255,0.7)" }}>
-            📍 Currently on Juz {prog.currentJuz} of 30
+            📍 {memorizedCount} Juz memorized · Active: Juz {activeJuz ?? "—"}
           </div>
           <div style={{ fontFamily:fonts.body, fontSize:12, color:"rgba(255,255,255,0.7)" }}>
-            {30-(prog.currentJuz||1)} Juz remaining
+            {juzRemaining} Juz remaining
           </div>
         </div>
       </div>
@@ -64,9 +98,10 @@ export default function ProgressPage() {
       {/* Quick stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:16 }}>
         {[
-          { icon:"📍", label:"Current Juz", val:`Juz ${prog.currentJuz}`, sub:`Page ${prog.currentPage}` },
-          { icon:"💚", label:"Manzil Health", val:health!==null?`${health}%`:"—", sub:health!==null?(health>=75?"Excellent":health>=55?"Moderate":"Needs work"):"No data" },
-          { icon:"📅", label:"Enrolled", val:`${monthsEnrolled}mo`, sub:`${daysEnrolled} days` },
+          { icon:"📍", label:"Active Juz",    val: activeJuz ? `Juz ${activeJuz}` : "—",              sub:`Page ${prog.currentPage ?? "—"}` },
+          { icon:"💚", label:"Manzil Health", val: health!==null ? `${health}%` : "—",
+            sub: health!==null ? (health>=75?"Excellent":health>=55?"Moderate":"Needs work") : "No data" },
+          { icon:"📅", label:"Enrolled",      val:`${monthsEnrolled}mo`,                               sub:`${daysEnrolled} days` },
         ].map((s,i)=>(
           <div key={i} style={{ background:colors.white, borderRadius:12, padding:"12px 10px", border:`1px solid ${colors.n200}`, textAlign:"center" }}>
             <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
@@ -77,33 +112,52 @@ export default function ProgressPage() {
         ))}
       </div>
 
-      {/* 30-Juz Visual Grid */}
+      {/* 30-Juz Visual Grid — ROOT FIX APPLIED */}
       <div style={{ background:colors.white, borderRadius:16, padding:16, border:`1px solid ${colors.n200}`, marginBottom:16 }}>
         <div style={{ fontFamily:fonts.heading, fontSize:13, fontWeight:700, color:colors.n800, marginBottom:4 }}>30 Juz — The Complete Quran</div>
-        <div style={{ fontFamily:fonts.body, fontSize:11, color:colors.n500, marginBottom:12 }}>Each box represents one Juz of the Quran</div>
+        <div style={{ fontFamily:fonts.body, fontSize:11, color:colors.n500, marginBottom:12 }}>
+          Each box represents one Juz ·{" "}
+          <span style={{ color:colors.primary, fontWeight:700 }}>{memorizedCount} of 30 memorized</span>
+        </div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(6,1fr)", gap:5 }}>
           {Array.from({length:30},(_,i)=>i+1).map(juz => {
-            const completed = juz < (prog.currentJuz||1);
-            const current   = juz === (prog.currentJuz||1);
+            // ── THE FIX: check membership in the memorized SET ──
+            const isMemorized  = memorizedJuzSet.has(juz);
+            const isCurrent    = juz === activeJuz;
+            const isInProgress = isCurrent && !isMemorized;
+
             return (
               <div key={juz} style={{
-                aspectRatio:"1", borderRadius:8, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                background: completed ? colors.primary : current ? colors.green50 : colors.n50,
-                border: `2px solid ${completed ? colors.primary : current ? colors.primary : colors.n200}`,
+                aspectRatio:"1", borderRadius:8,
+                display:"flex", flexDirection:"column",
+                alignItems:"center", justifyContent:"center",
+                background: isMemorized   ? colors.primary    :
+                            isInProgress  ? colors.green50    :
+                            colors.n50,
+                border:`2px solid ${
+                  isMemorized   ? colors.primary :
+                  isInProgress  ? colors.primary :
+                  colors.n200
+                }`,
                 transition:"all 0.3s",
               }}>
-                <span style={{ fontFamily:fonts.mono, fontSize:10, fontWeight:700, color:completed?"white":current?colors.primary:colors.n400 }}>{juz}</span>
-                {completed && <span style={{ fontSize:8, color:"rgba(255,255,255,0.8)" }}>✓</span>}
-                {current && <span style={{ fontSize:6, color:colors.primary }}>▶</span>}
+                <span style={{
+                  fontFamily:fonts.mono, fontSize:10, fontWeight:700,
+                  color: isMemorized   ? "white"         :
+                         isInProgress  ? colors.primary   :
+                         colors.n400,
+                }}>{juz}</span>
+                {isMemorized  && <span style={{ fontSize:8, color:"rgba(255,255,255,0.8)" }}>✓</span>}
+                {isInProgress && <span style={{ fontSize:6, color:colors.primary }}>▶</span>}
               </div>
             );
           })}
         </div>
         <div style={{ display:"flex", gap:16, marginTop:10, justifyContent:"center" }}>
           {[
-            {color:colors.primary, label:"Completed"},
-            {color:colors.green50, border:colors.primary, label:"In Progress"},
-            {color:colors.n50, border:colors.n200, label:"Remaining"},
+            {color:colors.primary,  label:"Memorized"},
+            {color:colors.green50,  border:colors.primary, label:"In Progress"},
+            {color:colors.n50,      border:colors.n200,    label:"Remaining"},
           ].map((l,i)=>(
             <div key={i} style={{ display:"flex", alignItems:"center", gap:4 }}>
               <div style={{ width:12,height:12,borderRadius:3,background:l.color,border:`1px solid ${(l as any).border||l.color}`}}/>
@@ -119,7 +173,6 @@ export default function ProgressPage() {
         <div style={{ fontFamily:fonts.body, fontSize:11, color:colors.n500, marginBottom:12 }}>How well your child retains their memorised Quran</div>
         {healthTrend.length > 0 ? (
           <div>
-            {/* Current score big */}
             <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16, padding:"12px 14px", background:healthBg, borderRadius:10 }}>
               <div style={{ fontFamily:fonts.heading, fontSize:36, fontWeight:700, color:healthColor }}>{health}%</div>
               <div>
@@ -131,10 +184,9 @@ export default function ProgressPage() {
                 </div>
               </div>
             </div>
-            {/* Trend bars */}
             <div style={{ display:"flex", gap:3, alignItems:"flex-end", height:60 }}>
               {healthTrend.slice().reverse().map((h: any, i: number) => {
-                const barH = Math.max(4, (h.score/100)*54);
+                const barH     = Math.max(4, (h.score/100)*54);
                 const barColor = h.score>=75?"#16a34a":h.score>=55?colors.warning:colors.error;
                 return (
                   <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:2 }}>
@@ -153,7 +205,7 @@ export default function ProgressPage() {
         )}
       </div>
 
-      {/* Test results summary */}
+      {/* Test results */}
       {student.testRecords?.length > 0 && (
         <div style={{ background:colors.white, borderRadius:16, padding:16, border:`1px solid ${colors.n200}`, marginBottom:16 }}>
           <div style={{ fontFamily:fonts.heading, fontSize:13, fontWeight:700, color:colors.n800, marginBottom:12 }}>📝 Test Results</div>
