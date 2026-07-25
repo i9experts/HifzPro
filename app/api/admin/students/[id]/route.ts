@@ -186,6 +186,59 @@ export async function PUT(req: NextRequest, { params }: Params) {
       }
     }
 
+    // ── Additional guardians (3rd+) — each item with an `id` is updated in place,
+    //    items without an `id` are newly added. Any existing non-primary/secondary
+    //    guardian NOT present in this list is removed (lets the admin delete one). ──
+    if (Array.isArray(body.additionalGuardians)) {
+      const [primary, secondary] = await Promise.all([
+        prisma.guardian.findFirst({ where: { studentId: id, isEmergency: true }, orderBy: { createdAt: "asc" } }),
+        prisma.guardian.findFirst({ where: { studentId: id, isEmergency: false }, orderBy: { createdAt: "asc" } }),
+      ]);
+      const protectedIds = [primary?.id, secondary?.id].filter(Boolean) as string[];
+
+      const allOthers = await prisma.guardian.findMany({
+        where: { studentId: id, id: { notIn: protectedIds } },
+        select: { id: true },
+      });
+      const keepIds = new Set(body.additionalGuardians.filter((g: any) => g.id).map((g: any) => g.id));
+      const toRemove = allOthers.filter(g => !keepIds.has(g.id)).map(g => g.id);
+      if (toRemove.length) {
+        await prisma.guardian.deleteMany({ where: { id: { in: toRemove } } });
+      }
+
+      for (const g of body.additionalGuardians) {
+        if (!g.name || !g.phone) continue;
+        if (g.id) {
+          await prisma.guardian.update({
+            where: { id: g.id },
+            data: {
+              name:     g.name,
+              relation: g.relation || "Guardian",
+              phone:    g.phone,
+              whatsapp: g.whatsapp || g.phone,
+              email:    g.email    || null,
+              cnic:     g.cnic     || null,
+              receiveUpdates: g.receiveUpdates ?? false,
+            },
+          });
+        } else {
+          await prisma.guardian.create({
+            data: {
+              studentId:      id,
+              name:           g.name,
+              relation:       g.relation || "Guardian",
+              phone:          g.phone,
+              whatsapp:       g.whatsapp || g.phone,
+              email:          g.email    || null,
+              cnic:           g.cnic     || null,
+              isEmergency:    false,
+              receiveUpdates: g.receiveUpdates ?? false,
+            },
+          });
+        }
+      }
+    }
+
     // Update student progress starting page if provided
     if (body.startingPage) {
       await prisma.studentProgress.updateMany({

@@ -103,6 +103,18 @@ const createSchema = z.object({
   receiveUpdates: z.boolean().optional(),
   guardian2Name: z.string().optional(), guardian2Relation: z.string().optional(),
   guardian2Phone: z.string().optional(),
+  // ── Any number of ADDITIONAL guardians beyond the primary + secondary above.
+  //    Lets a family register more than 2 caregivers (grandparents, siblings, etc.)
+  //    without any schema change — Guardian was already a one-to-many relation. ──
+  additionalGuardians: z.array(z.object({
+    name:           z.string().min(2),
+    relation:       z.string().optional(),
+    phone:          z.string().min(5),
+    whatsapp:       z.string().optional(),
+    email:          z.string().optional(),
+    cnic:           z.string().optional(),
+    receiveUpdates: z.boolean().optional(),
+  })).optional(),
   feeStructureId: z.string().optional(),
   scholarshipAmount: z.number().optional(), notes: z.string().optional(),
 });
@@ -188,6 +200,25 @@ export async function POST(req: NextRequest) {
             receiveUpdates: false,
           },
         });
+      }
+
+      // 3b. Any further guardians beyond the primary + secondary
+      if (data.additionalGuardians?.length) {
+        for (const g of data.additionalGuardians) {
+          await tx.guardian.create({
+            data: {
+              studentId:      s.id,
+              name:           g.name,
+              relation:       g.relation || "Guardian",
+              cnic:           g.cnic     || null,
+              phone:          g.phone,
+              whatsapp:       g.whatsapp || g.phone,
+              email:          g.email    || null,
+              isEmergency:    false,
+              receiveUpdates: g.receiveUpdates ?? false,
+            },
+          });
+        }
       }
 
       // 4. Create student progress

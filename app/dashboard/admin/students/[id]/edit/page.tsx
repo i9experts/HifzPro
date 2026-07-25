@@ -66,11 +66,26 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
     guardianOccupation:"", receiveUpdates:true,
     // Secondary guardian
     guardian2Name:"", guardian2Relation:"", guardian2Phone:"",
+    // Additional guardians beyond the primary + secondary
+    additionalGuardians:[] as { id?:string; name:string; relation:string; phone:string; whatsapp:string; email:string; receiveUpdates:boolean }[],
     // Notes
     notes:"",
   });
 
   const set = (key:string, val:any) => setForm(prev=>({...prev,[key]:val}));
+
+  const addGuardian = () => setForm(prev => ({
+    ...prev,
+    additionalGuardians: [...prev.additionalGuardians, { name:"", relation:"Guardian", phone:"", whatsapp:"", email:"", receiveUpdates:false }],
+  }));
+  const updateGuardian = (i: number, key: string, val: any) => setForm(prev => ({
+    ...prev,
+    additionalGuardians: prev.additionalGuardians.map((g, idx) => idx === i ? { ...g, [key]: val } : g),
+  }));
+  const removeGuardian = (i: number) => setForm(prev => ({
+    ...prev,
+    additionalGuardians: prev.additionalGuardians.filter((_, idx) => idx !== i),
+  }));
 
   useEffect(()=>{
     fetch(`/api/admin/students/${id}`)
@@ -79,7 +94,9 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
         if (!d.success) return;
         const s  = d.data.student;
         const g  = s.guardians?.find((g:any)=>g.isEmergency) || s.guardians?.[0];
-        const g2 = s.guardians?.find((g:any)=>!g.isEmergency);
+        const others = (s.guardians || []).filter((x:any) => x.id !== g?.id);
+        const g2 = others[0];
+        const restGuardians = others.slice(1);
         setPhoto(s.photo || "");
         setForm({
           // Personal
@@ -118,6 +135,12 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
           guardian2Name:      g2?.name          || "",
           guardian2Relation:  g2?.relation      || "",
           guardian2Phone:     g2?.phone         || "",
+          // Additional guardians (3rd+)
+          additionalGuardians: restGuardians.map((rg:any) => ({
+            id: rg.id, name: rg.name || "", relation: rg.relation || "Guardian",
+            phone: rg.phone || "", whatsapp: rg.whatsapp || "", email: rg.email || "",
+            receiveUpdates: rg.receiveUpdates ?? false,
+          })),
           // Notes
           notes:              s.notes           || "",
         });
@@ -363,9 +386,35 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
               <input value={form.guardian2Relation} onChange={e=>set("guardian2Relation",e.target.value)} placeholder="e.g. Uncle" style={inp}/>
             </FieldRow>
             <FieldRow label="Phone">
-              <input value={form.guardian2Phone} onChange={e=>set("guardian2Phone",e.target.value)} placeholder="+92 300 0000000" style={inp}/>
+              <input value={form.guardian2Phone} onChange={e=>set("guardian2Phone",e.target.value)} placeholder="e.g. +92 300 0000000" style={inp}/>
             </FieldRow>
           </div>
+        </Section>
+
+        {/* ── Additional Guardians (3rd+) ── */}
+        <Section icon="👪" title="Additional Guardians">
+          {form.additionalGuardians.map((g, i) => (
+            <div key={g.id || i} style={{ background:colors.n50,borderRadius:12,padding:16,border:`1px solid ${colors.n200}`,marginBottom:12 }}>
+              <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+                <div style={{ fontFamily:fonts.heading,fontSize:12,fontWeight:700,color:colors.n700 }}>Guardian {i+3}</div>
+                <button onClick={()=>removeGuardian(i)} style={{ fontFamily:fonts.heading,fontSize:11,color:colors.error,background:"none",border:"none",cursor:"pointer" }}>Remove</button>
+              </div>
+              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12 }}>
+                <FieldRow label="Name" required><input value={g.name} onChange={e=>updateGuardian(i,"name",e.target.value)} style={inp}/></FieldRow>
+                <FieldRow label="Relation"><select value={g.relation} onChange={e=>updateGuardian(i,"relation",e.target.value)} style={inp}>{RELATIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></FieldRow>
+                <FieldRow label="Phone" required><input value={g.phone} onChange={e=>updateGuardian(i,"phone",e.target.value)} style={inp}/></FieldRow>
+                <FieldRow label="WhatsApp"><input value={g.whatsapp} onChange={e=>updateGuardian(i,"whatsapp",e.target.value)} placeholder="If different" style={inp}/></FieldRow>
+                <div style={{ gridColumn:"2/4" }}><FieldRow label="Email"><input type="email" value={g.email} onChange={e=>updateGuardian(i,"email",e.target.value)} style={inp}/></FieldRow></div>
+              </div>
+              <label style={{ display:"flex",alignItems:"center",gap:8,cursor:"pointer" }}>
+                <input type="checkbox" checked={g.receiveUpdates} onChange={e=>updateGuardian(i,"receiveUpdates",e.target.checked)} style={{ width:16,height:16,accentColor:colors.primary }}/>
+                <span style={{ fontFamily:fonts.body,fontSize:12,color:colors.n700 }}>Send daily Sabaq updates via WhatsApp</span>
+              </label>
+            </div>
+          ))}
+          <button onClick={addGuardian} style={{ padding:"10px 16px", borderRadius:8, background:colors.n50, border:`1.5px dashed ${colors.n300}`, color:colors.n600, fontFamily:fonts.heading, fontSize:12, fontWeight:600, cursor:"pointer", width:"100%" }}>
+            + Add Another Guardian
+          </button>
         </Section>
 
         {/* ── Documents ── */}

@@ -60,6 +60,8 @@ export default function NewStudentPage() {
     guardianOccupation:"", guardianAddress:"",
     guardian2Name:"", guardian2Relation:"", guardian2Phone:"",
     receiveUpdates:true,
+    // Additional guardians beyond the primary + secondary (unlimited — e.g. grandparent, older sibling)
+    additionalGuardians:[] as { name:string; relation:string; phone:string; whatsapp:string; email:string; receiveUpdates:boolean }[],
     // Documents
     documents:[] as UploadedDoc[],
     guardianDocuments:[] as UploadedDoc[],
@@ -67,6 +69,19 @@ export default function NewStudentPage() {
   });
 
   const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
+
+  const addGuardian = () => setForm(prev => ({
+    ...prev,
+    additionalGuardians: [...prev.additionalGuardians, { name:"", relation:"Guardian", phone:"", whatsapp:"", email:"", receiveUpdates:false }],
+  }));
+  const updateGuardian = (i: number, key: string, val: any) => setForm(prev => ({
+    ...prev,
+    additionalGuardians: prev.additionalGuardians.map((g, idx) => idx === i ? { ...g, [key]: val } : g),
+  }));
+  const removeGuardian = (i: number) => setForm(prev => ({
+    ...prev,
+    additionalGuardians: prev.additionalGuardians.filter((_, idx) => idx !== i),
+  }));
 
   const validate = () => {
     if (step === 1 && !form.name)         { setError("Student name is required"); return false; }
@@ -296,8 +311,32 @@ export default function NewStudentPage() {
               <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12 }}>
                 <FieldRow label="2nd Guardian Name"><input value={form.guardian2Name} onChange={e=>set("guardian2Name",e.target.value)} placeholder="Optional" style={inp}/></FieldRow>
                 <FieldRow label="Relation"><input value={form.guardian2Relation} onChange={e=>set("guardian2Relation",e.target.value)} placeholder="e.g. Uncle" style={inp}/></FieldRow>
-                <FieldRow label="Phone"><input value={form.guardian2Phone} onChange={e=>set("guardian2Phone",e.target.value)} placeholder="+92 300 0000000" style={inp}/></FieldRow>
+                <FieldRow label="Phone"><input value={form.guardian2Phone} onChange={e=>set("guardian2Phone",e.target.value)} placeholder="e.g. +92 300 0000000" style={inp}/></FieldRow>
               </div>
+
+              {/* Additional guardians — unlimited, e.g. grandparent, older sibling, joint-family caregiver */}
+              {form.additionalGuardians.map((g, i) => (
+                <div key={i} style={{ background:colors.n50,borderRadius:12,padding:16,border:`1px solid ${colors.n200}`,marginTop:12 }}>
+                  <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10 }}>
+                    <div style={{ fontFamily:fonts.heading,fontSize:12,fontWeight:700,color:colors.n700 }}>Additional Guardian {i+1}</div>
+                    <button onClick={()=>removeGuardian(i)} style={{ fontFamily:fonts.heading,fontSize:11,color:colors.error,background:"none",border:"none",cursor:"pointer" }}>Remove</button>
+                  </div>
+                  <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12 }}>
+                    <FieldRow label="Name" required><input value={g.name} onChange={e=>updateGuardian(i,"name",e.target.value)} placeholder="Full name" style={inp}/></FieldRow>
+                    <FieldRow label="Relation"><select value={g.relation} onChange={e=>updateGuardian(i,"relation",e.target.value)} style={inp}>{RELATIONS.map(r=><option key={r} value={r}>{r}</option>)}</select></FieldRow>
+                    <FieldRow label="Phone" required><input value={g.phone} onChange={e=>updateGuardian(i,"phone",e.target.value)} placeholder="Phone number" style={inp}/></FieldRow>
+                    <FieldRow label="WhatsApp"><input value={g.whatsapp} onChange={e=>updateGuardian(i,"whatsapp",e.target.value)} placeholder="If different" style={inp}/></FieldRow>
+                    <div style={{ gridColumn:"2/4" }}><FieldRow label="Email"><input type="email" value={g.email} onChange={e=>updateGuardian(i,"email",e.target.value)} placeholder="Optional" style={inp}/></FieldRow></div>
+                  </div>
+                  <label style={{ display:"flex",alignItems:"center",gap:8,cursor:"pointer" }}>
+                    <input type="checkbox" checked={g.receiveUpdates} onChange={e=>updateGuardian(i,"receiveUpdates",e.target.checked)} style={{ width:16,height:16,accentColor:colors.primary }}/>
+                    <span style={{ fontFamily:fonts.body,fontSize:12,color:colors.n700 }}>Send daily Sabaq updates via WhatsApp</span>
+                  </label>
+                </div>
+              ))}
+              <button onClick={addGuardian} style={{ marginTop:12, padding:"10px 16px", borderRadius:8, background:colors.n50, border:`1.5px dashed ${colors.n300}`, color:colors.n600, fontFamily:fonts.heading, fontSize:12, fontWeight:600, cursor:"pointer", width:"100%" }}>
+                + Add Another Guardian
+              </button>
             </div>
           )}
 
@@ -359,7 +398,7 @@ export default function NewStudentPage() {
                 { title:"Personal", icon:"👤", step:1, items:[["Name",form.name],["Arabic Name",form.nameArabic||"—"],["DOB",form.dateOfBirth||"—"],["City",form.city||"—"],["Blood Group",form.bloodGroup||"—"]] },
                 { title:"Program",  icon:"📖", step:2, items:[["Program",PROGRAMS.find(p=>p.id===form.program)?.label||form.program],["Enrolled",form.enrolledAt],["Exp. Khatm",form.expectedKhatmAt||"Not set"]] },
                 { title:"Quran",    icon:"🕋", step:3, items:[["Starting Juz",`Juz ${form.startingJuz}`],["Page",`${form.startingPage}`],["Previous Hifz",`${form.previousHifzJuz} Juz`]] },
-                { title:"Guardian", icon:"👨‍👩‍👦", step:4, items:[["Name",form.guardianName],["Relation",form.guardianRelation],["Phone",form.guardianPhone],["WhatsApp Updates",form.receiveUpdates?"Enabled":"Disabled"]] },
+                { title:"Guardian", icon:"👨‍👩‍👦", step:4, items:[["Name",form.guardianName],["Relation",form.guardianRelation],["Phone",form.guardianPhone],["WhatsApp Updates",form.receiveUpdates?"Enabled":"Disabled"],["Other Guardians",`${(form.guardian2Name?1:0)+form.additionalGuardians.length} added`]] },
                 { title:"Documents",icon:"📁", step:5, items:[["Student Docs",`${form.documents.length} uploaded`],["Guardian Docs",`${form.guardianDocuments.length} uploaded`]] },
               ].map(section=>(
                 <div key={section.title} style={{ background:colors.n50,borderRadius:12,padding:14,border:`1px solid ${colors.n200}`,marginBottom:10 }}>
