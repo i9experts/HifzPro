@@ -3,7 +3,8 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse } from "@/lib/api";
+import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,6 +30,25 @@ function calculatePriority(confusionCount: number, daysSinceLast: number, isReso
   return Math.round(frequencyScore + recencyScore);
 }
 
+// ── Shared tenant check: only admins/ustadhs, and only for students in their own campus/institution ──
+async function assertStudentAccess(studentId: string, payload: any): Promise<boolean> {
+  if (!["CAMPUS_ADMIN", "SUPER_ADMIN", "USTADH"].includes(payload.role)) return false;
+  const student = await prisma.student.findUnique({
+    where:  { id: studentId },
+    select: { campusId: true, campus: { select: { institutionId: true } } },
+  });
+  if (!student) return false;
+  if (payload.role === "USTADH") {
+    // Ustadhs may view/log confusions only for students in a batch they teach
+    const owns = await prisma.student.findFirst({
+      where:  { id: studentId, batch: { ustadh: { userId: payload.userId } } },
+      select: { id: true },
+    });
+    return !!owns;
+  }
+  return canAccessCampus(payload, student.campusId, student.campus?.institutionId);
+}
+
 export async function GET(req: NextRequest, { params }: Params) {
   try {
     const token = getTokenFromRequest(req);
@@ -37,6 +57,9 @@ export async function GET(req: NextRequest, { params }: Params) {
     if (!payload) return unauthorizedResponse();
 
     const { id: studentId } = await params;
+
+    // ── TENANT / OWNERSHIP ISOLATION ──
+    if (!(await assertStudentAccess(studentId, payload))) return notFoundResponse("Student not found");
 
     const confusions = await prisma.studentMutashabihat.findMany({
       where:   { studentId },
@@ -95,6 +118,9 @@ export async function POST(req: NextRequest, { params }: Params) {
     const result = recordSchema.safeParse(body);
     if (!result.success) return errorResponse(result.error.errors[0].message);
     const data = result.data;
+
+    // ── TENANT / OWNERSHIP ISOLATION ──
+    if (!(await assertStudentAccess(studentId, payload))) return notFoundResponse("Student not found");
 
     // Check if this exact confusion already exists for this student
     const existing = await prisma.studentMutashabihat.findFirst({
@@ -165,6 +191,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (!payload) return unauthorizedResponse();
 
     const { id: studentId } = await params;
+
+    // ── TENANT / OWNERSHIP ISOLATION — resolving a confusion is an admin/ustadh action, not a parent one ──
+    if (!(await assertStudentAccess(studentId, payload))) return notFoundResponse("Student not found");
+
     const { confusionId, resolve } = await req.json();
     if (!confusionId) return errorResponse("confusionId required");
 

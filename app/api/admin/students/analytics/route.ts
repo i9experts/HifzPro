@@ -12,6 +12,16 @@ export async function GET(req: NextRequest) {
     if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
 
     const campusId  = payload.campusId;
+    // ── TENANT SCOPING ──
+    // CAMPUS_ADMIN always has campusId -> scoped to that campus.
+    // Institution-level SUPER_ADMIN (institutionId set, campusId null) -> scoped to their whole institution,
+    //   NOT the entire platform (this was previously unscoped and leaked all institutions' data).
+    // Platform SUPER_ADMIN (both null) -> unscoped, sees everything, by design.
+    const institutionId = !campusId ? payload.institutionId : null;
+    const studentScope: any       = campusId ? { campusId } : institutionId ? { campus: { institutionId } } : {};
+    const nestedStudentScope: any = campusId ? { student: { campusId } } : institutionId ? { student: { campus: { institutionId } } } : {};
+    const batchScope: any         = campusId ? { campusId } : institutionId ? { campus: { institutionId } } : {};
+
     const now       = new Date();
     const today     = new Date(now); today.setHours(0,0,0,0);
     const todayEnd  = new Date(now); todayEnd.setHours(23,59,59,999);
@@ -19,8 +29,7 @@ export async function GET(req: NextRequest) {
     const weekAgo   = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
 
     // ── Base where clause ──
-    const studentWhere: any = { status: "ACTIVE" };
-    if (campusId) studentWhere.campusId = campusId;
+    const studentWhere: any = { status: "ACTIVE", ...studentScope };
 
     // ── Get all active students ──
     const students = await prisma.student.findMany({
@@ -42,7 +51,7 @@ export async function GET(req: NextRequest) {
     const todayLessons = await prisma.lessonEntry.count({
       where: {
         date: { gte: today, lte: todayEnd },
-        ...(campusId ? { student: { campusId } } : {}),
+        ...nestedStudentScope,
       },
     }).catch(() => 0);
 
@@ -50,7 +59,7 @@ export async function GET(req: NextRequest) {
       where: {
         status: "PRESENT",
         session: { date: { gte: today, lte: todayEnd } },
-        ...(campusId ? { student: { campusId } } : {}),
+        ...nestedStudentScope,
       },
     }).catch(() => 0);
 
@@ -133,7 +142,7 @@ export async function GET(req: NextRequest) {
 
     // ── Batch analytics ──
     const batches = await prisma.batch.findMany({
-      where: { isActive: true, ...(campusId ? { campusId } : {}) },
+      where: { isActive: true, ...batchScope },
       include: {
         ustadh:   { include: { user: { select: { name: true } } } },
         students: { where: { status: "ACTIVE" }, select: { id: true } },
@@ -165,7 +174,7 @@ export async function GET(req: NextRequest) {
     // ── Mistake analysis ──
     const mistakes = await prisma.mistake.groupBy({
       by:     ["mistakeType"],
-      where:  campusId ? { lessonEntry: { student: { campusId } } } : {},
+      where:  Object.keys(nestedStudentScope).length ? { lessonEntry: nestedStudentScope } : {},
       _count: true,
       orderBy:{ _count: { mistakeType: "desc" } },
     }).catch(() => []);
@@ -178,7 +187,7 @@ export async function GET(req: NextRequest) {
       const count    = await prisma.lessonEntry.count({
         where: {
           date: { gte: dayStart, lte: dayEnd },
-          ...(campusId ? { student: { campusId } } : {}),
+          ...nestedStudentScope,
         },
       }).catch(() => 0);
       lessonTrend.push({
@@ -189,11 +198,11 @@ export async function GET(req: NextRequest) {
 
     // ── Ustadh performance ──
     const asatidha = await prisma.ustadh.findMany({
-      where: batches.length > 0 ? { batches: { some: { campusId: campusId||undefined } } } : {},
+      where: Object.keys(batchScope).length ? { batches: { some: batchScope } } : {},
       include: {
         user:    { select: { name: true } },
         batches: {
-          where: campusId ? { campusId } : {},
+          where: batchScope,
           select: { id: true, name: true, students: { select: { id: true } } },
         },
         lessonEntries: {

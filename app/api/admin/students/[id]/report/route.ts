@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { toHijri, formatHijri, HIJRI_MONTHS } from "@/lib/hijri";
+import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -52,17 +53,19 @@ export async function GET(req: NextRequest, { params }: Params) {
     const token = getTokenFromRequest(req);
     if (!token) return new NextResponse("Unauthorized", { status: 401 });
     const payload = verifyToken(token);
-    if (!payload) return new NextResponse("Unauthorized", { status: 401 });
+    if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return new NextResponse("Unauthorized", { status: 401 });
 
     const { id } = await params;
 
     const student = await prisma.student.findUnique({
       where: { id },
       include: {
+        // ── FIX: fetch campus/institution directly on the student, not only through batch —
+        //    a student with no batch assigned previously produced a report with no institution info ──
+        campus: { include: { institution: { select: { name: true, nameArabic: true, logo: true, city: true } } } },
         batch: {
           include: {
             ustadh: { include: { user: { select: { name: true } } } },
-            campus: { include: { institution: { select: { name: true, nameArabic: true, logo: true, city: true } } } },
           },
         },
         guardians: { take: 1 },
@@ -86,6 +89,11 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     if (!student) return new NextResponse("Student not found", { status: 404 });
 
+    // ── TENANT ISOLATION ──
+    if (!canAccessCampus(payload, student.campusId, student.campus?.institutionId)) {
+      return new NextResponse("Student not found", { status: 404 });
+    }
+
     // ── Stats ──
     const totalSessions = student.attendanceRecords.length;
     const presentCount  = student.attendanceRecords.filter(r => r.status === "PRESENT").length;
@@ -99,7 +107,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const hijriEn    = formatHijri(today, "en");
     const gregToday  = formatDate(today, true);
 
-    const institution = student.batch?.campus?.institution;
+    const institution = student.campus?.institution;
     const ustadh      = student.batch?.ustadh?.user?.name || "—";
     const guardian    = student.guardians[0];
     const prog        = PROGRAM_LABELS[student.program] || { label: student.program, ar: "" };

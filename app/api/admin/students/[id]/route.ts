@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse } from "@/lib/api";
+import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -36,10 +37,16 @@ export async function GET(req: NextRequest, { params }: Params) {
         },
         sanads:      true,
         scholarships:{ include: { donor: true } },
+        campus:      { select: { id: true, institutionId: true } },
       },
     });
 
     if (!student) return notFoundResponse("Student not found");
+
+    // ── TENANT ISOLATION: block cross-campus / cross-institution access ──
+    if (!canAccessCampus(payload, student.campusId, student.campus?.institutionId)) {
+      return notFoundResponse("Student not found");
+    }
 
     const totalSessions  = student.attendanceRecords.length;
     const presentCount   = student.attendanceRecords.filter(r => r.status === "PRESENT").length;
@@ -80,6 +87,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     const { id } = await params;
     const body   = await req.json();
+
+    // ── TENANT ISOLATION: confirm the student belongs to this admin's campus/institution before writing ──
+    const existing = await prisma.student.findUnique({
+      where: { id },
+      select: { campusId: true, campus: { select: { institutionId: true } } },
+    });
+    if (!existing) return notFoundResponse("Student not found");
+    if (!canAccessCampus(payload, existing.campusId, existing.campus?.institutionId)) {
+      return notFoundResponse("Student not found");
+    }
 
     // ── FIX: save ALL fields including photo, gender, address, etc. ──
     const student = await prisma.student.update({
@@ -195,12 +212,27 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action") || "withdraw";
 
+    // ── TENANT ISOLATION: confirm the student belongs to this admin's campus/institution before withdrawing/deleting ──
+    const existing = await prisma.student.findUnique({
+      where: { id },
+      select: { campusId: true, campus: { select: { institutionId: true } } },
+    });
+    if (!existing) return notFoundResponse("Student not found");
+    if (!canAccessCampus(payload, existing.campusId, existing.campus?.institutionId)) {
+      return notFoundResponse("Student not found");
+    }
+
     if (action === "withdraw") {
       await prisma.student.update({ where: { id }, data: { status: "WITHDRAWN" } });
       return successResponse({ message: "Student withdrawn successfully" });
     }
 
     if (action === "delete") {
+      // ── SAFETY: permanent deletion (and all cascaded lesson/attendance/test history)
+      //    is irreversible — restrict to SUPER_ADMIN. Campus admins should withdraw instead. ──
+      if (payload.role !== "SUPER_ADMIN") {
+        return errorResponse("Only a Super Admin can permanently delete a student record. Please withdraw the student instead.");
+      }
       await prisma.student.delete({ where: { id } });
       return successResponse({ message: "Student deleted permanently" });
     }

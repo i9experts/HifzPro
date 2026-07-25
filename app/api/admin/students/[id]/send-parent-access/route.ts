@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
 import { sendWhatsApp, normalizePhone } from "@/lib/whatsapp";
+import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -37,6 +38,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
 
     if (!student) return errorResponse("Student not found");
+
+    // ── TENANT ISOLATION ──
+    if (!canAccessCampus(payload, student.campusId, student.campus?.institutionId)) {
+      return errorResponse("Student not found");
+    }
 
     const guardians = student.guardians;
     if (!guardians.length) return errorResponse("No guardian found for this student");
