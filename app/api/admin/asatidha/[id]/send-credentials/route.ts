@@ -4,8 +4,9 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse } from "@/lib/api";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,14 +39,14 @@ export async function POST(req: NextRequest, { params }: Params) {
 
     if (!ustadh) return errorResponse("Ustadh not found");
 
-    // Check they belong to this institution
+    // Check they belong to this campus/institution
     const user = await prisma.user.findUnique({
       where: { id: ustadh.userId },
-      select: { institutionId: true, phone: true },
+      select: { institutionId: true, campusId: true, phone: true },
     });
     if (!user) return errorResponse("User account not found");
-    if (payload.role !== "SUPER_ADMIN" && user.institutionId !== payload.institutionId) {
-      return unauthorizedResponse();
+    if (!canAccessCampus(payload, user.campusId, user.institutionId)) {
+      return notFoundResponse("Ustadh not found");
     }
 
     // Get WhatsApp number — from ustadh record or user phone

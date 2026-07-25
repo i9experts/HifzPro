@@ -33,8 +33,15 @@ export async function GET(req: NextRequest) {
     const now      = new Date();
     const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
 
+    // ── TENANT SCOPING: campusId scopes to one campus; an institution-level SUPER_ADMIN
+    //    (institutionId set, campusId null) scopes to their whole institution rather than
+    //    leaking every institution's teachers (previous behavior when campusId was falsy). ──
+    const userWhere: any = { isActive: true };
+    if (payload.campusId) userWhere.campusId = payload.campusId;
+    else if (payload.institutionId) userWhere.institutionId = payload.institutionId;
+
     const asatidha = await prisma.ustadh.findMany({
-      where: { user: { campusId: payload.campusId || undefined, isActive: true } },
+      where: { user: userWhere },
       include: {
         user: {
           select: {
@@ -91,10 +98,10 @@ export async function GET(req: NextRequest) {
         photo:          u.user.avatar,
         isActive:       u.user.isActive,
         createdAt:      u.user.createdAt,
-        qualifications: (u as any).qualifications || [],
+        qualifications: (u as any).qualification ? (u as any).qualification.split(",").map((q: string) => q.trim()).filter(Boolean) : [],
         specialization: (u as any).specialization || null,
         experience:     (u as any).experience || null,
-        joiningDate:    (u as any).joiningDate || null,
+        joiningDate:    (u as any).joinedAt || null,
         bio:            (u as any).bio || null,
         nameArabic:     (u as any).nameArabic || null,
         batches:        u.batches,
@@ -130,6 +137,7 @@ export async function POST(req: NextRequest) {
     const payload = verifyToken(token);
     if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
     if (!payload.campusId) return errorResponse("Campus not found");
+    if (!payload.institutionId) return errorResponse("Institution not found in your session. Please sign out and sign in again.");
 
     const body   = await req.json();
     const result = createSchema.safeParse(body);
@@ -147,22 +155,31 @@ export async function POST(req: NextRequest) {
     const ustadh = await prisma.$transaction(async tx => {
       const user = await tx.user.create({
         data: {
-          name:         data.name,
-          email:        data.email,
-          passwordHash: hashedPassword,
-          phone:        data.phone || null,
-          whatsapp:     data.whatsapp || null,
-          avatar:       data.photo || null,
-          role:      "USTADH",
-          campusId:  payload.campusId!,
-          isActive:  true,
+          name:          data.name,
+          nameArabic:    data.nameArabic || null,
+          email:         data.email,
+          passwordHash:  hashedPassword,
+          phone:         data.phone || null,
+          whatsapp:      data.whatsapp || null,
+          avatar:        data.photo || null,
+          role:          "USTADH",
+          institutionId: payload.institutionId!,
+          campusId:      payload.campusId!,
+          isActive:      true,
         },
       });
 
+      // ── NOTE: `experience` (years) and `bio` are collected by the enrollment form
+      //    but there is no column for them yet on Ustadh — see migration note below.
+      //    `qualifications` is a multi-select array in the UI; the schema only has a
+      //    single `qualification` string column, so we store it comma-joined here
+      //    (same approach already used by the bulk-import route). ──
       const ustadh = await tx.ustadh.create({
         data: {
-          userId: user.id,
-          // Store extra fields in a notes-like field or directly if schema supports
+          userId:         user.id,
+          specialization: data.specialization || null,
+          qualification:  data.qualifications?.length ? data.qualifications.join(", ") : null,
+          joinedAt:       data.joiningDate ? new Date(data.joiningDate) : new Date(),
         },
         include: { user: { select: { id: true, name: true, email: true } } },
       });
