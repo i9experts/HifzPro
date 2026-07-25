@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
         createdAt:      u.user.createdAt,
         qualifications: (u as any).qualification ? (u as any).qualification.split(",").map((q: string) => q.trim()).filter(Boolean) : [],
         specialization: (u as any).specialization || null,
-        experience:     (u as any).experience ?? null,
+        experience:     (u as any).experience || null,
         joiningDate:    (u as any).joinedAt || null,
         bio:            (u as any).bio || null,
         nameArabic:     (u as any).nameArabic || null,
@@ -169,7 +169,9 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // ── `qualifications` is a multi-select array in the UI; the schema only has a
+      // ── NOTE: `experience` (years) and `bio` are collected by the enrollment form
+      //    but there is no column for them yet on Ustadh — see migration note below.
+      //    `qualifications` is a multi-select array in the UI; the schema only has a
       //    single `qualification` string column, so we store it comma-joined here
       //    (same approach already used by the bulk-import route). ──
       const ustadh = await tx.ustadh.create({
@@ -178,8 +180,6 @@ export async function POST(req: NextRequest) {
           specialization: data.specialization || null,
           qualification:  data.qualifications?.length ? data.qualifications.join(", ") : null,
           joinedAt:       data.joiningDate ? new Date(data.joiningDate) : new Date(),
-          experience:     data.experience ?? null,
-          bio:            data.bio || null,
         },
         include: { user: { select: { id: true, name: true, email: true } } },
       });

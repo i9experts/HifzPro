@@ -74,7 +74,6 @@ export async function POST(req: NextRequest) {
             userId:         user.id,
             specialization: row.specialization?.trim() || null,
             qualification:  quals.join(", ") || null,
-            experience:     experience ?? null,
           },
         });
 
