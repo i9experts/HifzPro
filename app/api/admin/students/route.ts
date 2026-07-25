@@ -62,9 +62,22 @@ export async function GET(req: NextRequest) {
       by: ["status"], where: { campusId: payload.campusId || undefined }, _count: true,
     });
 
-    const atRisk = await prisma.manzilHealth.count({
-      where: { score: { lt: 60 }, student: { campusId: payload.campusId || undefined, status: "ACTIVE" } },
+    // ── FIX: ManzilHealth is a history table (a new row is added every time a
+    //    student's health score is recalculated), so counting rows directly
+    //    massively over-counts. Take each student's MOST RECENT score only,
+    //    then count how many of those are below the at-risk threshold. ──
+    const latestHealthPerStudent = await prisma.manzilHealth.findMany({
+      where: {
+        student: {
+          campusId: payload.campusId || undefined,
+          status:   "ACTIVE",
+        },
+      },
+      distinct: ["studentId"],
+      orderBy:  [{ studentId: "asc" }, { calculatedAt: "desc" }],
+      select:   { score: true },
     });
+    const atRisk = latestHealthPerStudent.filter(h => h.score < 60).length;
 
     return successResponse({
       students: result,
