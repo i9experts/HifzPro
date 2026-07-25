@@ -130,13 +130,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
       select:{ id: true, name: true, email: true, phone: true, whatsapp: true, isActive: true },
     });
 
-    // ── FIX: specialization, qualifications, and joining date were accepted by the
-    //    edit form but never written to the Ustadh record. (experience/bio still need
-    //    a schema migration — not persisted yet.) ──
+    // ── FIX: specialization, qualifications, joining date, experience, and bio
+    //    were accepted by the edit form but never written to the Ustadh record. ──
     const ustadhUpdate: any = {};
     if (body.specialization !== undefined) ustadhUpdate.specialization = body.specialization || null;
     if (body.qualifications !== undefined) ustadhUpdate.qualification  = Array.isArray(body.qualifications) && body.qualifications.length ? body.qualifications.join(", ") : null;
     if (body.joiningDate)                  ustadhUpdate.joinedAt       = new Date(body.joiningDate);
+    if (body.experience !== undefined)     ustadhUpdate.experience     = body.experience === null ? null : Number(body.experience);
+    if (body.bio !== undefined)            ustadhUpdate.bio            = body.bio || null;
     if (Object.keys(ustadhUpdate).length) {
       await prisma.ustadh.update({ where: { id }, data: ustadhUpdate });
     }

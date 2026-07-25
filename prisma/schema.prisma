@@ -237,6 +237,8 @@ model Ustadh {
   userId          String   @unique
   qualification   String?
   specialization  String?
+  experience      Int?
+  bio             String?
   joinedAt        DateTime @default(now())
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
