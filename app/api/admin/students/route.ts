@@ -106,6 +106,7 @@ const createSchema = z.object({
   program: z.enum(["HIFZ","NAZRA","TAJWEED","GIRDAAN"]),
   batchId: z.string().optional(), enrolledAt: z.string().optional(),
   expectedKhatmAt: z.string().optional(),
+  photo: z.string().optional(),
   startingJuz: z.number().optional(), startingSurah: z.number().optional(),
   startingAyah: z.number().optional(), startingPage: z.number().optional(),
   previousHifzJuz: z.number().optional(),
@@ -183,6 +184,19 @@ export async function POST(req: NextRequest) {
           startingJuz:     data.startingJuz    ?? 1,
           startingSurah:   data.startingSurah  ?? null,
           startingAyah:    data.startingAyah   ?? null,
+          // ── FIX: these were all collected by the enrollment wizard (Step 1 + Step 6)
+          //    and validated by createSchema, but never actually written on creation —
+          //    they only ever got saved if the admin later opened Edit and re-saved. ──
+          photo:               data.photo               || null,
+          gender:              data.gender              || "MALE",
+          bloodGroup:          data.bloodGroup          || null,
+          address:             data.address             || null,
+          city:                data.city                || null,
+          transport:           data.transport           || null,
+          previousInstitution: data.previousInstitution || null,
+          medicalNotes:        data.medicalNotes        || null,
+          specialNeeds:        data.specialNeeds        || null,
+          notes:               data.notes               || null,
         },
       });
 
