@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
           <tr>
             <td class="c">${i + 1}</td>
             <td class="name">${escapeHtml(s.name)}</td>
-            <td class="mono c">${escapeHtml(s.enrollmentNumber)}</td>
+            <td class="mono c">${escapeHtml(s.enrollmentNumber || "—")}</td>
             <td class="c">${PROGRAM_LABELS[s.program] || s.program}</td>
             <td class="c mono">${progress ? `Juz ${progress.currentJuz}` : "—"}</td>
             <td class="c mono">${progress ? `${progress.percentComplete}%` : "—"}</td>
