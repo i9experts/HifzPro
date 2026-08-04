@@ -29,22 +29,46 @@ export async function POST(req: NextRequest) {
 
     const { batchId, date, records } = result.data;
     const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return errorResponse("Invalid date");
 
-    // Upsert session
-    const session = await prisma.attendanceSession.upsert({
-      where:  { batchId_date_sessionTime: { batchId, date: dateObj, sessionTime: "Morning" } },
-      update: {},
-      create: { batchId, date: dateObj, sessionTime: "Morning", takenById: payload.userId },
+    // ── OWNERSHIP CHECK: this batch must actually be taught by the calling Ustadh.
+    //    Previously any authenticated Ustadh could submit attendance for ANY batch
+    //    at ANY institution just by knowing/guessing its ID — the mobile app is the
+    //    highest-exposure surface for this, so this was a real gap. ──
+    const ustadh = await prisma.ustadh.findUnique({ where: { userId: payload.userId } });
+    if (!ustadh) return unauthorizedResponse();
+
+    const batch = await prisma.batch.findFirst({
+      where:  { id: batchId, ustadhId: ustadh.id },
+      select: { id: true, sessionTime: true },
     });
+    if (!batch) return errorResponse("This halqa is not assigned to you.");
 
-    // Upsert each record
-    for (const rec of records) {
-      await prisma.attendanceRecord.upsert({
-        where:  { attendanceSessionId_studentId: { attendanceSessionId: session.id, studentId: rec.studentId } },
-        update: { status: rec.status, absenceReason: rec.absenceReason, notes: rec.notes },
-        create: { attendanceSessionId: session.id, studentId: rec.studentId, status: rec.status, absenceReason: rec.absenceReason, notes: rec.notes },
+    // ── FIX: use the batch's own configured session time instead of hardcoding
+    //    "Morning" for every submission — halqas can be Morning, Afternoon, or
+    //    Evening (see SESSION_TIMES on the batch creation form), so every
+    //    Afternoon/Evening halqa's attendance was being mislabeled. ──
+    const sessionTime = batch.sessionTime || "Session";
+
+    // ── Save session + all student records atomically — a dropped mobile
+    //    connection partway through should not leave a half-saved session. ──
+    const session = await prisma.$transaction(async tx => {
+      const session = await tx.attendanceSession.upsert({
+        where:  { batchId_date_sessionTime: { batchId, date: dateObj, sessionTime } },
+        update: {},
+        create: { batchId, date: dateObj, sessionTime, takenById: payload.userId },
       });
-    }
+
+      for (const rec of records) {
+        await tx.attendanceRecord.upsert({
+          where:  { attendanceSessionId_studentId: { attendanceSessionId: session.id, studentId: rec.studentId } },
+          update: { status: rec.status, absenceReason: rec.absenceReason, notes: rec.notes },
+          create: { attendanceSessionId: session.id, studentId: rec.studentId, status: rec.status, absenceReason: rec.absenceReason, notes: rec.notes },
+        });
+      }
+
+      return session;
+    });
 
     return successResponse({ saved: records.length, sessionId: session.id });
   } catch (error) {
@@ -58,13 +82,14 @@ export async function GET(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload) return unauthorizedResponse();
+    if (!payload || payload.role !== "USTADH") return unauthorizedResponse();
 
     const { searchParams } = new URL(req.url);
     const batchId = searchParams.get("batchId");
     const date    = searchParams.get("date") || new Date().toISOString().split("T")[0];
 
     const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return errorResponse("Invalid date");
     const ustadh  = await prisma.ustadh.findUnique({ where: { userId: payload.userId } });
     if (!ustadh) return unauthorizedResponse();
 
@@ -78,13 +103,23 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // ── OWNERSHIP CHECK: if a specific batchId was requested, it must be one of
+    //    this Ustadh's own batches — previously any batchId was accepted verbatim,
+    //    letting a teacher pull another institution's attendance records. If no
+    //    batchId given, scope to only this Ustadh's own batches rather than every
+    //    batch on the platform. ──
+    const ownBatchIds = batches.map(b => b.id);
+    if (batchId && !ownBatchIds.includes(batchId)) {
+      return errorResponse("This halqa is not assigned to you.");
+    }
+
+    const dayStart = new Date(dateObj); dayStart.setHours(0,0,0,0);
+    const dayEnd   = new Date(dateObj); dayEnd.setHours(23,59,59,999);
+
     const sessions = await prisma.attendanceSession.findMany({
       where: {
-        batchId: batchId || undefined,
-        date: {
-          gte: new Date(dateObj.setHours(0,0,0,0)),
-          lte: new Date(dateObj.setHours(23,59,59,999)),
-        },
+        batchId: batchId || { in: ownBatchIds },
+        date:    { gte: dayStart, lte: dayEnd },
       },
       include: { records: true },
     });

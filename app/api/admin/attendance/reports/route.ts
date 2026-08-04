@@ -10,6 +10,16 @@ async function getCampusId(userId: string, jwtCampusId: string | null) {
   return user?.campusId ?? null;
 }
 
+// ── Institution-level scope fallback (same pattern used across the rest of the app):
+//    if there's no campusId (institution-level Super Admin), scope to their whole
+//    institution rather than leaking every institution's attendance data. ──
+async function getBatchScope(payload: { userId: string; campusId: string | null; institutionId: string | null }) {
+  const campusId = await getCampusId(payload.userId, payload.campusId);
+  if (campusId) return { campusId };
+  if (payload.institutionId) return { campus: { institutionId: payload.institutionId } };
+  return {};
+}
+
 export async function GET(req: NextRequest) {
   try {
     const token = getTokenFromRequest(req);
@@ -17,7 +27,7 @@ export async function GET(req: NextRequest) {
     const payload = verifyToken(token);
     if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
 
-    const campusId = await getCampusId(payload.userId, payload.campusId);
+    const batchScope = await getBatchScope(payload);
     const { searchParams } = new URL(req.url);
 
     const now          = new Date();
@@ -34,7 +44,7 @@ export async function GET(req: NextRequest) {
     // ── Fetch all sessions in month ──
     const sessions = await prisma.attendanceSession.findMany({
       where: {
-        batch:   { campusId: campusId || undefined },
+        batch:   batchScope,
         date:    { gte: monthStart, lte: monthEnd },
       },
       include: {
@@ -51,7 +61,7 @@ export async function GET(req: NextRequest) {
     // ── Today's snapshot ──
     const todaySessions = await prisma.attendanceSession.findMany({
       where: {
-        batch: { campusId: campusId || undefined },
+        batch: batchScope,
         date:  { gte: today, lte: todayEnd },
       },
       include: { records: true },
@@ -126,7 +136,7 @@ export async function GET(req: NextRequest) {
 
     // ── Batch comparison ──
     const batches = await prisma.batch.findMany({
-      where:   { campusId: campusId || undefined, isActive: true },
+      where:   { ...batchScope, isActive: true },
       select:  { id: true, name: true, program: true },
     });
 
