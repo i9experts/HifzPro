@@ -267,6 +267,9 @@ export default function AdminDashboard() {
           </div>
         </div>
         <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+          <a href="/api/admin/reports/followup" target="_blank" rel="noopener noreferrer" style={{ padding:"6px 14px", borderRadius:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"white", fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:"monospace", display:"flex", alignItems:"center", gap:6 }}>
+            🖨️ Follow-Up Report
+          </a>
           <Link href="/billing" style={{ padding:"6px 14px", borderRadius:8, background:"rgba(196,136,42,0.15)", border:"1px solid rgba(196,136,42,0.4)", color:"#C4882A", fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:"monospace" }}>
             💳 Billing
           </Link>
