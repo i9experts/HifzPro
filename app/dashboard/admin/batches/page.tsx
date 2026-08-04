@@ -87,6 +87,9 @@ export default function BatchesPage() {
           </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
+          <a href="/api/admin/reports/halqa" target="_blank" rel="noopener noreferrer" style={{ padding:"8px 18px", borderRadius:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:colors.white, fontSize:12, fontWeight:700, textDecoration:"none", fontFamily:fonts.heading, display:"flex", alignItems:"center", gap:6 }}>
+            🖨️ Print Report
+          </a>
           <Link href="/dashboard/admin/batches/new" style={{ padding:"8px 18px", borderRadius:8, background:colors.gold, color:colors.white, fontSize:12, fontWeight:700, textDecoration:"none", fontFamily:fonts.heading }}>
             + New Halqa
           </Link>
@@ -181,9 +184,14 @@ export default function BatchesPage() {
                           {batch.sessionTime && <span style={{ fontFamily:fonts.mono, fontSize:9, color:"rgba(255,255,255,0.5)" }}>{batch.sessionTime}</span>}
                         </div>
                       </div>
-                      <Link href={`/dashboard/admin/batches/${batch.id}`} style={{ padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,0.15)", color:"white", fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:fonts.heading, flexShrink:0 }}>
-                        Manage →
-                      </Link>
+                      <div style={{ display:"flex", gap:6, flexShrink:0 }}>
+                        <a href={`/api/admin/reports/halqa?batchId=${batch.id}`} target="_blank" rel="noopener noreferrer" title="Print this halqa's roster" style={{ width:30, height:30, borderRadius:8, background:"rgba(255,255,255,0.15)", color:"white", fontSize:13, textDecoration:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          🖨️
+                        </a>
+                        <Link href={`/dashboard/admin/batches/${batch.id}`} style={{ padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,0.15)", color:"white", fontSize:11, fontWeight:700, textDecoration:"none", fontFamily:fonts.heading }}>
+                          Manage →
+                        </Link>
+                      </div>
                     </div>
                   </div>
 
