@@ -38,8 +38,11 @@ test("enrol a new student through the full 6-step wizard", async ({ page }) => {
   await expect(page.getByText(studentName)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByRole("link", { name: /View Profile/i })).toBeVisible();
 
-  // The student should now show up in the students list
+  // The student should now show up in the students list. Search for it by
+  // name — this session has created many same-day QA students, so the
+  // default (unfiltered, paginated) list isn't a reliable place to look.
   await page.getByRole("link", { name: "All Students" }).click();
   await page.waitForURL("**/dashboard/admin/students");
+  await page.getByPlaceholder("Search by name or enrollment number...").fill(studentName);
   await expect(page.getByText(studentName)).toBeVisible();
 });
