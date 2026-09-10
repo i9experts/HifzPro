@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { sendEmail, renderCredentialsEmail } from "@/lib/email";
 
 const schema = z.object({
   name:        z.string().min(2),
@@ -117,11 +118,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Send WhatsApp invite to donor
-    if (data.sendInvite && data.phone) {
+    // Send donor invite via WhatsApp and/or email (independent channels —
+    // a donor may have only a phone, only an email, or both)
+    if (data.sendInvite) {
       const institution = await prisma.institution.findUnique({ where:{ id:institutionId }, select:{ name:true } });
-      const msg = `🕌 *HifzPro Donor Portal*\nالسلام علیکم ${data.name} صاحب/صاحبہ،\n\nآپ کو ${institution?.name||"ہمارے ادارے"} کے طلبہ کی مالی معاونت کرنے پر جزاک اللہ خیراً۔\n\n*آپ کا Donor اکاؤنٹ تیار ہے:*\n🌐 portal.hifzpro.com/donor\n📧 ${data.email||"—"}\n🔑 ${rawPassword}\n\nلاگ ان کریں اور اپنے طلبہ کی ترقی دیکھیں۔\n_HifzPro — حفظ القرآن کی ڈیجیٹل خدمت_`;
-      await sendWhatsApp({ institutionId, to: data.phone, message: msg }).catch(console.error);
+
+      if (data.phone) {
+        const msg = `🕌 *HifzPro Donor Portal*\nالسلام علیکم ${data.name} صاحب/صاحبہ،\n\nآپ کو ${institution?.name||"ہمارے ادارے"} کے طلبہ کی مالی معاونت کرنے پر جزاک اللہ خیراً۔\n\n*آپ کا Donor اکاؤنٹ تیار ہے:*\n🌐 portal.hifzpro.com/donor\n📧 ${data.email||"—"}\n🔑 ${rawPassword}\n\nلاگ ان کریں اور اپنے طلبہ کی ترقی دیکھیں۔\n_HifzPro — حفظ القرآن کی ڈیجیٹل خدمت_`;
+        await sendWhatsApp({ institutionId, to: data.phone, message: msg }).catch(console.error);
+      }
+
+      if (data.email) {
+        await sendEmail({
+          to: data.email,
+          subject: "Your HifzPro Donor Portal is ready",
+          html: renderCredentialsEmail({
+            recipientName:   data.name,
+            roleLabel:       "Donor",
+            institutionName: institution?.name || undefined,
+            loginUrl:        "https://portal.hifzpro.com/donor",
+            email:           data.email,
+            password:        rawPassword,
+            note:            "Jazak Allah khair for sponsoring our students' Hifz journey.",
+          }),
+        }).catch(console.error);
+      }
     }
 
     return successResponse({ donor, password: rawPassword }, 201);

@@ -6,6 +6,7 @@ import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse } from "@/lib/api";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { sendEmail, renderCredentialsEmail } from "@/lib/email";
 import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
@@ -91,21 +92,39 @@ _Please change your password after first login._
 جزاك اللهُ خيراً 🤲
 _HifzPro — Memorize · Protect · Excel_`;
 
-    const result = await sendWhatsApp({ institutionId: payload.institutionId, to: phone, message });
+    const [waResult, emailResult] = await Promise.all([
+      sendWhatsApp({ institutionId: payload.institutionId, to: phone, message }),
+      ustadh.user.email
+        ? sendEmail({
+            to: ustadh.user.email,
+            subject: `Your ${instName} login details — HifzPro`,
+            html: renderCredentialsEmail({
+              recipientName:   ustadh.user.name,
+              roleLabel:       "Ustadh",
+              institutionName: instName,
+              loginUrl:        "https://www.hifzpro.com/signin",
+              email:           ustadh.user.email,
+              password:        newPassword,
+            }),
+          })
+        : Promise.resolve({ ok: false, error: "No email on file" }),
+    ]);
 
-    if (!result.ok) {
-      // Password was reset but WhatsApp failed — still return success with warning
+    if (!waResult.ok && !emailResult.ok) {
+      // Password was reset but neither channel delivered — still return
+      // success with warning so the admin can share it manually.
       return successResponse({
         sent:     false,
         password: newPassword,
-        warning:  "Password reset successfully but WhatsApp delivery failed. Share credentials manually.",
-        error:    result.error,
+        warning:  "Password reset successfully but delivery failed on WhatsApp and email. Share credentials manually.",
+        error:    waResult.error || emailResult.error,
       });
     }
 
+    const via = [waResult.ok && "WhatsApp", emailResult.ok && "email"].filter(Boolean).join(" and ");
     return successResponse({
       sent:    true,
-      message: `Login credentials sent to ${ustadh.user.name} via WhatsApp`,
+      message: `Login credentials sent to ${ustadh.user.name} via ${via}`,
     });
 
   } catch (error) {
