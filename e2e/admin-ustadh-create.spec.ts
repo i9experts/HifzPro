@@ -7,18 +7,18 @@ test("create a new Ustadh account through the 3-step wizard", async ({ page }) =
   await page.goto("/dashboard/admin/asatidha/new");
 
   // Step 1 — Account Details
-  await expect(page.getByText("STEP 1 OF 3")).toBeVisible();
+  await expect(page.getByText("STEP 1 OF 3", { exact: true })).toBeVisible();
   await page.getByPlaceholder("e.g. Qari Muhammad Saleem").fill(name);
   await page.getByPlaceholder("qari.saleem@institute.com").fill(email);
   await page.getByPlaceholder("Min 6 characters").fill("QaPass123");
   await page.getByRole("button", { name: "Continue →" }).click();
 
   // Step 2 — Profile & Skills
-  await expect(page.getByText("STEP 2 OF 3")).toBeVisible();
+  await expect(page.getByText("STEP 2 OF 3", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continue →" }).click();
 
   // Step 3 — Review & Create
-  await expect(page.getByText("STEP 3 OF 3")).toBeVisible();
+  await expect(page.getByText("STEP 3 OF 3", { exact: true })).toBeVisible();
   await expect(page.getByText(email)).toBeVisible();
   await page.getByRole("button", { name: /Create Ustadh Account/i }).click();
 
