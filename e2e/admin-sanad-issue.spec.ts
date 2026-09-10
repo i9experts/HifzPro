@@ -20,7 +20,7 @@ test("issue a Sanad certificate for a student", async ({ page }) => {
   const { data: created } = await createRes.json();
   const studentId = created.student.id;
 
-  await page.goto("/dashboard/admin/sanads/new");
+  await page.goto("/dashboard/admin/sanads/new", { waitUntil: "domcontentloaded" });
 
   // Step 1 — Student & Program. The list loads async, so wait for the
   // just-created student's option to appear before selecting it.

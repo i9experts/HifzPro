@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("enrol a new student through the full 6-step wizard", async ({ page }) => {
   const studentName = `QA Test Student ${Date.now()}`;
 
-  await page.goto("/dashboard/admin/students/new");
+  await page.goto("/dashboard/admin/students/new", { waitUntil: "domcontentloaded" });
 
   // Step 1 — Personal Info
   await expect(page.getByText("STEP 1 OF 6", { exact: true })).toBeVisible();

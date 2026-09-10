@@ -9,7 +9,7 @@ test("edit and deactivate a batch", async ({ page }) => {
   const { data } = await createRes.json();
   const batchId = data.batch.id;
 
-  await page.goto(`/dashboard/admin/batches/${batchId}/edit`);
+  await page.goto(`/dashboard/admin/batches/${batchId}/edit`, { waitUntil: "domcontentloaded" });
   const maxStudentsInput = page.locator('input[type="number"]');
   await expect(maxStudentsInput).toHaveValue("10");
   await maxStudentsInput.fill("20");
@@ -23,7 +23,7 @@ test("edit and deactivate a batch", async ({ page }) => {
   expect(after.batch.maxStudents).toBe(20);
 
   // Deactivate
-  await page.goto(`/dashboard/admin/batches/${batchId}/edit`);
+  await page.goto(`/dashboard/admin/batches/${batchId}/edit`, { waitUntil: "domcontentloaded" });
   page.once("dialog", (dialog) => dialog.accept());
   // noWaitAfter: the click's confirm() dialog is accepted synchronously and
   // immediately followed by a full-page navigation, which can tear down the

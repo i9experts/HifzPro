@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("create a new Halqa (batch)", async ({ page }) => {
   const name = `QA Test Halqa ${Date.now()}`;
 
-  await page.goto("/dashboard/admin/batches/new");
+  await page.goto("/dashboard/admin/batches/new", { waitUntil: "domcontentloaded" });
   await page.getByPlaceholder(/e.g. Halqa A/i).fill(name);
   await page.getByRole("button", { name: "Create Halqa →" }).click();
 

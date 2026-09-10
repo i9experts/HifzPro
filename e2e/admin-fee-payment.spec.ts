@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test("record a fee payment for a student", async ({ page }) => {
-  await page.goto("/dashboard/admin/fees/payments/new");
+  await page.goto("/dashboard/admin/fees/payments/new", { waitUntil: "domcontentloaded" });
 
   // Pick the first real student in the dropdown (index 0 is the placeholder).
   // The list loads async, so wait for it to populate before reading options.

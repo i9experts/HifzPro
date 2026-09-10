@@ -4,7 +4,7 @@ test("create a new Ustadh account through the 3-step wizard", async ({ page }) =
   const name = `QA Test Ustadh ${Date.now()}`;
   const email = `qa.ustadh.${Date.now()}@alnoor.edu.pk`;
 
-  await page.goto("/dashboard/admin/asatidha/new");
+  await page.goto("/dashboard/admin/asatidha/new", { waitUntil: "domcontentloaded" });
 
   // Step 1 — Account Details
   await expect(page.getByText("STEP 1 OF 3", { exact: true })).toBeVisible();

@@ -17,7 +17,7 @@ test("edit an existing student's profile", async ({ page }) => {
   const { data } = await createRes.json();
   const studentId = data.student.id;
 
-  await page.goto(`/dashboard/admin/students/${studentId}/edit`);
+  await page.goto(`/dashboard/admin/students/${studentId}/edit`, { waitUntil: "domcontentloaded" });
   const cityInput = page.getByPlaceholder("e.g. Karachi");
   await expect(cityInput).toHaveValue("Lahore");
 
@@ -50,7 +50,7 @@ test("withdraw a student", async ({ page }) => {
   const { data } = await createRes.json();
   const studentId = data.student.id;
 
-  await page.goto(`/dashboard/admin/students/${studentId}/edit`);
+  await page.goto(`/dashboard/admin/students/${studentId}/edit`, { waitUntil: "domcontentloaded" });
 
   page.once("dialog", (dialog) => dialog.accept());
   // noWaitAfter: the click's confirm() dialog is accepted synchronously and
