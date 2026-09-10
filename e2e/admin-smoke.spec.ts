@@ -44,10 +44,17 @@ for (const path of PAGES) {
     expect(response?.ok(), `HTTP status for ${path}`).toBeTruthy();
     await page.waitForTimeout(500); // let client-side fetches/hydration settle
 
-    // Next.js dev error overlay / default error page markers
+    // Next.js dev error overlay / default error page markers.
+    // Note: <nextjs-portal> is always present in dev mode (it also hosts the
+    // harmless dev-tools toolbar toggle) — the real error indicator is the
+    // [data-nextjs-dialog] element inside its shadow root.
     await expect(page.getByText(/application error/i)).toHaveCount(0);
     await expect(page.getByText(/unhandled runtime error/i)).toHaveCount(0);
-    await expect(page.locator("nextjs-portal")).toHaveCount(0);
+    const hasErrorDialog = await page.evaluate(() => {
+      const shadow = document.querySelector("nextjs-portal")?.shadowRoot;
+      return !!shadow?.querySelector("[data-nextjs-dialog]");
+    });
+    expect(hasErrorDialog, `Next.js error overlay shown on ${path}`).toBe(false);
 
     // Should not have been bounced to signin (session lost / role check failed)
     await expect(page).not.toHaveURL(/\/signin/);
