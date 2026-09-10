@@ -69,6 +69,31 @@ export default function InstitutionDetailPage({ params }: { params: Promise<{ id
 
   const handleUpdateSub = () => handleAction("UPDATE_SUBSCRIPTION", subForm);
 
+  const [resending, setResending] = useState<string | null>(null);
+  const handleResendCredentials = async (userId: string, name: string) => {
+    setResending(userId);
+    try {
+      const res = await fetch(`/api/superadmin/institutions/${id}/resend-credentials`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const d = await res.json();
+      if (d.success && d.data.sent) {
+        showToast(`✅ ${d.data.message}`);
+      } else if (d.success) {
+        // Neither channel delivered — use a blocking alert (not the
+        // auto-dismissing toast) so support has time to copy the password.
+        alert(`Delivery failed on both WhatsApp and email.\n\n${name}'s new password:\n${d.data.password}\n\nShare this with them manually.`);
+      } else {
+        showToast(`❌ ${d.error}`);
+      }
+    } catch {
+      showToast("❌ Connection error");
+    } finally {
+      setResending(null);
+    }
+  };
+
   if(loading) return (
     <div style={{minHeight:"100vh",background:"#0a0f1a",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{fontFamily:fonts.body,color:"#4b5563"}}>Loading institution data...</div>
@@ -188,6 +213,10 @@ export default function InstitutionDetailPage({ params }: { params: Promise<{ id
                       <div style={{fontFamily:fonts.body,fontSize:11,color:"#9ca3af"}}>Last login</div>
                       <div style={{fontFamily:fonts.mono,fontSize:10,color:"#6b7280"}}>{lastLogin}</div>
                     </div>
+                    <button onClick={()=>handleResendCredentials(u.id,u.name)} disabled={resending===u.id}
+                      style={{padding:"7px 12px",borderRadius:8,background:"#1e3a5f",border:"1px solid #60a5fa44",color:"#60a5fa",fontSize:11,fontWeight:700,cursor:resending===u.id?"not-allowed":"pointer",fontFamily:fonts.heading,whiteSpace:"nowrap",opacity:resending===u.id?0.6:1}}>
+                      {resending===u.id?"Sending...":"🔑 Resend Credentials"}
+                    </button>
                   </div>
                 );
               })}
