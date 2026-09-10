@@ -25,7 +25,10 @@ test("edit and deactivate a batch", async ({ page }) => {
   // Deactivate
   await page.goto(`/dashboard/admin/batches/${batchId}/edit`);
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Deactivate" }).click();
+  // noWaitAfter: the click's confirm() dialog is accepted synchronously and
+  // immediately followed by a full-page navigation, which can tear down the
+  // frame before Playwright's post-click checks resolve — causing a hang.
+  await page.getByRole("button", { name: "Deactivate" }).click({ noWaitAfter: true });
   await page.waitForURL("**/dashboard/admin/batches", { timeout: 10_000, waitUntil: "commit" });
 
   const finalCheck = await page.request.get(`/api/admin/batches/${batchId}`);

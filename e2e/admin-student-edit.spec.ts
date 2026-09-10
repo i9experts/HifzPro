@@ -53,7 +53,10 @@ test("withdraw a student", async ({ page }) => {
   await page.goto(`/dashboard/admin/students/${studentId}/edit`);
 
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByRole("button", { name: "Withdraw Student" }).click();
+  // noWaitAfter: the click's confirm() dialog is accepted synchronously and
+  // immediately followed by a full-page navigation, which can tear down the
+  // frame before Playwright's post-click checks resolve — causing a hang.
+  await page.getByRole("button", { name: "Withdraw Student" }).first().click({ noWaitAfter: true });
 
   await page.waitForURL("**/dashboard/admin/students", { timeout: 10_000, waitUntil: "commit" });
 

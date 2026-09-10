@@ -17,12 +17,17 @@ test("issue a Sanad certificate for a student", async ({ page }) => {
     },
   });
   expect(createRes.ok()).toBeTruthy();
+  const { data: created } = await createRes.json();
+  const studentId = created.student.id;
 
   await page.goto("/dashboard/admin/sanads/new");
 
-  // Step 1 — Student & Program
+  // Step 1 — Student & Program. The list loads async, so wait for the
+  // just-created student's option to appear before selecting it.
   await expect(page.getByText("STEP 1 OF 4", { exact: true })).toBeVisible();
-  await page.locator("select").first().selectOption({ label: new RegExp(studentName) });
+  const studentSelect = page.locator("select").first();
+  await expect(studentSelect.locator(`option[value="${studentId}"]`)).toBeAttached({ timeout: 10_000 });
+  await studentSelect.selectOption(studentId);
   await page.getByRole("button", { name: "Continue →" }).click();
 
   // Step 2 — Certificate Design (defaults are fine)
