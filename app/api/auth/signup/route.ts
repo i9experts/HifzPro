@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { successResponse, errorResponse } from "@/lib/api";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { sendEmail, renderCredentialsEmail } from "@/lib/email";
 
 const schema = z.object({
   institutionName:   z.string().min(3),
@@ -106,10 +107,25 @@ export async function POST(req: NextRequest) {
     return errorResponse("STEP 7 SUBSCRIPTION ERROR: " + (e.code || "") + " " + e.message);
   }
 
-  // ── 8. WhatsApp (non-blocking) ──
+  // ── 8. WhatsApp + Email (both non-blocking — email is the reliable
+  //    fallback since WhatsApp delivery depends on a connected number) ──
   const whatsappNum = data.whatsapp || data.phone;
   const welcomeMsg = `🕌 *HifzPro میں خوش آمدید!*\nالسلام علیکم ${data.adminName} صاحب،\n\n🌐 www.hifzpro.com/signin\n📧 ${data.email}\n🔑 ${password}\n\n14 دن کا مفت ٹرائل شروع ہو گیا ہے`;
   sendWhatsApp({ institutionId: institution.id, to: whatsappNum, message: welcomeMsg }).catch(e => console.error("[signup] WA failed:", e));
+
+  sendEmail({
+    to: data.email,
+    subject: "Welcome to HifzPro — your login details",
+    html: renderCredentialsEmail({
+      recipientName: data.adminName,
+      roleLabel: "Campus Admin",
+      institutionName: data.institutionName,
+      loginUrl: "https://www.hifzpro.com/signin",
+      email: data.email,
+      password,
+      note: "Your 14-day free trial has started.",
+    }),
+  }).catch(e => console.error("[signup] email failed:", e));
 
   prisma.user.findFirst({ where: { role: "SUPER_ADMIN" } })
     .then(sa => { if (sa?.whatsapp || sa?.phone) sendWhatsApp({ institutionId: null, to: (sa.whatsapp || sa.phone)!, message: `🆕 نیا ادارہ: ${data.institutionName} — ${data.city}` }).catch(() => {}); })
