@@ -19,12 +19,12 @@ test("create a new Ustadh account through the 3-step wizard", async ({ page }) =
 
   // Step 3 — Review & Create
   await expect(page.getByText("STEP 3 OF 3", { exact: true })).toBeVisible();
-  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByText(email).first()).toBeVisible();
   await page.getByRole("button", { name: /Create Ustadh Account/i }).click();
 
   // Success screen shows the credentials card
   await expect(page.getByText("USTADH ADDED")).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText(email)).toBeVisible();
+  await expect(page.getByText(email).first()).toBeVisible();
 
   // Should now be visible in the asatidha list
   await page.getByRole("link", { name: /Assign Batch/i }).click();
