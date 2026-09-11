@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { generateEnrollmentNumber } from "@/lib/enrollment-number";
 
 interface BulkStudent {
   name:              string;
@@ -43,11 +44,6 @@ export async function POST(req: NextRequest) {
 
     const results: { row: number; name: string; status: "success" | "error"; error?: string }[] = [];
 
-    // ── Enrollment numbers use the SAME institution-scoped format as single-student creation
-    //    (HP-{yy}-{seq}) so numbers stay consistent regardless of how a student was added. ──
-    const year = new Date().getFullYear().toString().slice(-2);
-    let runningCount = await prisma.student.count({ where: { campus: { institutionId } } });
-
     // ── Basic duplicate guard within the same file: same name + same guardian phone ──
     const seenInFile = new Set<string>();
 
@@ -70,12 +66,14 @@ export async function POST(req: NextRequest) {
       seenInFile.add(dupKey);
 
       try {
-        runningCount += 1;
-        const enrollmentNumber = `HP-${year}-${String(runningCount).padStart(4, "0")}`;
         const guardianPhone    = row.guardianPhone.trim();
         const guardianWhatsapp = row.guardianWhatsapp?.trim() || guardianPhone;
 
         await prisma.$transaction(async (tx) => {
+          // enrollmentNumber is unique DATABASE-WIDE, not per institution —
+          // generate + verify inside this transaction so it's atomic with
+          // the insert below.
+          const enrollmentNumber = await generateEnrollmentNumber(tx, institutionId);
           const student = await tx.student.create({
             data: {
               campusId,

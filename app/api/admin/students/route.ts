@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { generateEnrollmentNumber } from "@/lib/enrollment-number";
 
 export async function GET(req: NextRequest) {
   try {
@@ -159,14 +160,13 @@ export async function POST(req: NextRequest) {
     }
     const data = result.data;
 
-    // ── Enrollment number: use institutionId scope to avoid duplicates across campuses ──
-    const count = await prisma.student.count({
-      where: { campus: { institutionId } },
-    });
-    const year             = new Date().getFullYear().toString().slice(-2);
-    const enrollmentNumber = `HP-${year}-${String(count + 1).padStart(4, "0")}`;
-
     const student = await prisma.$transaction(async (tx) => {
+
+      // ── Enrollment number: institution-scoped sequence, verified free
+      //    (enrollmentNumber is unique DATABASE-WIDE, not per institution —
+      //    generateEnrollmentNumber walks past any numbers other
+      //    institutions have already taken) ──
+      const enrollmentNumber = await generateEnrollmentNumber(tx, institutionId);
 
       // 1. Create student
       const s = await tx.student.create({
