@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
-import { generateEnrollmentNumber } from "@/lib/enrollment-number";
+import { generateEnrollmentNumber, withEnrollmentNumberRetry } from "@/lib/enrollment-number";
 
 interface BulkStudent {
   name:              string;
@@ -69,11 +69,12 @@ export async function POST(req: NextRequest) {
         const guardianPhone    = row.guardianPhone.trim();
         const guardianWhatsapp = row.guardianWhatsapp?.trim() || guardianPhone;
 
-        await prisma.$transaction(async (tx) => {
-          // enrollmentNumber is unique DATABASE-WIDE, not per institution —
-          // generate + verify inside this transaction so it's atomic with
-          // the insert below.
-          const enrollmentNumber = await generateEnrollmentNumber(tx, institutionId);
+        await withEnrollmentNumberRetry(() => prisma.$transaction(async (tx) => {
+          // ── Enrollment number: platform-wide sequence (enrollmentNumber
+          //    is unique DATABASE-WIDE, "HP-" is the HifzPro platform
+          //    prefix) — generated inside this transaction so it's atomic
+          //    with the insert below. ──
+          const enrollmentNumber = await generateEnrollmentNumber(tx);
           const student = await tx.student.create({
             data: {
               campusId,
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest) {
               data: { userId: parentUser.id, guardianId: guardian.id },
             });
           }
-        });
+        }));
 
         results.push({ row: rowNum, name: row.name, status: "success" });
       } catch (e: any) {

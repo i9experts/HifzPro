@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
-import { generateEnrollmentNumber } from "@/lib/enrollment-number";
+import { generateEnrollmentNumber, withEnrollmentNumberRetry } from "@/lib/enrollment-number";
 
 async function getCampusAndInstitution(userId: string, jwtCampusId?: string | null, jwtInstitutionId?: string | null) {
   const user = await prisma.user.findUnique({
@@ -163,23 +163,24 @@ export async function POST(req: NextRequest) {
         batchId = b?.id;
       }
 
-      // Generate enrollment number. enrollmentNumber is unique DATABASE-WIDE,
-      // not per institution, so this verifies the candidate is actually free
-      // rather than assuming institution-scoped count+1 is safe (it isn't —
-      // every institution's first student otherwise collides on "0001").
-      const enrollmentNumber = await generateEnrollmentNumber(prisma, institutionId);
-
-      const student = await prisma.student.create({
-        data: {
-          campusId,
-          batchId:    batchId || null,
-          name:       d.studentName,
-          program:    d.program,
-          enrollmentNumber,
-          enrolledAt: new Date(),
-          dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : null,
-          status:     "ACTIVE",
-        },
+      // Enrollment number: platform-wide sequence (enrollmentNumber is
+      // unique DATABASE-WIDE, "HP-" is the HifzPro platform prefix, not
+      // any one institution) — retried in the rare case two requests
+      // compute the same "next" number at the same instant.
+      const student = await withEnrollmentNumberRetry(async () => {
+        const enrollmentNumber = await generateEnrollmentNumber(prisma);
+        return prisma.student.create({
+          data: {
+            campusId,
+            batchId:    batchId || null,
+            name:       d.studentName,
+            program:    d.program,
+            enrollmentNumber,
+            enrolledAt: new Date(),
+            dateOfBirth: d.dateOfBirth ? new Date(d.dateOfBirth) : null,
+            status:     "ACTIVE",
+          },
+        });
       });
 
       await prisma.guardian.create({
