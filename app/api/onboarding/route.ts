@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { generateEnrollmentNumber } from "@/lib/enrollment-number";
 
 async function getCampusAndInstitution(userId: string, jwtCampusId?: string | null, jwtInstitutionId?: string | null) {
   const user = await prisma.user.findUnique({
@@ -162,11 +163,11 @@ export async function POST(req: NextRequest) {
         batchId = b?.id;
       }
 
-      // Generate enrollment number
-      const count = await prisma.student.count({ where: { campusId } });
-      const campus = await prisma.campus.findUnique({ where: { id: campusId }, include: { institution: true } });
-      const prefix = (campus?.institution?.name || "HP").split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,3);
-      const enrollmentNumber = `${prefix}-${String(count+1).padStart(4,"0")}`;
+      // Generate enrollment number. enrollmentNumber is unique DATABASE-WIDE,
+      // not per institution, so this verifies the candidate is actually free
+      // rather than assuming institution-scoped count+1 is safe (it isn't —
+      // every institution's first student otherwise collides on "0001").
+      const enrollmentNumber = await generateEnrollmentNumber(prisma, institutionId);
 
       const student = await prisma.student.create({
         data: {
