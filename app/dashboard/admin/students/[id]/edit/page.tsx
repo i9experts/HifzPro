@@ -48,6 +48,7 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
   const [photo,             setPhoto]             = useState("");
   const [documents,         setDocuments]         = useState<UploadedDoc[]>([]);
   const [guardianDocuments, setGuardianDocuments] = useState<UploadedDoc[]>([]);
+  const [role,              setRole]              = useState("");
 
   const [form, setForm] = useState({
     // Personal
@@ -86,6 +87,10 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
     ...prev,
     additionalGuardians: prev.additionalGuardians.filter((_, idx) => idx !== i),
   }));
+
+  useEffect(()=>{
+    fetch("/api/auth/me").then(r=>r.json()).then(d=>{ if(d.success) setRole(d.data?.user?.role || ""); }).catch(()=>{});
+  },[]);
 
   useEffect(()=>{
     fetch(`/api/admin/students/${id}`)
@@ -179,6 +184,15 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
     if (data.success) window.location.href = "/dashboard/admin/students";
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Permanently delete ${form.name || "this student"}? This CANNOT be undone — their lesson, attendance, and test history will be deleted too. Consider Withdraw instead if you just want to remove them from active rolls.`)) return;
+    if (!confirm("Are you absolutely sure? This is your last chance to cancel.")) return;
+    const res  = await fetch(`/api/admin/students/${id}?action=delete`, { method:"DELETE" });
+    const data = await res.json();
+    if (data.success) window.location.href = "/dashboard/admin/students";
+    else setError(data.error || "Failed to delete student");
+  };
+
   if (loading) return (
     <div style={{minHeight:"100vh",background:colors.deep,display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{fontFamily:fonts.body,color:"rgba(255,255,255,0.4)"}}>Loading student...</div>
@@ -193,6 +207,11 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
         <Link href={`/dashboard/admin/students/${id}`} style={{width:32,height:32,borderRadius:8,background:"rgba(255,255,255,0.08)",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",color:colors.white,fontSize:16}}>←</Link>
         <div style={{fontFamily:fonts.heading,fontSize:15,fontWeight:700,color:colors.white}}>Edit Student</div>
         <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          {role==="SUPER_ADMIN" && (
+            <button onClick={handleDelete} style={{padding:"8px 16px",borderRadius:8,background:"#7f1d1d",border:"1px solid #dc262666",color:"#fca5a5",fontSize:12,cursor:"pointer",fontFamily:fonts.heading}}>
+              Delete Permanently
+            </button>
+          )}
           <button onClick={handleWithdraw} style={{padding:"8px 16px",borderRadius:8,background:colors.errorBg,border:`1px solid ${colors.error}44`,color:colors.errorText,fontSize:12,cursor:"pointer",fontFamily:fonts.heading}}>
             Withdraw Student
           </button>
@@ -439,9 +458,16 @@ export default function EditStudentPage({params}:{params:Promise<{id:string}>}) 
 
         {/* ── Footer ── */}
         <div style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:40}}>
-          <button onClick={handleWithdraw} style={{padding:"12px 20px",borderRadius:10,background:colors.errorBg,border:`1px solid ${colors.error}44`,color:colors.errorText,fontSize:13,cursor:"pointer",fontFamily:fonts.heading}}>
-            Withdraw Student
-          </button>
+          <div style={{display:"flex",gap:10}}>
+            {role==="SUPER_ADMIN" && (
+              <button onClick={handleDelete} style={{padding:"12px 20px",borderRadius:10,background:"#7f1d1d",border:"1px solid #dc262666",color:"#fca5a5",fontSize:13,cursor:"pointer",fontFamily:fonts.heading}}>
+                Delete Permanently
+              </button>
+            )}
+            <button onClick={handleWithdraw} style={{padding:"12px 20px",borderRadius:10,background:colors.errorBg,border:`1px solid ${colors.error}44`,color:colors.errorText,fontSize:13,cursor:"pointer",fontFamily:fonts.heading}}>
+              Withdraw Student
+            </button>
+          </div>
           <div style={{display:"flex",gap:10}}>
             <Link href={`/dashboard/admin/students/${id}`} style={{padding:"12px 24px",borderRadius:10,background:colors.n100,border:`1px solid ${colors.n200}`,color:colors.n700,fontSize:13,textDecoration:"none",fontFamily:fonts.heading}}>
               Cancel
