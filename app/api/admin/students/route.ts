@@ -4,7 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
-import { generateEnrollmentNumber } from "@/lib/enrollment-number";
+import { generateEnrollmentNumber, withEnrollmentNumberRetry } from "@/lib/enrollment-number";
 
 export async function GET(req: NextRequest) {
   try {
@@ -160,13 +160,11 @@ export async function POST(req: NextRequest) {
     }
     const data = result.data;
 
-    const student = await prisma.$transaction(async (tx) => {
+    const student = await withEnrollmentNumberRetry(() => prisma.$transaction(async (tx) => {
 
-      // ── Enrollment number: institution-scoped sequence, verified free
-      //    (enrollmentNumber is unique DATABASE-WIDE, not per institution —
-      //    generateEnrollmentNumber walks past any numbers other
-      //    institutions have already taken) ──
-      const enrollmentNumber = await generateEnrollmentNumber(tx, institutionId);
+      // ── Enrollment number: platform-wide sequence (enrollmentNumber is
+      //    unique DATABASE-WIDE, "HP-" is the HifzPro platform prefix) ──
+      const enrollmentNumber = await generateEnrollmentNumber(tx);
 
       // 1. Create student
       const s = await tx.student.create({
@@ -299,7 +297,7 @@ export async function POST(req: NextRequest) {
       }
 
       return s;
-    });
+    }));
 
     return successResponse(
       {
