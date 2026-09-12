@@ -4,7 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE } from "@/lib/api";
 
 const createSchema = z.object({
   // Account
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     // Check email is unique
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
-    if (existing) return errorResponse("An account with this email already exists");
+    if (existing) return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
 
     // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 12);
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
 
     return successResponse({ ustadh }, 201);
   } catch (error: any) {
-    if (error.code === "P2002") return errorResponse("Email already exists");
+    if (error.code === "P2002") return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
     console.error("Create ustadh error:", error);
     return serverErrorResponse();
   }
