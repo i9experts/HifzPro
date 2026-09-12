@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE } from "@/lib/api";
 import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
@@ -123,6 +123,17 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (body.newPassword && body.newPassword.length >= 6) {
       updateData.passwordHash = await bcrypt.hash(body.newPassword, 12);
     }
+    if (body.email) {
+      // email is unique platform-wide — check against any OTHER user before
+      // updating (excluding this Ustadh's own current row, so re-saving the
+      // same email is never mistaken for a conflict with itself)
+      const emailTaken = await prisma.user.findFirst({
+        where: { email: body.email, id: { not: ustadh.userId } },
+        select: { id: true },
+      });
+      if (emailTaken) return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
+      updateData.email = body.email;
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: ustadh.userId },
@@ -142,7 +153,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
 
     return successResponse({ user: updatedUser });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === "P2002") return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
     console.error("Update ustadh error:", error);
     return serverErrorResponse();
   }
