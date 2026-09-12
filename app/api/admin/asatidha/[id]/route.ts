@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE, PHONE_ALREADY_REGISTERED_MESSAGE, uniqueConstraintMessage } from "@/lib/api";
 import { canAccessCampus } from "@/lib/tenant-guard";
 
 type Params = { params: Promise<{ id: string }> };
@@ -116,7 +116,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const updateData: any = {};
     if (body.name)       updateData.name       = body.name;
     if (body.nameArabic !== undefined) updateData.nameArabic = body.nameArabic || null;
-    if (body.phone)      updateData.phone      = body.phone;
+    if (body.phone) {
+      // phone is unique platform-wide, same as email — check against any
+      // OTHER user before updating (excluding this Ustadh's own row)
+      const phoneTaken = await prisma.user.findFirst({
+        where: { phone: body.phone, id: { not: ustadh.userId } },
+        select: { id: true },
+      });
+      if (phoneTaken) return errorResponse(PHONE_ALREADY_REGISTERED_MESSAGE);
+      updateData.phone = body.phone;
+    }
     if (body.whatsapp)   updateData.whatsapp   = body.whatsapp;
     if (body.photo)      updateData.avatar     = body.photo;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
@@ -154,7 +163,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
     return successResponse({ user: updatedUser });
   } catch (error: any) {
-    if (error?.code === "P2002") return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
+    const conflictMsg = uniqueConstraintMessage(error);
+    if (conflictMsg) return errorResponse(conflictMsg);
     console.error("Update ustadh error:", error);
     return serverErrorResponse();
   }

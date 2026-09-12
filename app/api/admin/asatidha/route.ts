@@ -4,7 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE, PHONE_ALREADY_REGISTERED_MESSAGE, uniqueConstraintMessage } from "@/lib/api";
 
 const createSchema = z.object({
   // Account
@@ -148,6 +148,12 @@ export async function POST(req: NextRequest) {
     const existing = await prisma.user.findUnique({ where: { email: data.email } });
     if (existing) return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
 
+    // Check phone is unique too — same platform-wide constraint as email
+    if (data.phone) {
+      const phoneTaken = await prisma.user.findFirst({ where: { phone: data.phone } });
+      if (phoneTaken) return errorResponse(PHONE_ALREADY_REGISTERED_MESSAGE);
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(data.password, 12);
 
@@ -189,7 +195,8 @@ export async function POST(req: NextRequest) {
 
     return successResponse({ ustadh }, 201);
   } catch (error: any) {
-    if (error.code === "P2002") return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
+    const conflictMsg = uniqueConstraintMessage(error);
+    if (conflictMsg) return errorResponse(conflictMsg);
     console.error("Create ustadh error:", error);
     return serverErrorResponse();
   }
