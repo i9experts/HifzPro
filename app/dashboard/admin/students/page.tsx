@@ -338,12 +338,22 @@ export default function StudentsPage() {
   const [selected,      setSelected]      = useState<Set<string>>(new Set());
   const [showBulkModal, setShowBulkModal] = useState(false);
 
+  // ── FIX: fetches for different filter/search values can resolve out of
+  //    order (e.g. the initial unfiltered load is slower than a fetch
+  //    triggered a moment later by typing into search) — a stale response
+  //    landing last would silently overwrite the correct, newer results.
+  //    Guard with a request counter and only apply the most recently
+  //    ISSUED request's response. ──
+  const requestIdRef = useRef(0);
+
   const fetchStudents = () => {
     setLoading(true);
+    const requestId = ++requestIdRef.current;
     const params = new URLSearchParams({ search, program, status, health, page: String(page), limit: "15" });
     fetch(`/api/admin/students?${params}`)
       .then(r => r.json())
       .then(d => {
+        if (requestId !== requestIdRef.current) return; // a newer request superseded this one
         if (d.success) {
           setStudents(d.data.students);
           setStats(d.data.stats);
@@ -351,7 +361,7 @@ export default function StudentsPage() {
           setTotal(d.data.pagination.total);
         }
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (requestId === requestIdRef.current) setLoading(false); });
   };
 
   useEffect(() => { fetchStudents(); }, [search, program, status, health, page]);
