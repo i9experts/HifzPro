@@ -24,10 +24,17 @@ export async function GET(req: NextRequest) {
     const toDate   = new Date(to);
     toDate.setHours(23, 59, 59, 999);
 
+    // ── TENANT SCOPING: campusId scopes to one campus; an institution-level SUPER_ADMIN
+    //    (institutionId set, campusId null) scopes to their whole institution rather than
+    //    leaking every institution's lesson activity (previous behavior when campusId was falsy). ──
+    const studentWhere: any = {};
+    if (payload.campusId) studentWhere.campusId = payload.campusId;
+    else if (payload.institutionId) studentWhere.campus = { institutionId: payload.institutionId };
+
     const entries = await prisma.lessonEntry.findMany({
       where: {
         date:   { gte: fromDate, lte: toDate },
-        student: { campusId: payload.campusId || undefined },
+        student: studentWhere,
       },
       select: { date: true },
     });
