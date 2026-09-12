@@ -76,19 +76,26 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
           setStudent(data.data.student);
           const le = data.data.lastEntry;
           setLastEntry(le);
-          // Pre-fill from last entry or progress
+          // Pre-fill Juz/Page from the student's tracked progress — NOT from
+          // whichever lesson was logged most recently. `progress` is only ever
+          // advanced by SABAQ entries, so it's always the correct "continue
+          // from here" point; a Sabqi/Manzil entry (which reviews an earlier,
+          // lower juz) must never leak into these defaults, or a teacher
+          // saving a new Sabaq without noticing would silently regress the
+          // student's actual memorization progress.
           const prog = data.data.student?.progress;
-          if (le) {
-            setJuzFrom(le.juzTo || prog?.currentJuz || 1);
-            setPageFrom(le.pageTo || prog?.currentPage || 1);
-            setJuzTo(le.juzTo || prog?.currentJuz || 1);
-            setPageTo(le.pageTo || prog?.currentPage || 1);
-            if (le.ayahTo) { setAyahFrom(le.ayahTo); setAyahTo(le.ayahTo); }
-          } else if (prog) {
+          if (prog) {
             setJuzFrom(prog.currentJuz || 1);
             setPageFrom(prog.currentPage || 1);
             setJuzTo(prog.currentJuz || 1);
             setPageTo(prog.currentPage || 1);
+            if (prog.currentAyah) { setAyahFrom(prog.currentAyah); setAyahTo(prog.currentAyah); }
+          } else if (le) {
+            setJuzFrom(le.juzTo || 1);
+            setPageFrom(le.pageTo || 1);
+            setJuzTo(le.juzTo || 1);
+            setPageTo(le.pageTo || 1);
+            if (le.ayahTo) { setAyahFrom(le.ayahTo); setAyahTo(le.ayahTo); }
           }
         }
       })

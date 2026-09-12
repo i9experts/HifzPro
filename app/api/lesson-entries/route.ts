@@ -83,17 +83,29 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Update Manzil health
+    // Update Manzil health — this metric tracks retention of OLD memorized
+    // material, so it should only move when a MANZIL (old revision) lesson
+    // is logged. A Sabaq/Sabqi/Girdaan grade says nothing about revision
+    // retention and must not be mixed into the average.
     const gradeScores: Record<string,number> = { EXCELLENT:95, GOOD:80, WEAK:55, REPEAT:30 };
-    const newScore = data.grade ? (gradeScores[data.grade] || 70) : 70;
-    const recent   = await prisma.lessonEntry.findMany({
-      where: { studentId: data.studentId, lessonType: "MANZIL" },
-      orderBy: { date: "desc" }, take: 10, select: { grade: true },
-    });
-    const scores = recent.filter(e=>e.grade).map(e=>gradeScores[e.grade!]||70);
-    scores.push(newScore);
-    const healthScore = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length * 10) / 10;
-    await prisma.manzilHealth.create({ data: { studentId: data.studentId, score: healthScore } });
+    let healthScore: number;
+    if (data.lessonType === "MANZIL") {
+      // `recent` already includes the entry just created above (it's
+      // already committed), so its grade is counted exactly once here —
+      // do not also push it separately.
+      const recent = await prisma.lessonEntry.findMany({
+        where: { studentId: data.studentId, lessonType: "MANZIL" },
+        orderBy: { date: "desc" }, take: 10, select: { grade: true },
+      });
+      const scores = recent.map(e => e.grade ? (gradeScores[e.grade] || 70) : 70);
+      healthScore = Math.round(scores.reduce((a,b)=>a+b,0) / scores.length * 10) / 10;
+      await prisma.manzilHealth.create({ data: { studentId: data.studentId, score: healthScore } });
+    } else {
+      const latest = await prisma.manzilHealth.findFirst({
+        where: { studentId: data.studentId }, orderBy: { calculatedAt: "desc" }, select: { score: true },
+      });
+      healthScore = latest?.score ?? 70;
+    }
 
     // ── Auto-detect Mutashabihat confusions ──────────────────
     // Runs silently — never blocks the lesson entry response
