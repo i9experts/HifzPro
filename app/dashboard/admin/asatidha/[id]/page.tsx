@@ -40,7 +40,7 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
   const [toast,   setToast]   = useState("");
 
   const [editForm, setEditForm] = useState({
-    name:"", nameArabic:"", phone:"", whatsapp:"", newPassword:"", isActive:true,
+    name:"", nameArabic:"", email:"", phone:"", whatsapp:"", newPassword:"", isActive:true,
     specialization:"", qualifications:[] as string[], joiningDate:"",
   });
 
@@ -52,7 +52,7 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
           const u = d.data.ustadh;
           setUstadh(u);
           setEditForm({
-            name:u.user.name||"", nameArabic:u.user.nameArabic||"",
+            name:u.user.name||"", nameArabic:u.user.nameArabic||"", email:u.user.email||"",
             phone:u.user.phone||"", whatsapp:u.user.whatsapp||"",
             newPassword:"", isActive:u.user.isActive,
             specialization:u.specialization||"",
@@ -66,7 +66,7 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
 
   useEffect(() => { fetchUstadh(); }, [id]);
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), msg.length > 60 ? 8000 : 3000); };
 
   const toggleQual = (q: string) => {
     setEditForm(f => ({
@@ -121,7 +121,7 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
   return (
     <div style={{ minHeight:"100vh", background:colors.n50 }}>
       {toast && (
-        <div style={{ position:"fixed",top:70,left:"50%",transform:"translateX(-50%)",background:colors.n800,color:"white",padding:"10px 20px",borderRadius:10,fontFamily:fonts.heading,fontSize:13,zIndex:999,boxShadow:"0 4px 16px rgba(0,0,0,0.3)" }}>
+        <div style={{ position:"fixed",top:70,left:"50%",transform:"translateX(-50%)",maxWidth:420,textAlign:"center",background:colors.n800,color:"white",padding:"10px 20px",borderRadius:10,fontFamily:fonts.heading,fontSize:13,zIndex:999,boxShadow:"0 4px 16px rgba(0,0,0,0.3)" }}>
           {toast}
         </div>
       )}
@@ -358,6 +358,11 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
               <div>
                 <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>Name (Arabic / Urdu)</label>
                 <input value={editForm.nameArabic} onChange={e=>setEditForm(f=>({...f,nameArabic:e.target.value}))} placeholder="e.g. قاری محمد سلیم" style={{...inp,direction:"rtl",fontFamily:"'Cormorant Garamond',serif",fontSize:15}}/>
+              </div>
+              <div>
+                <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>Email</label>
+                <input type="email" value={editForm.email} onChange={e=>setEditForm(f=>({...f,email:e.target.value}))} style={inp}/>
+                <div style={{ fontFamily:fonts.body,fontSize:10,color:colors.n400,marginTop:3 }}>Used to log in — must be unique across all of HifzPro</div>
               </div>
               <div>
                 <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>Phone</label>
