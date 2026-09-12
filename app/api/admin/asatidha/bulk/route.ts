@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE } from "@/lib/api";
 
 interface BulkUstadh {
   name:            string;
@@ -79,9 +79,15 @@ export async function POST(req: NextRequest) {
 
         results.push({ row: rowNum, name: row.name, status: "success", password });
       } catch (e: any) {
-        const msg = e?.code === "P2002"
-          ? "Email or phone already exists"
-          : e.message;
+        let msg = e.message;
+        if (e?.code === "P2002") {
+          const target = String(e?.meta?.target ?? "");
+          msg = target.includes("email")
+            ? EMAIL_ALREADY_REGISTERED_MESSAGE
+            : target.includes("phone")
+              ? "This phone number is already registered on HifzPro (unique platform-wide, even across institutions)."
+              : "Email or phone already exists";
+        }
         results.push({ row: rowNum, name: row.name, status: "error", error: msg });
       }
     }

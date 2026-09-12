@@ -4,7 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse, EMAIL_ALREADY_REGISTERED_MESSAGE } from "@/lib/api";
 import { generateEnrollmentNumber, withEnrollmentNumberRetry } from "@/lib/enrollment-number";
 
 async function getCampusAndInstitution(userId: string, jwtCampusId?: string | null, jwtInstitutionId?: string | null) {
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       const d = r.data;
 
       const existing = await prisma.user.findUnique({ where: { email: d.ustadhEmail } });
-      if (existing) return errorResponse("An account with this email already exists");
+      if (existing) return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
 
       const hash    = await bcrypt.hash(d.ustadhPassword, 12);
       const uUser   = await prisma.user.create({
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
 
     return errorResponse("Invalid step");
   } catch (error: any) {
-    if (error?.code === "P2002") return errorResponse("This email already exists");
+    if (error?.code === "P2002") return errorResponse(EMAIL_ALREADY_REGISTERED_MESSAGE);
     console.error("Onboarding error:", error);
     return serverErrorResponse();
   }

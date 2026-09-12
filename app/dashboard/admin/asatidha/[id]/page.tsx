@@ -8,6 +8,20 @@ const PROGRAM_COLORS: Record<string,string> = {
   HIFZ:colors.primary, NAZRA:"#7c3aed", TAJWEED:"#b45309", GIRDAAN:"#0f766e"
 };
 
+const QUALIFICATIONS_LIST = [
+  "Hafiz ul Quran","Alim","Mufti","Qari","Muhaddith","Maulana",
+  "PhD Islamic Studies","MA Islamic Studies","Graduate Darul Uloom",
+  "Tajweed Specialist","Hifz Teacher Certificate","Ijaazah"
+];
+
+const SPECIALIZATIONS = [
+  { id:"HIFZ",    label:"Hifz ul Quran",  icon:"📖" },
+  { id:"NAZRA",   label:"Nazrah",          icon:"📚" },
+  { id:"TAJWEED", label:"Tajweed",         icon:"✏️" },
+  { id:"GIRDAAN", label:"Girdaan",         icon:"🔄" },
+  { id:"ALL",     label:"All Programs",    icon:"⭐" },
+];
+
 const GRADE_SCORE: Record<string,number> = { EXCELLENT:100, GOOD:75, WEAK:40, REPEAT:10 };
 const GRADE_LABEL: Record<string,{label:string;emoji:string;color:string}> = {
   EXCELLENT:{ label:"Excellent", emoji:"⭐", color:"#166534" },
@@ -26,7 +40,8 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
   const [toast,   setToast]   = useState("");
 
   const [editForm, setEditForm] = useState({
-    name:"", phone:"", whatsapp:"", newPassword:"", isActive:true,
+    name:"", nameArabic:"", phone:"", whatsapp:"", newPassword:"", isActive:true,
+    specialization:"", qualifications:[] as string[], joiningDate:"",
   });
 
   const fetchUstadh = () => {
@@ -34,8 +49,16 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
       .then(r => r.json())
       .then(d => {
         if (d.success) {
-          setUstadh(d.data.ustadh);
-          setEditForm({ name:d.data.ustadh.user.name||"", phone:d.data.ustadh.user.phone||"", whatsapp:d.data.ustadh.user.whatsapp||"", newPassword:"", isActive:d.data.ustadh.user.isActive });
+          const u = d.data.ustadh;
+          setUstadh(u);
+          setEditForm({
+            name:u.user.name||"", nameArabic:u.user.nameArabic||"",
+            phone:u.user.phone||"", whatsapp:u.user.whatsapp||"",
+            newPassword:"", isActive:u.user.isActive,
+            specialization:u.specialization||"",
+            qualifications:u.qualifications||[],
+            joiningDate:u.joiningDate ? new Date(u.joiningDate).toISOString().split("T")[0] : "",
+          });
         }
       })
       .finally(() => setLoading(false));
@@ -44,6 +67,13 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
   useEffect(() => { fetchUstadh(); }, [id]);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+
+  const toggleQual = (q: string) => {
+    setEditForm(f => ({
+      ...f,
+      qualifications: f.qualifications.includes(q) ? f.qualifications.filter(x => x !== q) : [...f.qualifications, q],
+    }));
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -150,7 +180,7 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
         {/* Health + Grade */}
         <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20 }}>
           {[
-            { label:"Average Student Health", val:perf.avgStudentHealth!==null?`${perf.avgStudentHealth}%`:"No data", color:perf.avgStudentHealth===null?colors.n400:perf.avgStudentHealth>=75?colors.successText:perf.avgStudentHealth>=55?colors.warningText:colors.errorText, bg:perf.avgStudentHealth===null?colors.n50:perf.avgStudentHealth>=75?colors.successBg:perf.avgStudentHealth>=55?colors.warningBg:colors.errorBg, border:perf.avgStudentHealth===null?colors.n200:perf.avgStudentHealth>=75?`${colors.success}44`:perf.avgStudentHealth>=55?`${colors.warning}44`:`${colors.error}44`, icon:"💚", sub:"Manzil retention across all students" },
+            { label:"Average Student Health", val:perf.avgHealth!==null?`${perf.avgHealth}%`:"No data", color:perf.avgHealth===null?colors.n400:perf.avgHealth>=75?colors.successText:perf.avgHealth>=55?colors.warningText:colors.errorText, bg:perf.avgHealth===null?colors.n50:perf.avgHealth>=75?colors.successBg:perf.avgHealth>=55?colors.warningBg:colors.errorBg, border:perf.avgHealth===null?colors.n200:perf.avgHealth>=75?`${colors.success}44`:perf.avgHealth>=55?`${colors.warning}44`:`${colors.error}44`, icon:"💚", sub:"Manzil retention across all students" },
             { label:"Average Lesson Grade",   val:perf.avgGrade!==null?`${perf.avgGrade}%`:"No data",             color:perf.avgGrade===null?colors.n400:perf.avgGrade>=75?colors.successText:colors.warningText, bg:perf.avgGrade===null?colors.n50:perf.avgGrade>=75?colors.successBg:colors.warningBg, border:perf.avgGrade===null?colors.n200:perf.avgGrade>=75?`${colors.success}44`:`${colors.warning}44`, icon:"📊", sub:"Quality of lessons recorded this month" },
           ].map((s,i)=>(
             <div key={i} style={{ background:s.bg,borderRadius:14,padding:"18px 16px",border:`1px solid ${s.border}` }}>
@@ -326,6 +356,10 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
                 <input value={editForm.name} onChange={e=>setEditForm(f=>({...f,name:e.target.value}))} style={inp}/>
               </div>
               <div>
+                <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>Name (Arabic / Urdu)</label>
+                <input value={editForm.nameArabic} onChange={e=>setEditForm(f=>({...f,nameArabic:e.target.value}))} placeholder="e.g. قاری محمد سلیم" style={{...inp,direction:"rtl",fontFamily:"'Cormorant Garamond',serif",fontSize:15}}/>
+              </div>
+              <div>
                 <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>Phone</label>
                 <input value={editForm.phone} onChange={e=>setEditForm(f=>({...f,phone:e.target.value}))} style={inp}/>
               </div>
@@ -334,10 +368,39 @@ export default function UstadhProfilePage({ params }: { params: Promise<{ id: st
                 <input value={editForm.whatsapp} onChange={e=>setEditForm(f=>({...f,whatsapp:e.target.value}))} style={inp}/>
               </div>
               <div>
+                <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>Joining Date</label>
+                <input type="date" value={editForm.joiningDate} onChange={e=>setEditForm(f=>({...f,joiningDate:e.target.value}))} style={inp}/>
+              </div>
+              <div>
                 <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:4 }}>New Password <span style={{ fontFamily:fonts.body,fontWeight:400,color:colors.n400 }}>(leave blank to keep current)</span></label>
                 <input type="password" value={editForm.newPassword} onChange={e=>setEditForm(f=>({...f,newPassword:e.target.value}))} placeholder="Min 6 characters" style={inp}/>
               </div>
             </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:8 }}>Specialization</label>
+              <div style={{ display:"flex",gap:8,flexWrap:"wrap" }}>
+                {SPECIALIZATIONS.map(s=>(
+                  <button key={s.id} onClick={()=>setEditForm(f=>({...f,specialization:s.id}))} style={{ padding:"8px 14px",borderRadius:10,border:`2px solid ${editForm.specialization===s.id?colors.primary:colors.n200}`,background:editForm.specialization===s.id?colors.green50:colors.n50,cursor:"pointer",display:"flex",alignItems:"center",gap:6 }}>
+                    <span style={{ fontSize:16 }}>{s.icon}</span>
+                    <span style={{ fontFamily:fonts.heading,fontSize:12,fontWeight:700,color:editForm.specialization===s.id?colors.primary:colors.n700 }}>{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:8 }}>Qualifications</label>
+              <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8 }}>
+                {QUALIFICATIONS_LIST.map(q=>(
+                  <label key={q} style={{ display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:editForm.qualifications.includes(q)?colors.green50:colors.n50,borderRadius:8,border:`1.5px solid ${editForm.qualifications.includes(q)?colors.primary:colors.n200}`,cursor:"pointer" }}>
+                    <input type="checkbox" checked={editForm.qualifications.includes(q)} onChange={()=>toggleQual(q)} style={{ width:14,height:14,accentColor:colors.primary }}/>
+                    <span style={{ fontFamily:fonts.heading,fontSize:11,fontWeight:600,color:editForm.qualifications.includes(q)?colors.primary:colors.n700 }}>{q}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <label style={{ display:"flex",alignItems:"center",gap:8,cursor:"pointer",marginBottom:16 }}>
               <input type="checkbox" checked={editForm.isActive} onChange={e=>setEditForm(f=>({...f,isActive:e.target.checked}))} style={{ width:16,height:16,accentColor:colors.primary }}/>
               <span style={{ fontFamily:fonts.body,fontSize:13,color:colors.n700 }}>Account is active</span>
