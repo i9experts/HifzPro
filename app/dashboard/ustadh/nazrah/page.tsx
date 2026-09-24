@@ -2,25 +2,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { colors, fonts } from "@/lib/tokens";
-
-const SURAHS = [
-  {id:1,name:"Al-Fatiha",arabic:"الفاتحة",ayahs:7,juz:1},
-  {id:2,name:"Al-Baqarah",arabic:"البقرة",ayahs:286,juz:1},
-  {id:3,name:"Ali Imran",arabic:"آل عمران",ayahs:200,juz:3},
-  {id:4,name:"An-Nisa",arabic:"النساء",ayahs:176,juz:4},
-  {id:5,name:"Al-Maidah",arabic:"المائدة",ayahs:120,juz:6},
-  {id:6,name:"Al-Anam",arabic:"الأنعام",ayahs:165,juz:7},
-  {id:7,name:"Al-Araf",arabic:"الأعراف",ayahs:206,juz:8},
-  {id:8,name:"Al-Anfal",arabic:"الأنفال",ayahs:75,juz:9},
-  {id:9,name:"At-Tawbah",arabic:"التوبة",ayahs:129,juz:10},
-  {id:10,name:"Yunus",arabic:"يونس",ayahs:109,juz:11},
-  {id:78,name:"An-Naba",arabic:"النبأ",ayahs:40,juz:30},
-  {id:108,name:"Al-Kawthar",arabic:"الكوثر",ayahs:3,juz:30},
-  {id:110,name:"An-Nasr",arabic:"النصر",ayahs:3,juz:30},
-  {id:112,name:"Al-Ikhlas",arabic:"الإخلاص",ayahs:4,juz:30},
-  {id:113,name:"Al-Falaq",arabic:"الفلق",ayahs:5,juz:30},
-  {id:114,name:"An-Nas",arabic:"الناس",ayahs:6,juz:30},
-];
+import { SURAHS } from "@/lib/quran-data";
 
 type Grade = "EXCELLENT"|"GOOD"|"WEAK"|"REPEAT";
 const GRADES: {id:Grade;label:string;color:string;bg:string}[] = [
@@ -56,7 +38,7 @@ export default function NazrahDiary() {
       });
   }, []);
 
-  const surah = SURAHS.find(s => s.id === surahId) || SURAHS[0];
+  const surah = SURAHS.find(s => s.n === surahId) || SURAHS[0];
 
   const handleSave = async () => {
     if (!selected || !grade) { setError("Please select a student and grade"); return; }
@@ -110,7 +92,7 @@ export default function NazrahDiary() {
           <select value={surahId} onChange={e => setSurahId(Number(e.target.value))}
             style={{ width: "100%", padding: "11px 14px", border: `1.5px solid #7c3aed`, borderRadius: 10, fontSize: 13, fontFamily: fonts.body, color: colors.n800, background: colors.white, outline: "none", marginBottom: 12 }}>
             {SURAHS.map(s => (
-              <option key={s.id} value={s.id}>{s.id}. {s.name} — {s.arabic} ({s.ayahs} ayahs)</option>
+              <option key={s.n} value={s.n}>{s.n}. {s.en} — {s.ar} ({s.ayahs} ayahs)</option>
             ))}
           </select>
           <div style={{ display: "flex", gap: 12 }}>
