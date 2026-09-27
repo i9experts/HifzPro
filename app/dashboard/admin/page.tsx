@@ -50,6 +50,11 @@ const MODULES = [
     href:"/dashboard/admin/attendance",         color:"#0f766e", tag:"Core",
   },
   {
+    id:"diary-monitor", icon:"📔", title:"Diary Monitor",      titleUr:"ڈائری مانیٹر",
+    desc:"See which classes recorded today's diary, and which didn't",
+    href:"/dashboard/admin/diary-monitor",      color:"#16a34a", tag:"Core",
+  },
+  {
     id:"whatsapp-connect", icon:"🔗", title:"WhatsApp Connection", titleUr:"واٹس ایپ کنکشن",
     desc:"Connect your institute's own WhatsApp number — QR link or Official API",
     href:"/dashboard/admin/whatsapp/settings",  color:"#16a34a", tag:"Core",

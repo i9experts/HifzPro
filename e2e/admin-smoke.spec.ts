@@ -13,6 +13,7 @@ const PAGES = [
   "/dashboard/admin/batches/new",
   "/dashboard/admin/attendance",
   "/dashboard/admin/attendance/reports",
+  "/dashboard/admin/diary-monitor",
   "/dashboard/admin/campuses",
   "/dashboard/admin/campuses/new",
   "/dashboard/admin/donors",
