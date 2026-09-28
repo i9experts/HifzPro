@@ -23,6 +23,24 @@ interface LastEntry {
   grade?: Grade;
 }
 
+// Sabaq, Sabqi and Manzil are independent diary records reviewing DIFFERENT
+// parts of the Quran — each needs its own Juz/Page range, and a fresh grade/
+// mistake count/notes every time, never carried over from whichever tab was
+// filled in last. One bucket of form state per lesson type, keyed by tab.
+interface LessonForm {
+  grade: Grade | "";
+  juzFrom: number; pageFrom: number; juzTo: number; pageTo: number;
+  ayahFrom: number | ""; ayahTo: number | "";
+  mistakeCount: number;
+  mistakes: { type: MistakeType; count: number }[];
+  notes: string;
+}
+
+const BLANK_FORM: LessonForm = {
+  grade: "", juzFrom: 1, pageFrom: 1, juzTo: 1, pageTo: 1, ayahFrom: "", ayahTo: "",
+  mistakeCount: 0, mistakes: [], notes: "",
+};
+
 const LESSON_TABS: { id: LessonType; label: string; arabic: string; color: string }[] = [
   { id: "SABAQ",  label: "Sabaq",  arabic: "سبق",  color: colors.primary },
   { id: "SABQI",  label: "Sabqi",  arabic: "سبقی", color: colors.gold },
@@ -54,19 +72,18 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
   const [saved,      setSaved]      = useState(false);
   const [error,      setError]      = useState("");
 
-  // Form state
+  // Form state — one independent bucket per lesson type (see LessonForm above)
   const [lessonType, setLessonType] = useState<LessonType>("SABAQ");
-  const [grade,      setGrade]      = useState<Grade | "">("");
-  const [juzFrom,    setJuzFrom]    = useState(1);
-  const [pageFrom,   setPageFrom]   = useState(1);
-  const [juzTo,      setJuzTo]      = useState(1);
-  const [pageTo,     setPageTo]     = useState(1);
-  const [ayahFrom,   setAyahFrom]   = useState<number | "">("");
-  const [ayahTo,     setAyahTo]     = useState<number | "">("");
-  const [mistakeCount, setMistakeCount] = useState(0);
-  const [mistakes,   setMistakes]   = useState<{ type: MistakeType; count: number }[]>([]);
-  const [notes,      setNotes]      = useState("");
+  const [forms, setForms] = useState<Record<LessonType, LessonForm>>({
+    SABAQ:  { ...BLANK_FORM },
+    SABQI:  { ...BLANK_FORM },
+    MANZIL: { ...BLANK_FORM },
+  });
   const [showMistakes, setShowMistakes] = useState(false);
+
+  const form = forms[lessonType];
+  const updateForm = (patch: Partial<LessonForm>) =>
+    setForms(prev => ({ ...prev, [lessonType]: { ...prev[lessonType], ...patch } }));
 
   useEffect(() => {
     fetch(`/api/students/${studentId}/last-entry`)
@@ -76,46 +93,55 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
           setStudent(data.data.student);
           const le = data.data.lastEntry;
           setLastEntry(le);
-          // Pre-fill Juz/Page from the student's tracked progress — NOT from
-          // whichever lesson was logged most recently. `progress` is only ever
-          // advanced by SABAQ entries, so it's always the correct "continue
-          // from here" point; a Sabqi/Manzil entry (which reviews an earlier,
-          // lower juz) must never leak into these defaults, or a teacher
-          // saving a new Sabaq without noticing would silently regress the
-          // student's actual memorization progress.
+
+          // Each tab pre-fills its Juz/Page range from ITS OWN history — never
+          // from whichever lesson type was logged most recently overall.
+          // Sabaq continues from the student's tracked progress (only Sabaq
+          // ever advances it); Sabqi/Manzil continue from that type's own
+          // last entry, since they review a different, earlier part of the
+          // Quran than the current memorization frontier.
           const prog = data.data.student?.progress;
-          if (prog) {
-            setJuzFrom(prog.currentJuz || 1);
-            setPageFrom(prog.currentPage || 1);
-            setJuzTo(prog.currentJuz || 1);
-            setPageTo(prog.currentPage || 1);
-            if (prog.currentAyah) { setAyahFrom(prog.currentAyah); setAyahTo(prog.currentAyah); }
-          } else if (le) {
-            setJuzFrom(le.juzTo || 1);
-            setPageFrom(le.pageTo || 1);
-            setJuzTo(le.juzTo || 1);
-            setPageTo(le.pageTo || 1);
-            if (le.ayahTo) { setAyahFrom(le.ayahTo); setAyahTo(le.ayahTo); }
-          }
+          const byType = data.data.lastEntryByType || {};
+
+          setForms({
+            SABAQ: {
+              ...BLANK_FORM,
+              juzFrom: prog?.currentJuz || 1, pageFrom: prog?.currentPage || 1,
+              juzTo:   prog?.currentJuz || 1, pageTo:   prog?.currentPage || 1,
+              ayahFrom: prog?.currentAyah || "", ayahTo: prog?.currentAyah || "",
+            },
+            SABQI: {
+              ...BLANK_FORM,
+              juzFrom: byType.SABQI?.juzTo || 1, pageFrom: byType.SABQI?.pageTo || 1,
+              juzTo:   byType.SABQI?.juzTo || 1, pageTo:   byType.SABQI?.pageTo || 1,
+              ayahFrom: byType.SABQI?.ayahTo || "", ayahTo: byType.SABQI?.ayahTo || "",
+            },
+            MANZIL: {
+              ...BLANK_FORM,
+              juzFrom: byType.MANZIL?.juzTo || 1, pageFrom: byType.MANZIL?.pageTo || 1,
+              juzTo:   byType.MANZIL?.juzTo || 1, pageTo:   byType.MANZIL?.pageTo || 1,
+              ayahFrom: byType.MANZIL?.ayahTo || "", ayahTo: byType.MANZIL?.ayahTo || "",
+            },
+          });
         }
       })
       .finally(() => setLoading(false));
   }, [studentId]);
 
   const handleSave = async () => {
-    if (!grade) { setError("Please select a grade"); return; }
+    if (!form.grade) { setError("Please select a grade"); return; }
     setSaving(true);
     setError("");
 
     const payload = {
       studentId,
       lessonType,
-      juzFrom, pageFrom, ayahFrom: ayahFrom || undefined,
-      juzTo,   pageTo,   ayahTo:   ayahTo || undefined,
-      grade,
-      mistakeCount,
-      notes: notes || undefined,
-      mistakes: mistakes.flatMap(m =>
+      juzFrom: form.juzFrom, pageFrom: form.pageFrom, ayahFrom: form.ayahFrom || undefined,
+      juzTo:   form.juzTo,   pageTo:   form.pageTo,   ayahTo:   form.ayahTo || undefined,
+      grade: form.grade,
+      mistakeCount: form.mistakeCount,
+      notes: form.notes || undefined,
+      mistakes: form.mistakes.flatMap(m =>
         Array.from({ length: m.count }, () => ({ mistakeType: m.type }))
       ),
     };
@@ -142,12 +168,11 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
   };
 
   const addMistake = (type: MistakeType) => {
-    setMistakes(prev => {
-      const existing = prev.find(m => m.type === type);
-      if (existing) return prev.map(m => m.type === type ? { ...m, count: m.count + 1 } : m);
-      return [...prev, { type, count: 1 }];
-    });
-    setMistakeCount(c => c + 1);
+    const existing = form.mistakes.find(m => m.type === type);
+    const mistakes = existing
+      ? form.mistakes.map(m => m.type === type ? { ...m, count: m.count + 1 } : m)
+      : [...form.mistakes, { type, count: 1 }];
+    updateForm({ mistakes, mistakeCount: form.mistakeCount + 1 });
   };
 
   const numBtn = (label: string, val: number, setter: (v: number) => void, min = 1, max = 604) => (
@@ -233,13 +258,13 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {numBtn("Juz From", juzFrom, setJuzFrom, 1, 30)}
-              {numBtn("Page From", pageFrom, setPageFrom, 1, 604)}
+              {numBtn("Juz From", form.juzFrom, v => updateForm({ juzFrom: v }), 1, 30)}
+              {numBtn("Page From", form.pageFrom, v => updateForm({ pageFrom: v }), 1, 604)}
             </div>
             <div style={{ height: 1, background: colors.n100 }} />
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {numBtn("Juz To", juzTo, setJuzTo, 1, 30)}
-              {numBtn("Page To", pageTo, setPageTo, 1, 604)}
+              {numBtn("Juz To", form.juzTo, v => updateForm({ juzTo: v }), 1, 30)}
+              {numBtn("Page To", form.pageTo, v => updateForm({ pageTo: v }), 1, 604)}
             </div>
           </div>
         </div>
@@ -249,14 +274,14 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
           <div style={{ fontSize: 10, letterSpacing: 2, color: colors.n500, fontFamily: fonts.mono, marginBottom: 14 }}>GRADE *</div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {GRADES.map(g => (
-              <button key={g.id} onClick={() => setGrade(g.id)} style={{
-                padding: "14px 12px", borderRadius: 12, border: `2px solid ${grade === g.id ? g.color : colors.n200}`,
-                background: grade === g.id ? g.bg : colors.n50,
+              <button key={g.id} onClick={() => updateForm({ grade: g.id })} style={{
+                padding: "14px 12px", borderRadius: 12, border: `2px solid ${form.grade === g.id ? g.color : colors.n200}`,
+                background: form.grade === g.id ? g.bg : colors.n50,
                 cursor: "pointer", transition: "all 0.15s",
                 display: "flex", alignItems: "center", gap: 8,
               }}>
                 <span style={{ fontSize: 18 }}>{g.emoji}</span>
-                <span style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: grade === g.id ? g.color : colors.n600 }}>
+                <span style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: form.grade === g.id ? g.color : colors.n600 }}>
                   {g.label}
                 </span>
               </button>
@@ -274,20 +299,20 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
           </div>
           {/* Quick count */}
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: showMistakes ? 16 : 0 }}>
-            <button onClick={() => setMistakeCount(c => Math.max(0, c - 1))} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${colors.n200}`, background: colors.n50, cursor: "pointer", fontSize: 20, color: colors.n600, fontFamily: fonts.heading }}>−</button>
+            <button onClick={() => updateForm({ mistakeCount: Math.max(0, form.mistakeCount - 1) })} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${colors.n200}`, background: colors.n50, cursor: "pointer", fontSize: 20, color: colors.n600, fontFamily: fonts.heading }}>−</button>
             <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontFamily: fonts.heading, fontSize: 32, fontWeight: 700, color: mistakeCount === 0 ? colors.success : mistakeCount < 5 ? colors.warning : colors.error }}>
-                {mistakeCount}
+              <div style={{ fontFamily: fonts.heading, fontSize: 32, fontWeight: 700, color: form.mistakeCount === 0 ? colors.success : form.mistakeCount < 5 ? colors.warning : colors.error }}>
+                {form.mistakeCount}
               </div>
               <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400 }}>total mistakes</div>
             </div>
-            <button onClick={() => setMistakeCount(c => c + 1)} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${colors.n200}`, background: colors.n50, cursor: "pointer", fontSize: 20, color: colors.n600, fontFamily: fonts.heading }}>+</button>
+            <button onClick={() => updateForm({ mistakeCount: form.mistakeCount + 1 })} style={{ width: 44, height: 44, borderRadius: 12, border: `1px solid ${colors.n200}`, background: colors.n50, cursor: "pointer", fontSize: 20, color: colors.n600, fontFamily: fonts.heading }}>+</button>
           </div>
           {/* Mistake types */}
           {showMistakes && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {MISTAKE_TYPES.map(m => {
-                const count = mistakes.find(x => x.type === m.id)?.count || 0;
+                const count = form.mistakes.find(x => x.type === m.id)?.count || 0;
                 return (
                   <button key={m.id} onClick={() => addMistake(m.id)} style={{
                     padding: "10px 12px", borderRadius: 10, border: `1px solid ${count > 0 ? colors.error : colors.n200}`,
@@ -313,7 +338,7 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
         {/* Notes */}
         <div style={{ background: colors.white, borderRadius: 14, padding: 20, border: `1px solid ${colors.n200}`, marginBottom: 20 }}>
           <div style={{ fontSize: 10, letterSpacing: 2, color: colors.n500, fontFamily: fonts.mono, marginBottom: 10 }}>NOTES (OPTIONAL)</div>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+          <textarea value={form.notes} onChange={e => updateForm({ notes: e.target.value })} rows={2}
             placeholder="Any notes for this lesson..."
             style={{ width: "100%", padding: "10px", border: `1px solid ${colors.n200}`, borderRadius: 8, fontSize: 13, fontFamily: fonts.body, color: colors.n700, resize: "none", outline: "none" }}
           />
@@ -327,12 +352,12 @@ export default function EntryPage({ params }: { params: Promise<{ studentId: str
         )}
 
         {/* Save button */}
-        <button onClick={handleSave} disabled={saving || !grade} style={{
+        <button onClick={handleSave} disabled={saving || !form.grade} style={{
           width: "100%", padding: "16px", borderRadius: 14,
-          background: !grade ? colors.n300 : saving ? colors.primaryLight : colors.primary,
+          background: !form.grade ? colors.n300 : saving ? colors.primaryLight : colors.primary,
           color: colors.white, fontSize: 16, fontWeight: 700, border: "none",
-          cursor: !grade || saving ? "not-allowed" : "pointer",
-          fontFamily: fonts.heading, boxShadow: grade ? `0 4px 16px rgba(13,92,58,0.25)` : "none",
+          cursor: !form.grade || saving ? "not-allowed" : "pointer",
+          fontFamily: fonts.heading, boxShadow: form.grade ? `0 4px 16px rgba(13,92,58,0.25)` : "none",
           transition: "all 0.2s",
         }}>
           {saving ? "Saving..." : `Save ${activeTab.label} Entry`}
