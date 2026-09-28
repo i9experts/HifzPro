@@ -59,6 +59,25 @@ export async function GET(
 
     const lastEntry = student.lessonEntries[0] || null;
 
+    // ── Sabaq, Sabqi and Manzil are recorded as separate, independent diary
+    //    entries — each reviews a DIFFERENT part of the Quran (Sabaq = the
+    //    current memorization frontier, Sabqi = recent revision, Manzil =
+    //    older revision), so each tab in the entry form must pre-fill its
+    //    own Juz/Page range from ITS OWN last entry of that specific type,
+    //    never from whichever entry was logged most recently overall. ──
+    const [lastSabqi, lastManzil] = await Promise.all([
+      prisma.lessonEntry.findFirst({
+        where: { studentId, lessonType: "SABQI" },
+        orderBy: { date: "desc" },
+        select: { juzFrom: true, pageFrom: true, juzTo: true, pageTo: true, ayahTo: true },
+      }),
+      prisma.lessonEntry.findFirst({
+        where: { studentId, lessonType: "MANZIL" },
+        orderBy: { date: "desc" },
+        select: { juzFrom: true, pageFrom: true, juzTo: true, pageTo: true, ayahTo: true },
+      }),
+    ]);
+
     return successResponse({
       student: {
         id:          student.id,
@@ -69,6 +88,7 @@ export async function GET(
         guardian:    student.guardians[0] ?? null,
       },
       lastEntry,
+      lastEntryByType: { SABQI: lastSabqi, MANZIL: lastManzil },
       recentEntries: student.lessonEntries,
     });
   } catch (error) {
