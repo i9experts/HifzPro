@@ -1,15 +1,11 @@
 "use client";
 import Link from "next/link";
 import { HifzWordmark } from "@/components/ui/HifzMark";
+import { colors, fonts } from "@/lib/tokens";
 
-const G = {
-  dark: "#0A1510", card: "#111D16", border: "#1A2E22",
-  primary: "#10B981", gold: "#C4882A",
-  dim: "rgba(255,255,255,0.55)", faint: "rgba(255,255,255,0.08)",
-};
-const sans = "'Inter','Segoe UI',system-ui,sans-serif";
-const mono = "'JetBrains Mono','Fira Code','Courier New',monospace";
-const arabic = "'Scheherazade New',serif";
+const sans = fonts.body;
+const mono = fonts.mono;
+const arabic = "'Cairo', sans-serif";
 
 const FOOTER_COLS = [
   {
@@ -18,6 +14,7 @@ const FOOTER_COLS = [
       { label: "Features",    href: "/features" },
       { label: "Pricing",     href: "/pricing" },
       { label: "Solutions",   href: "/solutions" },
+      { label: "Marketplace", href: "/marketplace" },
       { label: "Book a Demo", href: "/demo" },
       { label: "Sign Up",     href: "/signup" },
       { label: "Sign In",     href: "/signin" },
@@ -43,7 +40,7 @@ const FOOTER_COLS = [
 
 export default function MarketingFooter() {
   return (
-    <footer style={{ background: G.dark, borderTop: `1px solid ${G.border}`, padding: "56px 28px 32px" }}>
+    <footer style={{ background: colors.n50, borderTop: `1px solid ${colors.n200}`, padding: "56px 28px 32px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         <div style={{
           display: "grid",
@@ -56,12 +53,12 @@ export default function MarketingFooter() {
           {/* Brand col */}
           <div>
             <div style={{ marginBottom: 14 }}>
-              <HifzWordmark size={34} textColor="#10B981" goldColor="#C4882A" />
+              <HifzWordmark size={34} textColor={colors.primary} goldColor={colors.gold} />
             </div>
-            <p style={{ fontFamily: sans, fontSize: 13, color: G.dim, lineHeight: 1.75, maxWidth: 280, margin: "0 0 16px" }}>
-              Pakistan's first intelligent Hifz Management platform. Built with love for the preservation of the Holy Quran.
+            <p style={{ fontFamily: sans, fontSize: 13, color: colors.n600, lineHeight: 1.75, maxWidth: 280, margin: "0 0 16px" }}>
+              Pakistan's first intelligent Hifz Management platform — and a marketplace connecting parents with independent Quran teachers worldwide.
             </p>
-            <div style={{ fontFamily: arabic, fontSize: 16, color: G.gold, opacity: 0.6, marginBottom: 20 }}>
+            <div style={{ fontFamily: arabic, fontSize: 16, color: colors.gold, fontWeight: 600, marginBottom: 20 }}>
               وَلَقَدْ يَسَّرْنَا الْقُرْآنَ لِلذِّكْرِ
             </div>
             {/* Contact */}
@@ -74,14 +71,14 @@ export default function MarketingFooter() {
                 <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
                   <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{c.icon}</span>
                   {c.href ? (
-                    <a href={c.href} style={{ fontFamily: sans, fontSize: 12, color: G.dim, textDecoration: "none" }}
+                    <a href={c.href} style={{ fontFamily: sans, fontSize: 12, color: colors.n500, textDecoration: "none" }}
                       target={c.href.startsWith("http") ? "_blank" : undefined}
                       rel={c.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     >
                       {c.text}
                     </a>
                   ) : (
-                    <span style={{ fontFamily: sans, fontSize: 12, color: G.dim }}>{c.text}</span>
+                    <span style={{ fontFamily: sans, fontSize: 12, color: colors.n500 }}>{c.text}</span>
                   )}
                 </div>
               ))}
@@ -91,14 +88,14 @@ export default function MarketingFooter() {
           {/* Link cols */}
           {FOOTER_COLS.map(col => (
             <div key={col.title}>
-              <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: 2, color: "rgba(255,255,255,0.3)", marginBottom: 14 }}>
+              <div style={{ fontFamily: mono, fontSize: 9, letterSpacing: 2, color: colors.n400, marginBottom: 14 }}>
                 {col.title.toUpperCase()}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {col.links.map(link => (
-                  <Link key={link.href} href={link.href} style={{ fontFamily: sans, fontSize: 13, color: "rgba(255,255,255,0.4)", textDecoration: "none" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#10B981")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.4)")}
+                  <Link key={link.href} href={link.href} style={{ fontFamily: sans, fontSize: 13, color: colors.n600, textDecoration: "none" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = colors.primary)}
+                    onMouseLeave={e => (e.currentTarget.style.color = colors.n600)}
                   >
                     {link.label}
                   </Link>
@@ -109,9 +106,9 @@ export default function MarketingFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{ borderTop: `1px solid ${G.border}`, paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ fontFamily: sans, fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
-            © {new Date().getFullYear()} HifzPro® — A product of <strong style={{ color: "rgba(255,255,255,0.35)" }}>i9 Experts Private Limited</strong>. All rights reserved.
+        <div style={{ borderTop: `1px solid ${colors.n200}`, paddingTop: 24, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+          <div style={{ fontFamily: sans, fontSize: 12, color: colors.n400 }}>
+            © {new Date().getFullYear()} HifzPro® — A product of <strong style={{ color: colors.n500 }}>i9 Experts Private Limited</strong>. All rights reserved.
           </div>
           <div style={{ display: "flex", gap: 16 }}>
             {[
@@ -119,9 +116,9 @@ export default function MarketingFooter() {
               { label: "Terms",   href: "/terms-of-service" },
               { label: "Safety",  href: "/safety-policy" },
             ].map(l => (
-              <Link key={l.href} href={l.href} style={{ fontFamily: sans, fontSize: 12, color: "rgba(255,255,255,0.25)", textDecoration: "none" }}
-                onMouseEnter={e => (e.currentTarget.style.color = "#10B981")}
-                onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.25)")}
+              <Link key={l.href} href={l.href} style={{ fontFamily: sans, fontSize: 12, color: colors.n400, textDecoration: "none" }}
+                onMouseEnter={e => (e.currentTarget.style.color = colors.primary)}
+                onMouseLeave={e => (e.currentTarget.style.color = colors.n400)}
               >
                 {l.label}
               </Link>
