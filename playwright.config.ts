@@ -30,5 +30,10 @@ export default defineConfig({
         storageState: "e2e/.auth/admin.json",
       },
     },
+    {
+      name: "marketplace",
+      testMatch: /marketplace-.*\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"] },
+    },
   ],
 });

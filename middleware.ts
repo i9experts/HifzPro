@@ -19,14 +19,18 @@ const ROLE_ROUTES: { prefix: string; roles: string[] }[] = [
   { prefix: "/dashboard/admin",   roles: ["CAMPUS_ADMIN", "SUPER_ADMIN"] },
   { prefix: "/dashboard/ustadh",  roles: ["USTADH", "SUPER_ADMIN"] },
   { prefix: "/dashboard/parent",  roles: ["PARENT", "SUPER_ADMIN"] },
+  { prefix: "/dashboard/teacher", roles: ["MARKETPLACE_TEACHER", "SUPER_ADMIN"] },
+  { prefix: "/dashboard/family",  roles: ["MARKETPLACE_PARENT", "SUPER_ADMIN"] },
   { prefix: "/superadmin",        roles: ["SUPER_ADMIN"] },
 ];
 
 // Where to send each role when they hit a section they're not allowed in
 function homeFor(role: string): string {
-  if (role === "SUPER_ADMIN") return "/superadmin";
-  if (role === "PARENT")      return "/dashboard/parent";
-  if (role === "USTADH")      return "/dashboard/ustadh";
+  if (role === "SUPER_ADMIN")          return "/superadmin";
+  if (role === "PARENT")               return "/dashboard/parent";
+  if (role === "USTADH")               return "/dashboard/ustadh";
+  if (role === "MARKETPLACE_TEACHER")  return "/dashboard/teacher";
+  if (role === "MARKETPLACE_PARENT")   return "/dashboard/family";
   return "/dashboard/admin"; // CAMPUS_ADMIN and fallback
 }
 
