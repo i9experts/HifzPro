@@ -202,6 +202,8 @@ model User {
   teacherProfile          TeacherProfile?
   marketplaceParent       MarketplaceParentProfile?
   sentTeacherMessages     TeacherMessage[] @relation("SentTeacherMessages")
+  proposedBookings        Booking[] @relation("ProposedBookings")
+  paymentConfirmedBookings Booking[] @relation("PaymentConfirmedBookings")
 
   @@map("users")
 }
@@ -931,6 +933,7 @@ model TeacherProfile {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   availabilitySlots TeacherAvailabilitySlot[]
   inquiries         TeacherInquiry[]
+  bookings          Booking[]
 
   @@map("teacher_profiles")
 }
@@ -962,6 +965,7 @@ model MarketplaceParentProfile {
 
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   inquiries         TeacherInquiry[]
+  bookings          Booking[]
 
   @@map("marketplace_parent_profiles")
 }
@@ -977,6 +981,7 @@ model TeacherInquiry {
   teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   parent    MarketplaceParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
   messages  TeacherMessage[]
+  bookings  Booking[]
 
   @@unique([teacherId, parentId])
   @@map("teacher_inquiries")
@@ -994,4 +999,49 @@ model TeacherMessage {
   sender    User           @relation("SentTeacherMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("teacher_messages")
+}
+
+// Booking confirmation (PRD §7/§9 Phase 1): a lightweight "we agreed"
+// record either side can propose from an inquiry thread. Payment stays
+// manual/admin-assisted — an admin marks PAYMENT_CONFIRMED once they've
+// collected payment outside the system (Stripe link or Rho wire, §9).
+// Phase 2 replaces this with the real booking/offer state machine +
+// Stripe Connect + virtual-institution auto-provisioning (§11).
+enum BookingStatus {
+  PROPOSED
+  ACCEPTED
+  DECLINED
+  PAYMENT_CONFIRMED
+  CANCELLED
+}
+
+model Booking {
+  id                  String   @id @default(cuid())
+  inquiryId           String
+  teacherId           String
+  parentId            String
+  proposedById        String
+  dayOfWeek           Int      // 0 = Sunday .. 6 = Saturday
+  startTime           String   // "HH:mm"
+  endTime             String
+  timezone            String
+  program             Program?
+  hourlyRate          Float?
+  currency            String   @default("USD")
+  notes               String?
+  status              BookingStatus @default(PROPOSED)
+  respondedAt         DateTime?
+  paymentConfirmedAt  DateTime?
+  paymentConfirmedById String?
+  adminNotes          String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  inquiry             TeacherInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  teacher             TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  parent              MarketplaceParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  proposedBy          User     @relation("ProposedBookings", fields: [proposedById], references: [id], onDelete: Cascade)
+  paymentConfirmedBy  User?    @relation("PaymentConfirmedBookings", fields: [paymentConfirmedById], references: [id])
+
+  @@map("bookings")
 }

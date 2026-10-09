@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
+import BookingPanel from "@/components/marketplace/BookingPanel";
 import { colors, fonts } from "@/lib/tokens";
 
 interface Message { id: string; body: string; senderId: string; createdAt: string }
@@ -64,6 +65,8 @@ export default function FamilyInquiryThreadPage() {
 
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px", flex: 1, width: "100%", display: "flex", flexDirection: "column" }}>
         {loading && <div style={{ color: colors.n500, textAlign: "center", padding: 30 }}>Loading…</div>}
+
+        {myUserId && <BookingPanel inquiryId={id} myUserId={myUserId} />}
 
         <div style={{ flex: 1, display: "grid", gap: 10, marginBottom: 14 }}>
           {messages.map(m => {
