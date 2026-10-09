@@ -27,10 +27,12 @@ const TAB_LABELS: Record<string, string> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  CAMPUS_ADMIN: "Admin",
-  USTADH:       "Ustadh",
-  SUPER_ADMIN:  "Super Admin",
-  EXAMINER:     "Examiner",
+  CAMPUS_ADMIN:        "Admin",
+  USTADH:              "Ustadh",
+  SUPER_ADMIN:         "Super Admin",
+  EXAMINER:            "Examiner",
+  MARKETPLACE_TEACHER: "Teacher",
+  MARKETPLACE_PARENT:  "Parent",
 };
 
 export async function POST(req: NextRequest) {
@@ -125,10 +127,12 @@ export async function POST(req: NextRequest) {
 
 function getDashboardUrl(role: string): string {
   switch (role) {
-    case "SUPER_ADMIN":  return "/superadmin";
-    case "CAMPUS_ADMIN": return "/dashboard/admin";
-    case "USTADH":       return "/dashboard/ustadh";
-    case "EXAMINER":     return "/dashboard/examiner";
-    default:             return "/dashboard";
+    case "SUPER_ADMIN":          return "/superadmin";
+    case "CAMPUS_ADMIN":         return "/dashboard/admin";
+    case "USTADH":               return "/dashboard/ustadh";
+    case "EXAMINER":             return "/dashboard/examiner";
+    case "MARKETPLACE_TEACHER":  return "/dashboard/teacher";
+    case "MARKETPLACE_PARENT":   return "/dashboard/family";
+    default:                     return "/dashboard";
   }
 }

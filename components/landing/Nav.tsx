@@ -51,6 +51,9 @@ export default function Nav() {
             {n.label}
           </Link>
         ))}
+        <Link href="/marketplace" style={{ fontSize: 13, color: colors.gold, fontFamily: isRTL ? "'Cairo',sans-serif" : "'Outfit',sans-serif", textDecoration: "none", fontWeight: 600 }}>
+          Marketplace
+        </Link>
       </div>
 
       {/* CTAs + Language */}

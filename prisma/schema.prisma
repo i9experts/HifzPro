@@ -24,6 +24,8 @@ enum Role {
   STUDENT
   EXAMINER
   DONOR
+  MARKETPLACE_TEACHER // independent Qari/Mu'allimah offering lessons through the marketplace
+  MARKETPLACE_PARENT  // parent/guardian booking an independent teacher through the marketplace
 }
 
 enum Program {
@@ -197,6 +199,9 @@ model User {
   grantedScholarships Scholarship[] @relation("ScholarshipGrantedBy")
   sentNotifications   Notification[] @relation("SentNotifications")
   pushSubscriptions   PushSubscription[]
+  teacherProfile          TeacherProfile?
+  marketplaceParent       MarketplaceParentProfile?
+  sentTeacherMessages     TeacherMessage[] @relation("SentTeacherMessages")
 
   @@map("users")
 }
@@ -872,4 +877,121 @@ model NotificationPreferences {
   updatedAt     DateTime @updatedAt
 
   @@map("notification_preferences")
+}
+
+// ─────────────────────────────────────────
+// QURAN TEACHER MARKETPLACE (Phase 1 — MVP Discovery)
+// Teacher/parent profiles, search directory, and in-platform
+// messaging. Booking + payment stay manual/admin-assisted until
+// Phase 2 (Stripe Connect + virtual-institution auto-provisioning).
+// ─────────────────────────────────────────
+
+enum TeacherGender {
+  MALE
+  FEMALE
+}
+
+enum TeacherVerificationTier {
+  UNVERIFIED          // just signed up
+  ID_VERIFIED         // Tier 1: government ID verified
+  CREDENTIAL_VERIFIED // Tier 2: ijazah/sanad reviewed by a qualified scholar
+  BACKGROUND_CHECKED  // Tier 3: formal background check (where legally available)
+}
+
+enum TeacherInquiryStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CLOSED
+}
+
+model TeacherProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  gender            TeacherGender
+  residenceCountry  String
+  bio               String?
+  qualification     String?
+  qiraat            String?
+  yearsExperience   Int?
+  languages         String[] @default([])
+  countriesServed   String[] @default([])
+  ageGroupsTaught   String[] @default([])
+  programsOffered   Program[] @default([])
+  hourlyRate        Float?
+  currency          String   @default("USD")
+  verificationTier  TeacherVerificationTier @default(UNVERIFIED)
+  isListed          Boolean  @default(false) // only searchable once admin approves the profile
+  isActive          Boolean  @default(true)
+  avgRating         Float?
+  totalReviews      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilitySlots TeacherAvailabilitySlot[]
+  inquiries         TeacherInquiry[]
+
+  @@map("teacher_profiles")
+}
+
+model TeacherAvailabilitySlot {
+  id        String   @id @default(cuid())
+  teacherId String
+  dayOfWeek Int      // 0 = Sunday .. 6 = Saturday
+  startTime String   // "HH:mm", in the teacher's own timezone
+  endTime   String
+  timezone  String   // IANA tz, e.g. "Asia/Karachi"
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_availability_slots")
+}
+
+model MarketplaceParentProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  country           String
+  preferredLanguage String?
+  childAgeGroups    String[] @default([])
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inquiries         TeacherInquiry[]
+
+  @@map("marketplace_parent_profiles")
+}
+
+model TeacherInquiry {
+  id        String   @id @default(cuid())
+  teacherId String
+  parentId  String
+  status    TeacherInquiryStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher   TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  parent    MarketplaceParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  messages  TeacherMessage[]
+
+  @@unique([teacherId, parentId])
+  @@map("teacher_inquiries")
+}
+
+model TeacherMessage {
+  id        String   @id @default(cuid())
+  inquiryId String
+  senderId  String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  inquiry   TeacherInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  sender    User           @relation("SentTeacherMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_messages")
 }
