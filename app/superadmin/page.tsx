@@ -101,6 +101,7 @@ export default function SuperAdminDashboard() {
               {data.alerts.length} Alerts
             </div>
           )}
+          <Link href="/superadmin/marketplace" style={{ padding:"6px 14px", borderRadius:7, background:"#1f2937", border:"1px solid #374151", color:"#9ca3af", fontSize:11, textDecoration:"none", fontFamily:fonts.heading }}>Marketplace</Link>
           <button onClick={handleSignOut} style={{ padding:"6px 14px", borderRadius:7, background:"#1f2937", border:"1px solid #374151", color:"#9ca3af", fontSize:11, cursor:"pointer", fontFamily:fonts.heading }}>Sign Out</button>
         </div>
       </nav>

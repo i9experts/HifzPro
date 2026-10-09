@@ -6,6 +6,10 @@ import { test, expect } from "@playwright/test";
 // replies — all without any admin-in-the-middle step.
 
 test("teacher signs up, lists a profile; parent finds them and messages back and forth", async ({ browser }) => {
+  // Three actors, many first-visit dev-server route compiles, and a full
+  // propose → accept → admin-confirm loop comfortably exceed the default
+  // per-test timeout.
+  test.setTimeout(120_000);
   const ts = Date.now();
   const teacherName = `QA Qari ${ts}`;
   const parentName = `QA Parent ${ts}`;
@@ -87,6 +91,41 @@ test("teacher signs up, lists a profile; parent finds them and messages back and
   await parentPage.waitForURL("**/dashboard/family/inquiries/**", { timeout: 10_000 });
   await expect(parentPage.getByText(replyText)).toBeVisible({ timeout: 10_000 });
 
+  // ── 7. Parent proposes a lesson time from the same thread ──
+  await parentPage.getByRole("button", { name: /propose a lesson time/i }).click();
+  await parentPage.locator('input[type="number"]').fill("15");
+  await parentPage.getByRole("button", { name: /send proposal/i }).click();
+  await expect(parentPage.getByText(/waiting for the other side to respond/i)).toBeVisible({ timeout: 10_000 });
+
+  // ── 8. Teacher accepts the proposal ──
+  await teacherPage.reload({ waitUntil: "domcontentloaded" });
+  await teacherPage.getByRole("button", { name: "Accept" }).click();
+  await expect(teacherPage.getByText(/both sides agreed/i)).toBeVisible({ timeout: 10_000 });
+
+  // ── 9. Admin marks the booking's payment as received ──
+  const adminContext = await browser.newContext();
+  const adminPage = await adminContext.newPage();
+  await adminPage.request.get("/api/setup/superadmin"); // idempotent — creates the fixed platform admin if it doesn't exist yet
+  await adminPage.goto("/signin", { waitUntil: "domcontentloaded" });
+  await adminPage.locator('input[type="email"]').fill("superadmin@hifzpro.com");
+  await adminPage.locator('input[type="password"]').fill("HifzPro@SuperAdmin2026");
+  await adminPage.getByRole("button", { name: /sign in as admin/i }).click();
+  await adminPage.waitForURL("**/superadmin**", { timeout: 15_000 });
+
+  await adminPage.goto("/superadmin/marketplace", { waitUntil: "domcontentloaded" });
+  await adminPage.getByRole("button", { name: /^bookings/i }).click();
+  const bookingRow = adminPage.locator("div", { hasText: teacherName }).filter({ hasText: parentName }).last();
+  adminPage.once("dialog", d => d.accept());
+  await bookingRow.getByRole("button", { name: /mark paid/i }).click();
+  await expect(bookingRow.getByText("PAYMENT CONFIRMED", { exact: true })).toBeVisible({ timeout: 10_000 });
+
+  // ── 10. Both sides see the arrangement is now active ──
+  await teacherPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(teacherPage.getByText(/payment confirmed — this arrangement is active/i)).toBeVisible({ timeout: 10_000 });
+  await parentPage.reload({ waitUntil: "domcontentloaded" });
+  await expect(parentPage.getByText(/payment confirmed — this arrangement is active/i)).toBeVisible({ timeout: 10_000 });
+
   await teacherContext.close();
   await parentContext.close();
+  await adminContext.close();
 });

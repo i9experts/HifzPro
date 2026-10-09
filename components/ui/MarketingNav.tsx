@@ -3,14 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HifzWordmark } from "@/components/ui/HifzMark";
+import { colors, fonts, shadows } from "@/lib/tokens";
 
-const G = {
-  deep: "#050D0A", dark: "#0A1510", card: "#111D16", border: "#1A2E22",
-  primary: "#10B981", gold: "#C4882A", white: "#FFFFFF",
-  dim: "rgba(255,255,255,0.55)", faint: "rgba(255,255,255,0.08)",
-};
-const sans = "'Inter','Segoe UI',system-ui,sans-serif";
-const mono = "'JetBrains Mono','Fira Code','Courier New',monospace";
+const sans = fonts.body;
+const mono = fonts.mono;
 
 type MegaLink = {
   icon: string;
@@ -47,6 +43,24 @@ const NAV_ITEMS: NavItem[] = [
           { icon: "💬", label: "WhatsApp Integration",  sub: "7 bilingual Urdu/English templates",     href: "/features#feat-core" },
           { icon: "🏫", label: "Multi-Campus",          sub: "One institution, multiple campuses",      href: "/features#feat-enterprise" },
           { icon: "🔐", label: "Super Admin",           sub: "Enterprise SaaS control center",          href: "/features#feat-platform" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Marketplace",
+    cols: [
+      {
+        heading: "Find a Teacher",
+        links: [
+          { icon: "🔍", label: "Browse Teachers",       sub: "Filter by program, language, country",   href: "/marketplace" },
+          { icon: "👨‍👩‍👦", label: "For Parents",           sub: "Hire an independent Qari or Mu'allimah",  href: "/marketplace/join/parent" },
+        ],
+      },
+      {
+        heading: "Teach Online",
+        links: [
+          { icon: "🎓", label: "Teach on HifzPro",      sub: "List your availability, get booked",      href: "/marketplace/join/teacher" },
         ],
       },
     ],
@@ -158,24 +172,25 @@ export default function MarketingNav() {
       <nav
         ref={navRef}
         style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 200,
-          height: 64, display: "flex", alignItems: "center",
+          position: "sticky", top: 0, left: 0, right: 0, zIndex: 200,
+          height: 68, display: "flex", alignItems: "center",
           padding: "0 24px",
-          background: scrolled ? "rgba(5,13,10,0.98)" : "rgba(5,13,10,0.90)",
-          backdropFilter: "blur(16px)",
-          borderBottom: `1px solid ${scrolled ? G.border : "transparent"}`,
-          transition: "all 0.3s",
+          background: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(12px)",
+          borderBottom: `1px solid ${scrolled ? colors.n200 : "transparent"}`,
+          boxShadow: scrolled ? shadows.sm : "none",
+          transition: "all 0.2s",
           justifyContent: "space-between",
         }}
       >
         {/* Logo */}
         <Link href="/" style={{ textDecoration: "none", flexShrink: 0 }}>
-          <HifzWordmark size={34} textColor="#10B981" goldColor="#C4882A" />
+          <HifzWordmark size={34} textColor={colors.primary} goldColor={colors.gold} />
         </Link>
 
         {/* Desktop mega menu */}
         {!isMobile && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {NAV_ITEMS.map(item => (
               <div key={item.label} style={{ position: "relative" }}>
                 <button
@@ -184,9 +199,9 @@ export default function MarketingNav() {
                     border: "none", cursor: "pointer",
                     display: "flex", alignItems: "center", gap: 4,
                     padding: "8px 14px", borderRadius: 8,
-                    fontFamily: sans, fontSize: 14, fontWeight: 500,
-                    color: openMenu === item.label ? G.primary : G.dim,
-                    background: openMenu === item.label ? "rgba(16,185,129,0.08)" : "transparent",
+                    fontFamily: fonts.heading, fontSize: 13.5, fontWeight: 600,
+                    color: openMenu === item.label ? colors.primary : colors.n700,
+                    background: openMenu === item.label ? colors.green50 : "transparent",
                     transition: "all 0.15s",
                   }}
                 >
@@ -205,10 +220,10 @@ export default function MarketingNav() {
                     style={{
                       position: "absolute", top: "calc(100% + 12px)",
                       left: "50%", transform: "translateX(-50%)",
-                      background: G.card,
-                      border: `1px solid ${G.border}`,
+                      background: colors.white,
+                      border: `1px solid ${colors.n200}`,
                       borderRadius: 16,
-                      boxShadow: "0 16px 48px rgba(0,0,0,0.4)",
+                      boxShadow: shadows.xl,
                       padding: 20,
                       display: "grid",
                       gridTemplateColumns: `repeat(${item.cols.length}, 200px)`,
@@ -221,8 +236,8 @@ export default function MarketingNav() {
                       <div key={col.heading}>
                         <div style={{
                           fontFamily: mono, fontSize: 9, letterSpacing: 2,
-                          color: "rgba(255,255,255,0.3)", marginBottom: 10,
-                          paddingBottom: 8, borderBottom: `1px solid ${G.border}`,
+                          color: colors.n400, marginBottom: 10,
+                          paddingBottom: 8, borderBottom: `1px solid ${colors.n100}`,
                         }}>
                           {col.heading.toUpperCase()}
                         </div>
@@ -239,22 +254,22 @@ export default function MarketingNav() {
                               transition: "background 0.15s",
                               cursor: "pointer",
                             }}
-                              onMouseEnter={e => (e.currentTarget.style.background = "rgba(16,185,129,0.08)")}
+                              onMouseEnter={e => (e.currentTarget.style.background = colors.green50)}
                               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                             >
                               <div style={{
                                 width: 30, height: 30, minWidth: 30,
-                                borderRadius: 8, background: G.faint,
+                                borderRadius: 8, background: colors.green50,
                                 display: "flex", alignItems: "center",
                                 justifyContent: "center", fontSize: 14,
                               }}>
                                 {link.icon}
                               </div>
                               <div>
-                                <div style={{ fontFamily: sans, fontSize: 13, fontWeight: 600, color: G.white, marginBottom: 2 }}>
+                                <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: colors.n800, marginBottom: 2 }}>
                                   {link.label}
                                 </div>
-                                <div style={{ fontFamily: sans, fontSize: 11, color: G.dim, lineHeight: 1.4 }}>
+                                <div style={{ fontFamily: sans, fontSize: 11, color: colors.n500, lineHeight: 1.4 }}>
                                   {link.sub}
                                 </div>
                               </div>
@@ -272,19 +287,20 @@ export default function MarketingNav() {
 
         {/* Desktop CTA */}
         {!isMobile && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
             <Link href="/signin" style={{
-              fontFamily: sans, fontSize: 13, fontWeight: 500,
-              color: G.dim, textDecoration: "none",
-              padding: "8px 14px", borderRadius: 8,
+              fontFamily: fonts.heading, fontSize: 13.5, fontWeight: 600,
+              color: colors.n700, textDecoration: "none",
+              padding: "9px 14px", borderRadius: 8,
             }}>
               Sign In
             </Link>
             <Link href="/signup" style={{
-              fontFamily: sans, fontSize: 13, fontWeight: 700,
-              color: G.dark, textDecoration: "none",
-              padding: "9px 20px", borderRadius: 8,
-              background: G.primary,
+              fontFamily: fonts.heading, fontSize: 13.5, fontWeight: 700,
+              color: colors.white, textDecoration: "none",
+              padding: "10px 20px", borderRadius: 999,
+              background: colors.primary,
+              boxShadow: "0 4px 14px rgba(13,92,58,0.3)",
             }}>
               Get Started Free
             </Link>
@@ -295,7 +311,7 @@ export default function MarketingNav() {
         {isMobile && (
           <button
             onClick={() => setMobileOpen(v => !v)}
-            style={{ background: "none", border: "none", color: G.white, fontSize: 22, cursor: "pointer", padding: "4px 8px" }}
+            style={{ background: "none", border: "none", color: colors.n800, fontSize: 22, cursor: "pointer", padding: "4px 8px" }}
           >
             {mobileOpen ? "✕" : "☰"}
           </button>
@@ -305,9 +321,8 @@ export default function MarketingNav() {
       {/* Mobile drawer */}
       {isMobile && mobileOpen && (
         <div style={{
-          position: "fixed", top: 64, left: 0, right: 0, bottom: 0,
-          zIndex: 199, background: "rgba(5,13,10,0.99)",
-          backdropFilter: "blur(16px)",
+          position: "fixed", top: 68, left: 0, right: 0, bottom: 0,
+          zIndex: 199, background: colors.white,
           overflowY: "auto", padding: "8px 20px 40px",
         }}>
           {NAV_ITEMS.map(item => (
@@ -318,9 +333,9 @@ export default function MarketingNav() {
                   width: "100%", background: "none", border: "none",
                   display: "flex", justifyContent: "space-between", alignItems: "center",
                   padding: "14px 4px",
-                  borderBottom: `1px solid ${G.border}`,
-                  fontFamily: sans, fontSize: 16, fontWeight: 600,
-                  color: openMenu === item.label ? G.primary : G.white,
+                  borderBottom: `1px solid ${colors.n100}`,
+                  fontFamily: fonts.heading, fontSize: 16, fontWeight: 700,
+                  color: openMenu === item.label ? colors.primary : colors.n800,
                   cursor: "pointer",
                 }}
               >
@@ -342,8 +357,8 @@ export default function MarketingNav() {
                       }}>
                         <span style={{ fontSize: 16 }}>{link.icon}</span>
                         <div>
-                          <div style={{ fontFamily: sans, fontSize: 14, fontWeight: 600, color: G.white }}>{link.label}</div>
-                          <div style={{ fontFamily: sans, fontSize: 11, color: G.dim }}>{link.sub}</div>
+                          <div style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: colors.n800 }}>{link.label}</div>
+                          <div style={{ fontFamily: sans, fontSize: 11, color: colors.n500 }}>{link.sub}</div>
                         </div>
                       </div>
                     </Link>
@@ -355,18 +370,18 @@ export default function MarketingNav() {
 
           <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
             <Link href="/signin" style={{
-              fontFamily: sans, fontSize: 15, fontWeight: 600,
-              color: G.white, textDecoration: "none",
+              fontFamily: fonts.heading, fontSize: 15, fontWeight: 700,
+              color: colors.n800, textDecoration: "none",
               padding: "13px", borderRadius: 10, textAlign: "center",
-              border: `1px solid ${G.border}`, background: G.faint,
+              border: `1.5px solid ${colors.n200}`,
             }}>
               Sign In
             </Link>
             <Link href="/signup" style={{
-              fontFamily: sans, fontSize: 15, fontWeight: 700,
-              color: G.dark, textDecoration: "none",
+              fontFamily: fonts.heading, fontSize: 15, fontWeight: 700,
+              color: colors.white, textDecoration: "none",
               padding: "14px", borderRadius: 10, textAlign: "center",
-              background: G.primary,
+              background: colors.primary,
             }}>
               Get Started Free →
             </Link>

@@ -3,22 +3,14 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import MarketingNav from "@/components/ui/MarketingNav";
 import MarketingFooter from "@/components/ui/MarketingFooter";
-
-const G = {
-  deep: "#050D0A", dark: "#0A1510", card: "#111D16", border: "#1A2E22",
-  primary: "#10B981", gold: "#C4882A", white: "#FFFFFF",
-  dim: "rgba(255,255,255,0.55)", faint: "rgba(255,255,255,0.08)",
-};
-const sans   = "'Inter','Segoe UI',system-ui,sans-serif";
-const mono   = "'JetBrains Mono','Fira Code','Courier New',monospace";
-const serif  = "'Cormorant Garamond','Georgia',serif";
-const arabic = "'Scheherazade New',serif";
+import { colors, fonts, shadows } from "@/lib/tokens";
 
 const CATEGORIES = [
   {
     id: "feat-core",
     badge: "Core",
-    badgeColor: "#10B981",
+    badgeColor: colors.primary,
+    badgeBg: colors.green50,
     title: "Core Modules",
     sub: "Available on all plans",
     modules: [
@@ -35,7 +27,8 @@ const CATEGORIES = [
   {
     id: "feat-intelligence",
     badge: "Intelligence",
-    badgeColor: "#a78bfa",
+    badgeColor: "#7c3aed",
+    badgeBg: "#f5f3ff",
     title: "AI & Intelligence",
     sub: "Professional & Enterprise plans",
     modules: [
@@ -47,7 +40,8 @@ const CATEGORIES = [
   {
     id: "feat-premium",
     badge: "Premium",
-    badgeColor: "#fbbf24",
+    badgeColor: "#b45309",
+    badgeBg: "#fffbeb",
     title: "Premium Modules",
     sub: "Professional & Enterprise plans",
     modules: [
@@ -59,7 +53,8 @@ const CATEGORIES = [
   {
     id: "feat-enterprise",
     badge: "Enterprise",
-    badgeColor: "#f97316",
+    badgeColor: "#c2410c",
+    badgeBg: "#fff7ed",
     title: "Enterprise Modules",
     sub: "Enterprise plan only",
     modules: [
@@ -70,7 +65,8 @@ const CATEGORIES = [
   {
     id: "feat-platform",
     badge: "Platform",
-    badgeColor: "#34d399",
+    badgeColor: "#0f766e",
+    badgeBg: "#f0fdfa",
     title: "Platform Infrastructure",
     sub: "Included on all plans",
     modules: [
@@ -101,51 +97,51 @@ export default function FeaturesPage() {
   }, []);
 
   return (
-    <div style={{ background: G.deep, minHeight: "100vh", color: G.white, fontFamily: sans }}>
+    <div style={{ background: colors.white, minHeight: "100vh", color: colors.n800, fontFamily: fonts.body }}>
       <MarketingNav />
 
       {/* Hero */}
-      <section style={{ paddingTop: 120, paddingBottom: 56, paddingLeft: 24, paddingRight: 24, maxWidth: 1100, margin: "0 auto" }}>
+      <section style={{ paddingTop: isMobile ? 40 : 64, paddingBottom: 56, paddingLeft: 24, paddingRight: 24, maxWidth: 1100, margin: "0 auto", background: `linear-gradient(180deg, ${colors.green50} 0%, ${colors.white} 100%)` }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <Link href="/" style={{ fontFamily: mono, fontSize: 11, color: G.dim, textDecoration: "none" }}>Home</Link>
-          <span style={{ color: G.dim, fontSize: 11 }}>/</span>
-          <span style={{ fontFamily: mono, fontSize: 11, color: G.primary }}>Features</span>
+          <Link href="/" style={{ fontFamily: fonts.mono, fontSize: 11, color: colors.n500, textDecoration: "none" }}>Home</Link>
+          <span style={{ color: colors.n400, fontSize: 11 }}>/</span>
+          <span style={{ fontFamily: fonts.mono, fontSize: 11, color: colors.primary }}>Features</span>
         </div>
-        <div style={{ fontFamily: mono, fontSize: 10, letterSpacing: 3, color: G.primary, marginBottom: 12 }}>COMPLETE FEATURE SET</div>
-        <h1 style={{ fontFamily: serif, fontSize: isMobile ? "2rem" : "clamp(2rem,5vw,3.5rem)", fontWeight: 700, color: G.white, margin: "0 0 16px", lineHeight: 1.15 }}>
+        <div style={{ fontFamily: fonts.mono, fontSize: 10, letterSpacing: 3, color: colors.primary, marginBottom: 12, fontWeight: 700 }}>COMPLETE FEATURE SET</div>
+        <h1 style={{ fontFamily: fonts.heading, fontSize: isMobile ? "2rem" : "clamp(2rem,5vw,3.2rem)", fontWeight: 800, color: colors.n800, margin: "0 0 16px", lineHeight: 1.15 }}>
           18 Modules. One Platform.
         </h1>
-        <p style={{ fontFamily: sans, fontSize: 16, color: G.dim, maxWidth: 560, lineHeight: 1.75, margin: "0 0 32px" }}>
+        <p style={{ fontFamily: fonts.body, fontSize: 16, color: colors.n600, maxWidth: 560, lineHeight: 1.75, margin: "0 0 32px" }}>
           Every tool your Hifz institution needs — from daily lesson diaries to AI-powered dropout risk detection.
         </p>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <Link href="/signup" style={{ padding: "11px 24px", borderRadius: 10, background: G.primary, color: G.dark, fontFamily: sans, fontSize: 14, fontWeight: 700, textDecoration: "none" }}>
+          <Link href="/signup" style={{ padding: "12px 26px", borderRadius: 999, background: colors.primary, color: colors.white, fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, textDecoration: "none", boxShadow: "0 6px 20px rgba(13,92,58,0.3)" }}>
             Start Free Trial →
           </Link>
-          <Link href="/demo" style={{ padding: "11px 24px", borderRadius: 10, border: `1px solid ${G.border}`, color: G.white, fontFamily: sans, fontSize: 14, fontWeight: 600, textDecoration: "none", background: G.faint }}>
+          <Link href="/demo" style={{ padding: "12px 26px", borderRadius: 999, border: `1.5px solid ${colors.n200}`, color: colors.n800, fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, textDecoration: "none", background: colors.white }}>
             Book a Demo
           </Link>
         </div>
       </section>
 
       {/* Categories */}
-      {CATEGORIES.map(cat => (
-        <section key={cat.id} id={cat.id} style={{ padding: isMobile ? "40px 20px" : "56px 24px", scrollMarginTop: 80, borderTop: `1px solid ${G.border}` }}>
+      {CATEGORIES.map((cat, idx) => (
+        <section key={cat.id} id={cat.id} style={{ padding: isMobile ? "40px 20px" : "56px 24px", scrollMarginTop: 80, background: idx % 2 === 1 ? colors.n50 : colors.white }}>
           <div style={{ maxWidth: 1100, margin: "0 auto" }}>
             {/* Category header */}
-            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28, flexWrap: "wrap" }}>
               <span style={{
-                background: `${cat.badgeColor}18`, color: cat.badgeColor,
-                padding: "3px 10px", borderRadius: 5,
-                fontFamily: mono, fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                background: cat.badgeBg, color: cat.badgeColor,
+                padding: "4px 12px", borderRadius: 999,
+                fontFamily: fonts.mono, fontSize: 10, fontWeight: 700, letterSpacing: 1,
               }}>
                 {cat.badge.toUpperCase()}
               </span>
-              <h2 style={{ fontFamily: serif, fontSize: isMobile ? "1.4rem" : "1.7rem", fontWeight: 700, color: G.white, margin: 0 }}>
+              <h2 style={{ fontFamily: fonts.heading, fontSize: isMobile ? "1.4rem" : "1.6rem", fontWeight: 800, color: colors.n800, margin: 0 }}>
                 {cat.title}
               </h2>
-              <span style={{ fontFamily: sans, fontSize: 13, color: G.dim }}>— {cat.sub}</span>
-              <div style={{ flex: 1, height: 1, background: G.border }} />
+              <span style={{ fontFamily: fonts.body, fontSize: 13, color: colors.n500 }}>— {cat.sub}</span>
+              <div style={{ flex: 1, height: 1, background: colors.n200, minWidth: 40 }} />
             </div>
 
             {/* Module cards */}
@@ -156,16 +152,16 @@ export default function FeaturesPage() {
             }}>
               {cat.modules.map((mod, i) => (
                 <div key={i} style={{
-                  background: G.card, borderRadius: 14, padding: "22px 20px",
-                  border: `1px solid ${G.border}`,
-                  borderTop: `2px solid ${cat.badgeColor}`,
-                  transition: "border-color 0.2s",
+                  background: colors.white, borderRadius: 16, padding: "22px 20px",
+                  border: `1px solid ${colors.n200}`,
+                  borderTop: `3px solid ${cat.badgeColor}`,
+                  boxShadow: shadows.sm,
                 }}>
                   <div style={{ fontSize: 28, marginBottom: 12 }}>{mod.icon}</div>
-                  <h3 style={{ fontFamily: serif, fontSize: 17, fontWeight: 700, color: G.white, margin: "0 0 8px" }}>
+                  <h3 style={{ fontFamily: fonts.heading, fontSize: 17, fontWeight: 800, color: colors.n800, margin: "0 0 8px" }}>
                     {mod.title}
                   </h3>
-                  <p style={{ fontFamily: sans, fontSize: 13, color: G.dim, margin: 0, lineHeight: 1.65 }}>
+                  <p style={{ fontFamily: fonts.body, fontSize: 13, color: colors.n600, margin: 0, lineHeight: 1.65 }}>
                     {mod.desc}
                   </p>
                 </div>
@@ -176,23 +172,23 @@ export default function FeaturesPage() {
       ))}
 
       {/* Integrations */}
-      <section style={{ padding: isMobile ? "40px 20px" : "56px 24px", borderTop: `1px solid ${G.border}` }}>
+      <section style={{ padding: isMobile ? "40px 20px" : "56px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-            <h2 style={{ fontFamily: serif, fontSize: isMobile ? "1.4rem" : "1.7rem", fontWeight: 700, color: G.white, margin: 0 }}>
+            <h2 style={{ fontFamily: fonts.heading, fontSize: isMobile ? "1.4rem" : "1.6rem", fontWeight: 800, color: colors.n800, margin: 0 }}>
               Integrations
             </h2>
-            <div style={{ flex: 1, height: 1, background: G.border }} />
+            <div style={{ flex: 1, height: 1, background: colors.n200 }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 14 }}>
             {INTEGRATIONS.map((intg, i) => (
               <div key={i} style={{
-                background: G.card, borderRadius: 14, padding: "20px 16px",
-                border: `1px solid ${G.border}`, textAlign: "center",
+                background: colors.white, borderRadius: 16, padding: "20px 16px",
+                border: `1px solid ${colors.n200}`, boxShadow: shadows.sm, textAlign: "center",
               }}>
                 <div style={{ fontSize: 28, marginBottom: 10 }}>{intg.icon}</div>
-                <div style={{ fontFamily: sans, fontSize: 13, fontWeight: 700, color: G.white, marginBottom: 4 }}>{intg.name}</div>
-                <div style={{ fontFamily: sans, fontSize: 11, color: G.dim }}>{intg.desc}</div>
+                <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: colors.n800, marginBottom: 4 }}>{intg.name}</div>
+                <div style={{ fontFamily: fonts.body, fontSize: 11, color: colors.n500 }}>{intg.desc}</div>
               </div>
             ))}
           </div>
@@ -200,19 +196,19 @@ export default function FeaturesPage() {
       </section>
 
       {/* CTA */}
-      <section style={{ padding: isMobile ? "56px 20px" : "80px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 400, height: 400, background: "radial-gradient(circle,rgba(16,185,129,0.10),transparent 70%)", pointerEvents: "none" }} />
-        <h2 style={{ fontFamily: serif, fontSize: isMobile ? "2rem" : "clamp(2rem,4vw,3rem)", fontWeight: 700, color: G.white, margin: "0 0 16px" }}>
+      <section style={{ padding: isMobile ? "56px 20px" : "88px 24px", textAlign: "center", position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${colors.primary}, ${colors.primaryDark})` }}>
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 400, height: 400, background: "radial-gradient(circle,rgba(255,255,255,0.08),transparent 70%)", pointerEvents: "none" }} />
+        <h2 style={{ fontFamily: fonts.heading, fontSize: isMobile ? "1.9rem" : "clamp(1.9rem,4vw,2.8rem)", fontWeight: 800, color: colors.white, margin: "0 0 16px" }}>
           Ready to see all 18 modules in action?
         </h2>
-        <p style={{ fontFamily: sans, fontSize: 15, color: G.dim, margin: "0 auto 28px", maxWidth: 480 }}>
+        <p style={{ fontFamily: fonts.body, fontSize: 15, color: "rgba(255,255,255,0.85)", margin: "0 auto 28px", maxWidth: 480 }}>
           Book a live demo or start your free 14-day trial today.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-          <Link href="/signup" style={{ padding: "13px 28px", borderRadius: 12, background: G.primary, color: G.dark, fontFamily: sans, fontSize: 15, fontWeight: 700, textDecoration: "none", boxShadow: "0 6px 28px rgba(16,185,129,0.35)" }}>
+          <Link href="/signup" style={{ padding: "14px 30px", borderRadius: 999, background: colors.white, color: colors.primary, fontFamily: fonts.heading, fontSize: 15, fontWeight: 800, textDecoration: "none", boxShadow: "0 10px 28px rgba(0,0,0,0.2)" }}>
             Start Free Trial →
           </Link>
-          <Link href="/demo" style={{ padding: "13px 28px", borderRadius: 12, border: `1px solid ${G.border}`, color: G.white, fontFamily: sans, fontSize: 15, fontWeight: 600, textDecoration: "none", background: G.faint }}>
+          <Link href="/demo" style={{ padding: "14px 30px", borderRadius: 999, border: "1.5px solid rgba(255,255,255,0.4)", color: colors.white, fontFamily: fonts.heading, fontSize: 15, fontWeight: 700, textDecoration: "none", background: "rgba(255,255,255,0.08)" }}>
             Book a Demo
           </Link>
         </div>
