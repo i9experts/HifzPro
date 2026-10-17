@@ -252,6 +252,7 @@ model Ustadh {
   batches         Batch[]
   lessonEntries   LessonEntry[]
   testRecords     TestRecord[]
+  qaidaAttempts   QaidaAttempt[]
 
   @@map("asatidha")
 }
@@ -329,6 +330,8 @@ model Student {
   scholarships        Scholarship[]
   feePayments         FeePayment[]
   mutashabihat        StudentMutashabihat[]
+  qaidaProgress       QaidaTakhtiProgress[]
+  qaidaAttempts       QaidaAttempt[]
 
   @@map("students")
 }
@@ -1044,4 +1047,65 @@ model Booking {
   paymentConfirmedBy  User?    @relation("PaymentConfirmedBookings", fields: [paymentConfirmedById], references: [id])
 
   @@map("bookings")
+}
+
+// ─────────────────────────────────────────
+// NOORANI QAIDA — 16-TAKHTI TRACKER
+// Standard Noorani Qaida curriculum, broken into its traditional 16
+// "Takhti" (lesson boards): Mufradat through Tashdeed ba'd Huroof-e-Madd.
+// One QaidaTakhtiProgress row per student per Takhti tracks current
+// status; each recorded session appends a QaidaAttempt with the
+// Ustadh's rating and three 1-5 accuracy scores.
+// ─────────────────────────────────────────
+
+enum QaidaTakhtiStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  NEEDS_REVISION
+  MASTERED
+}
+
+enum QaidaRating {
+  NEEDS_PRACTICE
+  DEVELOPING
+  PROFICIENT
+  MASTERED
+}
+
+model QaidaTakhtiProgress {
+  id           String   @id @default(cuid())
+  studentId    String
+  takhtiNumber Int      // 1-16
+  status       QaidaTakhtiStatus @default(NOT_STARTED)
+  startedAt    DateTime?
+  masteredAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  student      Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  attempts     QaidaAttempt[]
+
+  @@unique([studentId, takhtiNumber])
+  @@map("qaida_takhti_progress")
+}
+
+model QaidaAttempt {
+  id              String   @id @default(cuid())
+  progressId      String
+  studentId       String
+  ustadhId        String
+  takhtiNumber    Int
+  rating          QaidaRating
+  makhrajAccuracy Int      // 1-5
+  tajweedAccuracy Int      // 1-5
+  fluency         Int      // 1-5
+  notes           String?
+  attemptDate     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  progress        QaidaTakhtiProgress @relation(fields: [progressId], references: [id], onDelete: Cascade)
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  ustadh          Ustadh   @relation(fields: [ustadhId], references: [id])
+
+  @@map("qaida_attempts")
 }
