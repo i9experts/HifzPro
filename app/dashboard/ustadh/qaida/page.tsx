@@ -1,278 +1,281 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { colors, fonts } from "@/lib/tokens";
-import { QAIDA_LESSONS, ARABIC_LETTERS, MAKHRAJ_CATEGORIES } from "@/lib/qaida-content";
-import MakharijChart from "@/components/qaida/MakharijChart";
-
-type Grade = "EXCELLENT"|"GOOD"|"WEAK"|"REPEAT";
-type CompLevel = "INTRODUCED"|"PRACTICING"|"MASTERED";
-
-const COMP: {id:CompLevel;label:string;color:string;bg:string}[] = [
-  {id:"INTRODUCED", label:"Introduced",color:"#b45309",bg:"#fffbeb"},
-  {id:"PRACTICING", label:"Practicing", color:colors.primary,bg:colors.green50},
-  {id:"MASTERED",   label:"Mastered",   color:"#166534",bg:"#dcfce7"},
-];
+import { TAKHTIS, TOTAL_TAKHTIS } from "@/lib/qaida-16takhti";
 
 const AMBER = "#b45309";
+const serif = "'Cormorant Garamond',serif";
 
-function LessonContent({ lessonIndex, selectedLetter, onSelectLetter }: {
-  lessonIndex: number; selectedLetter: string; onSelectLetter: (l: string) => void;
-}) {
-  const lesson = QAIDA_LESSONS[lessonIndex];
+type TakhtiStatus = "NOT_STARTED" | "IN_PROGRESS" | "NEEDS_REVISION" | "MASTERED";
+type Rating = "NEEDS_PRACTICE" | "DEVELOPING" | "PROFICIENT" | "MASTERED";
 
-  if (lesson.type === "letters") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `1px solid ${colors.n200}` }}>
-          <div style={{ fontSize: 10, letterSpacing: 2, color: AMBER, fontFamily: fonts.mono, marginBottom: 12 }}>
-            {ARABIC_LETTERS.length} LETTERS — TAP ONE FOR ITS MAKHRAJ
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(56px, 1fr))", gap: 8 }}>
-            {ARABIC_LETTERS.map(l => {
-              const cat = MAKHRAJ_CATEGORIES.find(c => c.id === l.makhraj)!;
-              const isSel = selectedLetter === l.letter;
-              return (
-                <button key={l.letter} onClick={() => onSelectLetter(l.letter)} style={{
-                  padding: "10px 4px", borderRadius: 10, border: `1.5px solid ${isSel ? cat.color : colors.n200}`,
-                  background: isSel ? `${cat.color}15` : colors.n50, cursor: "pointer", textAlign: "center",
-                }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 26, color: isSel ? cat.color : colors.n800, lineHeight: 1 }}>{l.letter}</div>
-                  <div style={{ fontFamily: fonts.mono, fontSize: 9, color: colors.n400, marginTop: 4 }}>{l.transliteration}</div>
-                </button>
-              );
-            })}
-          </div>
-          {selectedLetter && (() => {
-            const l = ARABIC_LETTERS.find(x => x.letter === selectedLetter)!;
-            const cat = MAKHRAJ_CATEGORIES.find(c => c.id === l.makhraj)!;
-            return (
-              <div style={{ marginTop: 14, padding: "12px 14px", background: `${cat.color}0d`, borderRadius: 10, border: `1px solid ${cat.color}30` }}>
-                <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: cat.color }}>{l.name} ({l.nameUrdu})</div>
-                <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.n600, marginTop: 4, lineHeight: 1.5 }}>{l.makhrajPoint}</div>
-              </div>
-            );
-          })()}
-        </div>
-        <MakharijChart highlightLetter={selectedLetter} />
-      </div>
-    );
+interface TakhtiProgress {
+  takhtiNumber: number;
+  status: TakhtiStatus;
+  lastAttempt: { rating: Rating; makhrajAccuracy: number; tajweedAccuracy: number; fluency: number; attemptDate: string } | null;
+}
+interface QaidaData {
+  student: { id: string; name: string; program: string; batchName: string | null };
+  summary: { masteredCount: number; totalTakhtis: number; currentTakhti: number; needsRevisionCount: number; overallStatus: string };
+  takhtiProgress: TakhtiProgress[];
+}
+
+const RATINGS: { id: Rating; label: string }[] = [
+  { id: "NEEDS_PRACTICE", label: "Needs Practice" },
+  { id: "DEVELOPING", label: "Developing" },
+  { id: "PROFICIENT", label: "Proficient" },
+  { id: "MASTERED", label: "Mastered" },
+];
+
+function statusStyle(status: TakhtiStatus): { color: string; bg: string; border: string } {
+  switch (status) {
+    case "MASTERED": return { color: colors.successText, bg: colors.successBg, border: colors.success };
+    case "NEEDS_REVISION": return { color: colors.warningText, bg: colors.warningBg, border: colors.warning };
+    case "IN_PROGRESS": return { color: "#1d4ed8", bg: "#eff6ff", border: "#93c5fd" };
+    default: return { color: colors.n500, bg: colors.n100, border: colors.n200 };
   }
+}
 
-  if (lesson.type === "combo") {
-    return (
-      <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `1px solid ${colors.n200}` }}>
-        <div style={{ fontSize: 10, letterSpacing: 2, color: AMBER, fontFamily: fonts.mono, marginBottom: 4 }}>{lesson.summary}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 12 }}>
-          {lesson.combo!.map((c, i) => (
-            <div key={i}>
-              <div style={{ fontFamily: fonts.heading, fontSize: 12, fontWeight: 700, color: colors.n700, marginBottom: 6 }}>
-                {c.label} <span style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 13, color: colors.n400 }}>{c.labelUrdu}</span>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {c.examples.map((ex, j) => (
-                  <div key={j} style={{ padding: "10px 16px", borderRadius: 10, background: colors.n50, border: `1px solid ${colors.n200}`, fontFamily: "'Cormorant Garamond',serif", fontSize: 20, color: colors.n800 }}>
-                    {ex}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (lesson.type === "rules") {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.n500, padding: "0 2px" }}>{lesson.summary}</div>
-        {lesson.rules!.map((r, i) => (
-          <div key={i} style={{ background: colors.white, borderRadius: 14, padding: 16, border: `1px solid ${colors.n200}` }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-              <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: colors.n800 }}>{r.name}</div>
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 15, color: AMBER }}>{r.nameArabic}</div>
-            </div>
-            <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.n600, lineHeight: 1.5, marginBottom: r.letters || r.example ? 8 : 0 }}>{r.desc}</div>
-            {r.letters && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: r.example ? 8 : 0 }}>
-                {r.letters.map((l, j) => (
-                  <div key={j} style={{ width: 30, height: 30, borderRadius: 8, background: colors.green50, border: `1px solid ${colors.green200}`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: colors.primary }}>{l}</div>
-                ))}
-              </div>
-            )}
-            {r.example && (
-              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, color: colors.n700, background: colors.n50, borderRadius: 8, padding: "6px 10px", display: "inline-block" }}>{r.example}</div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (lesson.type === "practice") {
-    return (
-      <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `1px solid ${colors.n200}` }}>
-        <div style={{ fontSize: 10, letterSpacing: 2, color: AMBER, fontFamily: fonts.mono, marginBottom: 12 }}>{lesson.summary}</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {lesson.items!.map((ex, i) => (
-            <div key={i} style={{ padding: "14px 16px", borderRadius: 10, background: colors.n50, border: `1px solid ${colors.n200}`, fontFamily: "'Cormorant Garamond',serif", fontSize: 22, color: colors.n800, textAlign: "right", direction: "rtl" }}>
-              {ex}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // "revision"
-  return (
-    <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `1px solid ${colors.n200}` }}>
-      <div style={{ fontSize: 10, letterSpacing: 2, color: AMBER, fontFamily: fonts.mono, marginBottom: 12 }}>{lesson.summary}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {lesson.items!.map((it, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0" }}>
-            <div style={{ width: 20, height: 20, borderRadius: 6, border: `1.5px solid ${colors.n300}`, flexShrink: 0 }} />
-            <div style={{ fontFamily: fonts.body, fontSize: 13, color: colors.n700 }}>{it}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function todayLocal(): string { return new Date().toISOString().split("T")[0]; }
+function nowLocal(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 export default function QaidaPage() {
-  const [students,setStudents] = useState<{id:string;name:string}[]>([]);
-  const [selected,setSelected] = useState("");
-  const [lesson,  setLesson]   = useState(0);
-  const [selectedLetter, setSelectedLetter] = useState("");
-  const [comp,    setComp]     = useState<CompLevel|"">("");
-  const [mistakes,setMistakes] = useState(0);
-  const [notes,   setNotes]    = useState("");
-  const [saving,  setSaving]   = useState(false);
-  const [saved,   setSaved]    = useState(false);
-  const [error,   setError]    = useState("");
+  const [students, setStudents] = useState<{ id: string; name: string }[]>([]);
+  const [selected, setSelected] = useState("");
+  const [data, setData] = useState<QaidaData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [activeTakhti, setActiveTakhti] = useState<number | null>(null);
+
+  const [date, setDate] = useState(todayLocal());
+  const [time, setTime] = useState(nowLocal());
+  const [rating, setRating] = useState<Rating | "">("");
+  const [makhraj, setMakhraj] = useState(3);
+  const [tajweed, setTajweed] = useState(3);
+  const [fluency, setFluency] = useState(3);
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/ustadh/dashboard")
-      .then(r=>r.json())
-      .then(d=>{ if(d.success){ setStudents(d.data.students); if(d.data.students.length>0)setSelected(d.data.students[0].id); }});
-  },[]);
+      .then(r => r.json())
+      .then(d => { if (d.success) { setStudents(d.data.students); if (d.data.students.length > 0) setSelected(d.data.students[0].id); } });
+  }, []);
 
-  const handleSave = async () => {
-    if(!selected||!comp){setError("Select student and competency level");return;}
-    setSaving(true);setError("");
-    const gradeMap:Record<CompLevel,Grade> = {INTRODUCED:"WEAK",PRACTICING:"GOOD",MASTERED:"EXCELLENT"};
-    try {
-      const res = await fetch("/api/lesson-entries",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          studentId:selected,lessonType:"SABAQ",
-          grade:gradeMap[comp],mistakeCount:mistakes,
-          notes:`Qaida/Tajweed: ${QAIDA_LESSONS[lesson].title} — ${comp}${notes?` — ${notes}`:""}`,
-        }),
-      });
-      const data = await res.json();
-      if(data.success){setSaved(true);setTimeout(()=>setSaved(false),2000);setComp("");setMistakes(0);setNotes("");}
-      else setError(data.error||"Failed to save");
-    }catch{setError("Connection error");}finally{setSaving(false);}
+  const loadQaida = useCallback(() => {
+    if (!selected) return;
+    setLoading(true);
+    fetch(`/api/students/${selected}/qaida`)
+      .then(r => r.json())
+      .then(d => { if (d.success) setData(d.data); })
+      .finally(() => setLoading(false));
+  }, [selected]);
+
+  useEffect(loadQaida, [loadQaida]);
+
+  const openTakhti = (n: number) => {
+    setActiveTakhti(n);
+    setRating(""); setMakhraj(3); setTajweed(3); setFluency(3); setNotes(""); setError("");
+    setDate(todayLocal()); setTime(nowLocal());
   };
 
-  const current = QAIDA_LESSONS[lesson];
+  const handleSave = async () => {
+    if (!activeTakhti || !rating) { setError("Select a rating before saving"); return; }
+    setSaving(true); setError("");
+    try {
+      const attemptDate = new Date(`${date}T${time}:00`).toISOString();
+      const res = await fetch(`/api/students/${selected}/qaida/attempts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ takhtiNumber: activeTakhti, rating, makhrajAccuracy: makhraj, tajweedAccuracy: tajweed, fluency, notes: notes || undefined, attemptDate }),
+      });
+      const d = await res.json();
+      if (!d.success) { setError(d.error || "Failed to save"); return; }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      loadQaida();
+    } catch {
+      setError("Connection error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const takhtiDef = activeTakhti ? TAKHTIS[activeTakhti - 1] : null;
 
   return (
-    <div style={{minHeight:"100vh",background:colors.n50}}>
-      <div style={{background:`linear-gradient(135deg,#78350f,${AMBER})`,padding:"14px 20px",display:"flex",alignItems:"center",gap:14,position:"sticky",top:0,zIndex:50}}>
-        <Link href="/dashboard/ustadh" style={{width:36,height:36,borderRadius:10,background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",color:colors.white,fontSize:18}}>←</Link>
+    <div style={{ minHeight: "100vh", background: colors.n50 }}>
+      <div style={{ background: `linear-gradient(135deg,#78350f,${AMBER})`, padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, position: "sticky", top: 0, zIndex: 50 }}>
+        <Link href="/dashboard/ustadh" style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", color: colors.white, fontSize: 18 }}>←</Link>
         <div>
-          <div style={{fontFamily:fonts.heading,fontSize:16,fontWeight:700,color:colors.white}}>✏️ Qaida / Tajweed</div>
-          <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,color:"rgba(255,255,255,0.6)"}}>قاعدہ · تجوید</div>
+          <div style={{ fontFamily: fonts.heading, fontSize: 16, fontWeight: 700, color: colors.white }}>📖 Noorani Qaida Tracker</div>
+          <div style={{ fontFamily: serif, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>قاعدہ نورانیہ — 16 تختیاں</div>
         </div>
+        {data && (
+          <button onClick={() => window.print()} style={{ marginLeft: "auto", padding: "9px 16px", borderRadius: 8, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", color: colors.white, fontFamily: fonts.heading, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+            ⬇ Download Report
+          </button>
+        )}
       </div>
 
-      <div style={{maxWidth:560,margin:"0 auto",padding:"20px 16px"}}>
-
-        {/* Student */}
-        <div style={{background:colors.white,borderRadius:14,padding:18,border:`1px solid ${colors.n200}`,marginBottom:14}}>
-          <div style={{fontSize:10,letterSpacing:2,color:AMBER,fontFamily:fonts.mono,marginBottom:10}}>SELECT STUDENT</div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {students.map(s=>(
-              <button key={s.id} onClick={()=>setSelected(s.id)} style={{
-                padding:"11px 14px",borderRadius:10,border:`1.5px solid ${selected===s.id?AMBER:colors.n200}`,
-                background:selected===s.id?`${AMBER}12`:colors.white,cursor:"pointer",textAlign:"left",
-                fontFamily:fonts.heading,fontSize:13,fontWeight:selected===s.id?700:400,color:selected===s.id?AMBER:colors.n700,
+      <div style={{ maxWidth: 760, margin: "0 auto", padding: "20px 16px" }}>
+        {/* Student picker */}
+        <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `1px solid ${colors.n200}`, marginBottom: 14 }}>
+          <div style={{ fontSize: 10, letterSpacing: 2, color: AMBER, fontFamily: fonts.mono, marginBottom: 10 }}>SELECT STUDENT</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {students.map(s => (
+              <button key={s.id} onClick={() => { setSelected(s.id); setActiveTakhti(null); }} style={{
+                padding: "9px 14px", borderRadius: 10, border: `1.5px solid ${selected === s.id ? AMBER : colors.n200}`,
+                background: selected === s.id ? `${AMBER}12` : colors.white, cursor: "pointer",
+                fontFamily: fonts.heading, fontSize: 13, fontWeight: selected === s.id ? 700 : 400, color: selected === s.id ? AMBER : colors.n700,
               }}>{s.name}</button>
             ))}
           </div>
         </div>
 
-        {/* Lesson stepper */}
-        <div style={{background:colors.white,borderRadius:14,padding:18,border:`1px solid ${colors.n200}`,marginBottom:14}}>
-          <div style={{fontSize:10,letterSpacing:2,color:AMBER,fontFamily:fonts.mono,marginBottom:10}}>LESSON {lesson+1} OF {QAIDA_LESSONS.length}</div>
-          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:10}}>
-            {QAIDA_LESSONS.map((l,i)=>(
-              <button key={i} onClick={()=>{setLesson(i);setSelectedLetter("");}} style={{
-                flexShrink:0,width:34,height:34,borderRadius:8,border:`1.5px solid ${lesson===i?AMBER:colors.n200}`,
-                background:lesson===i?AMBER:colors.white,color:lesson===i?colors.white:colors.n500,
-                cursor:"pointer",fontFamily:fonts.mono,fontSize:12,fontWeight:700,
-              }}>{i+1}</button>
-            ))}
-          </div>
-          <div style={{fontFamily:fonts.heading,fontSize:15,fontWeight:700,color:colors.n800}}>
-            {current.title} <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,color:AMBER,fontWeight:400}}>{current.titleArabic}</span>
-          </div>
-          <div style={{fontFamily:fonts.body,fontSize:11,color:colors.n500,marginTop:2}}>{current.titleUrdu}</div>
-          <div style={{marginTop:10}}>
-            <div style={{height:6,background:colors.n100,borderRadius:3,overflow:"hidden"}}>
-              <div style={{height:"100%",width:`${((lesson+1)/QAIDA_LESSONS.length)*100}%`,background:`linear-gradient(90deg,${AMBER},#f59e0b)`,borderRadius:3,transition:"width 0.3s"}}/>
+        {loading && <div style={{ textAlign: "center", padding: 30, color: colors.n500 }}>Loading…</div>}
+
+        {!loading && data && (
+          <>
+            {/* Summary stats */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
+              <div style={{ background: colors.successBg, borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+                <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: colors.successText }}>{data.summary.masteredCount}/{data.summary.totalTakhtis}</div>
+                <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.successText, marginTop: 2 }}>Mastered</div>
+              </div>
+              <div style={{ background: "#eff6ff", borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+                <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: "#1d4ed8" }}>Takhti {data.summary.currentTakhti}</div>
+                <div style={{ fontFamily: fonts.body, fontSize: 10, color: "#1d4ed8", marginTop: 2 }}>Currently On</div>
+              </div>
+              <div style={{ background: colors.warningBg, borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+                <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: colors.warningText }}>{data.summary.needsRevisionCount}</div>
+                <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.warningText, marginTop: 2 }}>Needs Revision</div>
+              </div>
+              <div style={{ background: colors.n100, borderRadius: 14, padding: "14px 8px", textAlign: "center" }}>
+                <div style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 800, color: colors.n700 }}>{data.summary.overallStatus.replace("_", " ")}</div>
+                <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n500, marginTop: 2 }}>Overall Status</div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Lesson content */}
-        <div style={{marginBottom:14}}>
-          <LessonContent lessonIndex={lesson} selectedLetter={selectedLetter} onSelectLetter={setSelectedLetter} />
-        </div>
-
-        {/* Competency level */}
-        <div style={{background:colors.white,borderRadius:14,padding:18,border:`1px solid ${colors.n200}`,marginBottom:14}}>
-          <div style={{fontSize:10,letterSpacing:2,color:AMBER,fontFamily:fonts.mono,marginBottom:12}}>COMPETENCY LEVEL *</div>
-          <div style={{display:"flex",gap:10}}>
-            {COMP.map(c=>(
-              <button key={c.id} onClick={()=>setComp(c.id)} style={{
-                flex:1,padding:"14px 8px",borderRadius:12,border:`2px solid ${comp===c.id?c.color:colors.n200}`,
-                background:comp===c.id?c.bg:colors.n50,cursor:"pointer",textAlign:"center",
-              }}>
-                <div style={{fontSize:18,marginBottom:4}}>{c.id==="INTRODUCED"?"📖":c.id==="PRACTICING"?"✍️":"🏆"}</div>
-                <div style={{fontFamily:fonts.heading,fontSize:12,fontWeight:700,color:comp===c.id?c.color:colors.n600}}>{c.label}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Mistakes */}
-        <div style={{background:colors.white,borderRadius:14,padding:18,border:`1px solid ${colors.n200}`,marginBottom:14}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <div style={{fontSize:10,letterSpacing:2,color:AMBER,fontFamily:fonts.mono}}>MISTAKES</div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <button onClick={()=>setMistakes(Math.max(0,mistakes-1))} style={{width:32,height:32,borderRadius:8,border:`1px solid ${colors.n200}`,background:colors.n50,cursor:"pointer",fontSize:16}}>−</button>
-              <span style={{fontFamily:fonts.heading,fontSize:22,fontWeight:700,color:mistakes===0?colors.success:mistakes<5?colors.warning:colors.error,width:32,textAlign:"center"}}>{mistakes}</span>
-              <button onClick={()=>setMistakes(mistakes+1)} style={{width:32,height:32,borderRadius:8,border:`1px solid ${colors.n200}`,background:colors.n50,cursor:"pointer",fontSize:16}}>+</button>
+            {/* 16-Takhti journey grid */}
+            <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `1px solid ${colors.n200}`, marginBottom: 14 }}>
+              <div style={{ fontSize: 10, letterSpacing: 2, color: AMBER, fontFamily: fonts.mono, marginBottom: 12 }}>THE 16-TAKHTI JOURNEY</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                {data.takhtiProgress.map(tp => {
+                  const st = statusStyle(tp.status);
+                  const def = TAKHTIS[tp.takhtiNumber - 1];
+                  const isActive = activeTakhti === tp.takhtiNumber;
+                  return (
+                    <button key={tp.takhtiNumber} onClick={() => openTakhti(tp.takhtiNumber)} style={{
+                      padding: "10px 6px", borderRadius: 10, border: `1.5px solid ${isActive ? AMBER : st.border}`,
+                      background: isActive ? `${AMBER}15` : st.bg, cursor: "pointer", textAlign: "center",
+                    }}>
+                      <div style={{ fontFamily: fonts.heading, fontSize: 15, fontWeight: 800, color: isActive ? AMBER : st.color }}>{tp.takhtiNumber}</div>
+                      <div style={{ fontFamily: fonts.body, fontSize: 9, color: isActive ? AMBER : st.color, marginTop: 2, lineHeight: 1.3 }}>{def.title}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-          <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="Notes about this lesson..."
-            style={{width:"100%",padding:"10px",border:`1px solid ${colors.n200}`,borderRadius:8,fontSize:13,fontFamily:fonts.body,color:colors.n700,resize:"none",outline:"none"}}/>
-        </div>
 
-        {error&&<div style={{background:colors.errorBg,borderRadius:10,padding:"12px",marginBottom:12}}><span style={{fontFamily:fonts.body,fontSize:12,color:colors.errorText}}>⚠ {error}</span></div>}
-        {saved&&<div style={{background:colors.successBg,borderRadius:10,padding:"12px",marginBottom:12,textAlign:"center"}}><span style={{fontFamily:fonts.heading,fontSize:13,fontWeight:600,color:colors.successText}}>✓ Saved!</span></div>}
+            {/* Record Attempt panel */}
+            {takhtiDef && (
+              <div style={{ background: colors.white, borderRadius: 14, padding: 18, border: `2px solid ${AMBER}40`, marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+                  <div>
+                    <div style={{ fontFamily: fonts.heading, fontSize: 15, fontWeight: 700, color: colors.n800 }}>
+                      Record Attempt — Takhti {takhtiDef.number}: {takhtiDef.title} <span style={{ fontFamily: serif, color: AMBER }}>({takhtiDef.titleArabic})</span>
+                    </div>
+                    <div style={{ fontFamily: fonts.body, fontSize: 12, color: colors.n500, marginTop: 4 }}>{takhtiDef.description}</div>
+                  </div>
+                  <button onClick={() => setActiveTakhti(null)} style={{ background: "none", border: "none", fontSize: 18, color: colors.n400, cursor: "pointer" }}>✕</button>
+                </div>
 
-        <button onClick={handleSave} disabled={saving||!comp||!selected} style={{
-          width:"100%",padding:"15px",borderRadius:12,background:!comp||!selected?colors.n300:AMBER,
-          color:colors.white,fontSize:15,fontWeight:700,border:"none",cursor:!comp||!selected||saving?"not-allowed":"pointer",fontFamily:fonts.heading,
-        }}>
-          {saving?"Saving...":"Save Qaida Entry"}
-        </button>
+                <div style={{ marginTop: 14, padding: 16, borderRadius: 12, background: "#fffbeb", border: `1.5px solid #fde68a` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontFamily: fonts.mono, fontSize: 10, color: AMBER, marginBottom: 10 }}>
+                    <span>NOORANI QAIDA — TAKHTI {takhtiDef.number}</span>
+                  </div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 11, color: colors.n500, marginBottom: 10 }}>{takhtiDef.contentLabel}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, direction: "rtl" }}>
+                    {takhtiDef.items.map((item, i) => (
+                      <div key={i} style={{ padding: "10px 12px", minWidth: 44, borderRadius: 10, background: colors.white, border: `1.5px solid #fde68a`, textAlign: "center" }}>
+                        <div style={{ fontFamily: serif, fontSize: takhtiDef.contentType === "letters" ? 24 : 18, color: colors.n800 }}>{item.text}</div>
+                        {item.sub && <div style={{ fontFamily: fonts.mono, fontSize: 9, color: colors.n400, marginTop: 2 }}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 16 }}>
+                  <div>
+                    <label style={{ fontFamily: fonts.heading, fontSize: 11, fontWeight: 700, color: colors.n600, display: "block", marginBottom: 6 }}>Date</label>
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body }} />
+                  </div>
+                  <div>
+                    <label style={{ fontFamily: fonts.heading, fontSize: 11, fontWeight: 700, color: colors.n600, display: "block", marginBottom: 6 }}>Time</label>
+                    <input type="time" value={time} onChange={e => setTime(e.target.value)} style={{ width: "100%", padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body }} />
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <label style={{ fontFamily: fonts.heading, fontSize: 11, fontWeight: 700, color: colors.n600, display: "block", marginBottom: 8 }}>RATING</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                    {RATINGS.map(r => (
+                      <button key={r.id} onClick={() => setRating(r.id)} style={{
+                        padding: "10px 4px", borderRadius: 10, border: `1.5px solid ${rating === r.id ? AMBER : colors.n200}`,
+                        background: rating === r.id ? `${AMBER}15` : colors.n50, cursor: "pointer",
+                        fontFamily: fonts.heading, fontSize: 11, fontWeight: 700, color: rating === r.id ? AMBER : colors.n600,
+                      }}>{r.label}</button>
+                    ))}
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginTop: 16 }}>
+                  {[
+                    { label: "Makhraj Accuracy", val: makhraj, set: setMakhraj },
+                    { label: "Tajweed Accuracy", val: tajweed, set: setTajweed },
+                    { label: "Fluency", val: fluency, set: setFluency },
+                  ].map(scale => (
+                    <div key={scale.label}>
+                      <label style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: colors.n600, display: "block", marginBottom: 8 }}>{scale.label}</label>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button key={n} onClick={() => scale.set(n)} style={{
+                            width: 24, height: 24, borderRadius: "50%", border: "none", cursor: "pointer",
+                            background: n <= scale.val ? colors.primary : colors.n200,
+                            color: n <= scale.val ? colors.white : colors.n500,
+                            fontFamily: fonts.mono, fontSize: 10, fontWeight: 700,
+                          }}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 16 }}>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Notes about this attempt..."
+                    style={{ width: "100%", padding: 10, border: `1.5px solid ${colors.n200}`, borderRadius: 8, fontSize: 13, fontFamily: fonts.body, color: colors.n700, resize: "none", outline: "none" }} />
+                </div>
+
+                {error && <div style={{ background: colors.errorBg, borderRadius: 10, padding: 12, marginTop: 12 }}><span style={{ fontFamily: fonts.body, fontSize: 12, color: colors.errorText }}>⚠ {error}</span></div>}
+                {saved && <div style={{ background: colors.successBg, borderRadius: 10, padding: 12, marginTop: 12, textAlign: "center" }}><span style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 600, color: colors.successText }}>✓ Saved!</span></div>}
+
+                <button onClick={handleSave} disabled={saving || !rating} style={{
+                  width: "100%", padding: 14, borderRadius: 12, marginTop: 14, border: "none",
+                  background: !rating ? colors.n300 : AMBER, color: colors.white,
+                  fontSize: 14, fontWeight: 700, cursor: !rating || saving ? "not-allowed" : "pointer", fontFamily: fonts.heading,
+                }}>
+                  {saving ? "Saving…" : "Save Attempt"}
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

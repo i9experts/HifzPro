@@ -1,12 +1,13 @@
 import { test, expect, request as playwrightRequest } from "@playwright/test";
 
-// The Qaida/Tajweed page used to be a bare lesson-name dropdown with no real
-// content. This covers the real Noorani Qaida content now rendered per
-// lesson: the 29-letter alphabet with Makharij (articulation point) info,
-// the interactive Makharij diagram, rule-based lessons (e.g. Qalqalah,
-// Noon Sakin), and that recording a Qaida entry still works end to end.
+// The Qaida/Tajweed module now tracks the standard 16-Takhti Noorani Qaida
+// curriculum per student: a summary dashboard (mastered count, current
+// Takhti, needs-revision count, overall status), a 16-Takhti grid, and a
+// Record Attempt panel (real drill content, date/time, a 4-level rating,
+// and three 1-5 accuracy scales) that logs an attempt and updates the
+// Takhti's status.
 
-test("Qaida page renders real lesson content and still records entries", async ({ page, baseURL }) => {
+test("Qaida tracker records attempts and updates 16-Takhti progress", async ({ page, baseURL }) => {
   const ts = Date.now();
 
   const ustadhRes = await page.request.post("/api/admin/asatidha", {
@@ -43,31 +44,40 @@ test("Qaida page renders real lesson content and still records entries", async (
   await page.context().addCookies(storageState.cookies);
 
   await page.goto("/dashboard/ustadh/qaida", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText(`QA Qaida Student ${ts}`)).toBeVisible({ timeout: 10_000 });
   await page.getByText(`QA Qaida Student ${ts}`).click();
 
-  // Lesson 1: Arabic Letters — the 29-letter grid should render, and tapping
-  // a letter should show its makhraj info and highlight the diagram.
-  await expect(page.getByText("Arabic Letters", { exact: false })).toBeVisible();
-  await expect(page.getByText("29 LETTERS", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "ق", exact: false }).click();
-  await expect(page.getByText("Qaf", { exact: false })).toBeVisible();
-  await expect(page.getByText("MAKHARIJ AL-HUROOF", { exact: false })).toBeVisible();
+  // Fresh student: nothing mastered yet, starting on Takhti 1, not started overall
+  await expect(page.getByText("0/16")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Takhti 1", { exact: true })).toBeVisible();
+  await expect(page.getByText("NOT STARTED")).toBeVisible();
 
-  // Jump to Lesson 7: Qalqalah — a rules-type lesson with trigger letters
-  await page.locator("button", { hasText: /^7$/ }).click();
-  await expect(page.getByText("Qalqalah", { exact: false }).first()).toBeVisible();
-  await expect(page.getByText("قطب جد").first()).toBeVisible();
+  // Open Takhti 1 (Mufradat) — the 29-letter grid should render
+  await page.getByText("Mufradat", { exact: true }).first().click();
+  await expect(page.getByText("Record Attempt — Takhti 1: Mufradat", { exact: false })).toBeVisible();
+  await expect(page.getByText("29 isolated Arabic letters", { exact: false })).toBeVisible();
+  await expect(page.getByText("ا", { exact: true }).first()).toBeVisible();
 
-  // Jump to Lesson 10: Noon Sakin & Tanwin — multiple rule cards
-  await page.locator("button", { hasText: /^10$/ }).click();
-  await expect(page.getByText("Idgham with Ghunnah")).toBeVisible();
-  await expect(page.getByText("Ikhfa (Concealment)")).toBeVisible();
+  // Rate it Mastered with full scores and save
+  await page.getByRole("button", { name: "Mastered" }).click();
+  await page.getByRole("button", { name: "Save Attempt" }).click();
+  await expect(page.getByText("Saved!", { exact: false })).toBeVisible({ timeout: 10_000 });
 
-  // Recording still works: select a competency level and save
-  await page.getByText("Practicing", { exact: true }).click();
-  await page.getByRole("button", { name: "Save Qaida Entry" }).click();
-  await expect(page.getByText("Saved!")).toBeVisible({ timeout: 10_000 });
+  // Progress should now show 1/16 mastered, advanced to Takhti 2, still in progress overall
+  await expect(page.getByText("1/16")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Takhti 2", { exact: true })).toBeVisible();
+  await expect(page.getByText("IN PROGRESS")).toBeVisible();
+
+  // Open Takhti 2 (Murakkabat) and flag it as needing practice
+  await page.getByText("Murakkabat", { exact: true }).first().click();
+  await expect(page.getByText("Record Attempt — Takhti 2: Murakkabat", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Needs Practice" }).click();
+  await page.getByRole("button", { name: "Save Attempt" }).click();
+  await expect(page.getByText("Saved!", { exact: false })).toBeVisible({ timeout: 10_000 });
+
+  // Needs-revision count should now be 1, mastered count unchanged at 1/16
+  await expect(page.getByText("1/16")).toBeVisible({ timeout: 10_000 });
+  const needsRevisionCard = page.getByText("Needs Revision", { exact: true }).locator("xpath=..");
+  await expect(needsRevisionCard.getByText("1", { exact: true })).toBeVisible();
 
   await ustadhContext.dispose();
 });
