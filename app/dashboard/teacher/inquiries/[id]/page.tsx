@@ -66,7 +66,7 @@ export default function TeacherInquiryThreadPage() {
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px", flex: 1, width: "100%", display: "flex", flexDirection: "column" }}>
         {loading && <div style={{ color: colors.n500, textAlign: "center", padding: 30 }}>Loading…</div>}
 
-        {myUserId && <BookingPanel inquiryId={id} myUserId={myUserId} />}
+        {myUserId && <BookingPanel inquiryId={id} myUserId={myUserId} role="teacher" />}
 
         <div style={{ flex: 1, display: "grid", gap: 10, marginBottom: 14 }}>
           {messages.map(m => {

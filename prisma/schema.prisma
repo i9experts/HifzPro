@@ -930,6 +930,12 @@ model TeacherProfile {
   isActive          Boolean  @default(true)
   avgRating         Float?
   totalReviews      Int      @default(0)
+
+  // Stripe Connect Express — lets the teacher receive payouts directly.
+  // A booking can't be paid for until stripeOnboardingComplete is true.
+  stripeConnectAccountId    String?  @unique
+  stripeOnboardingComplete  Boolean  @default(false)
+
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1004,18 +1010,21 @@ model TeacherMessage {
   @@map("teacher_messages")
 }
 
-// Booking confirmation (PRD §7/§9 Phase 1): a lightweight "we agreed"
-// record either side can propose from an inquiry thread. Payment stays
-// manual/admin-assisted — an admin marks PAYMENT_CONFIRMED once they've
-// collected payment outside the system (Stripe link or Rho wire, §9).
-// Phase 2 replaces this with the real booking/offer state machine +
-// Stripe Connect + virtual-institution auto-provisioning (§11).
+// Booking confirmation: a lightweight "we agreed" record either side can
+// propose from an inquiry thread. Once ACCEPTED, the parent pays via a
+// Stripe Connect PaymentIntent (destination charge to the teacher's
+// connected account, with a platform application fee) — the webhook
+// flips the booking to PAYMENT_CONFIRMED on success. An admin can still
+// mark PAYMENT_CONFIRMED manually as a fallback for payment paths Stripe
+// Connect doesn't cover (adminNotes records why). Auto-provisioning a
+// paid booking into a trackable Halqa/Student record is a later PR.
 enum BookingStatus {
   PROPOSED
   ACCEPTED
   DECLINED
   PAYMENT_CONFIRMED
   CANCELLED
+  REFUNDED
 }
 
 model Booking {
@@ -1037,6 +1046,14 @@ model Booking {
   paymentConfirmedAt  DateTime?
   paymentConfirmedById String?
   adminNotes          String?
+
+  // Stripe Connect payment — set once the parent pays via the real
+  // PaymentIntent flow (left null for manually-confirmed bookings).
+  stripePaymentIntentId String?  @unique
+  amountCharged         Float?   // total the parent was charged
+  platformFeeAmount     Float?   // HifzPro's 15% cut, in the same currency
+  refundedAt            DateTime?
+
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 

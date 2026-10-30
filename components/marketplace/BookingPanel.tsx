@@ -5,8 +5,9 @@ import { colors, fonts } from "@/lib/tokens";
 interface Booking {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
   program: string | null; hourlyRate: number | null; currency: string; notes: string | null;
-  status: "PROPOSED" | "ACCEPTED" | "DECLINED" | "PAYMENT_CONFIRMED" | "CANCELLED";
+  status: "PROPOSED" | "ACCEPTED" | "DECLINED" | "PAYMENT_CONFIRMED" | "CANCELLED" | "REFUNDED";
   proposedById: string;
+  amountCharged: number | null;
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -16,13 +17,15 @@ function inputStyle(): React.CSSProperties {
   return { padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body };
 }
 
-export default function BookingPanel({ inquiryId, myUserId }: { inquiryId: string; myUserId: string }) {
+export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId: string; myUserId: string; role: "parent" | "teacher" }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi", program: "HIFZ", hourlyRate: "", currency: "USD", notes: "" });
+  const [sessions, setSessions] = useState(4);
+  const [paying, setPaying] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/marketplace/inquiries/${inquiryId}/bookings`)
@@ -72,10 +75,29 @@ export default function BookingPanel({ inquiryId, myUserId }: { inquiryId: strin
     }
   };
 
+  const pay = async (bookingId: string) => {
+    setPaying(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/marketplace/inquiries/${inquiryId}/bookings/${bookingId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessions }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to start payment"); return; }
+      window.location.href = data.data.url;
+    } catch {
+      setError("Failed to start payment");
+    } finally {
+      setPaying(false);
+    }
+  };
+
   if (loading) return null;
 
   const latest = bookings[0];
-  const canProposeNew = !latest || latest.status === "DECLINED" || latest.status === "CANCELLED";
+  const canProposeNew = !latest || ["DECLINED", "CANCELLED", "REFUNDED"].includes(latest.status);
 
   return (
     <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
@@ -107,15 +129,37 @@ export default function BookingPanel({ inquiryId, myUserId }: { inquiryId: strin
               </button>
             </div>
           )}
-          {latest.status === "ACCEPTED" && (
+          {latest.status === "ACCEPTED" && role === "parent" && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: colors.successText, fontWeight: 600, marginBottom: 8 }}>
+                ✅ Both sides agreed — pay now to confirm the arrangement.
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                <label style={{ fontSize: 12, color: colors.n600 }}>Pay for</label>
+                <input type="number" min={1} max={52} value={sessions} onChange={e => setSessions(Math.max(1, Number(e.target.value) || 1))} style={{ ...inputStyle(), width: 60 }} />
+                <label style={{ fontSize: 12, color: colors.n600 }}>lesson(s)</label>
+                {latest.hourlyRate != null && (
+                  <span style={{ fontSize: 12, color: colors.n500 }}>— {latest.currency} {(latest.hourlyRate * sessions).toFixed(2)} total</span>
+                )}
+              </div>
+              <button disabled={paying} onClick={() => pay(latest.id)}
+                style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, border: "none", background: colors.primary, color: "white", fontWeight: 700, fontSize: 13, cursor: paying ? "not-allowed" : "pointer" }}>
+                {paying ? "Redirecting to payment…" : "Pay Now"}
+              </button>
+            </div>
+          )}
+          {latest.status === "ACCEPTED" && role === "teacher" && (
             <div style={{ fontSize: 12, color: colors.successText, marginTop: 8, fontWeight: 600 }}>
-              ✅ Both sides agreed — HifzPro will follow up to collect payment and confirm the arrangement.
+              ✅ Both sides agreed — waiting for the parent to complete payment.
             </div>
           )}
           {latest.status === "PAYMENT_CONFIRMED" && (
             <div style={{ fontSize: 12, color: colors.successText, marginTop: 8, fontWeight: 600 }}>
-              ✅ Payment confirmed — this arrangement is active.
+              ✅ Payment confirmed{latest.amountCharged != null && <> ({latest.currency} {latest.amountCharged.toFixed(2)})</>} — this arrangement is active.
             </div>
+          )}
+          {latest.status === "REFUNDED" && (
+            <div style={{ fontSize: 12, color: colors.n500, marginTop: 8, fontWeight: 600 }}>This booking's payment was refunded.</div>
           )}
           {latest.status === "DECLINED" && (
             <div style={{ fontSize: 12, color: colors.errorText, marginTop: 8, fontWeight: 600 }}>This proposal was declined.</div>
