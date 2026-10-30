@@ -13,6 +13,7 @@ interface Teacher {
 interface Booking {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
   program: string | null; hourlyRate: number | null; currency: string; status: string; updatedAt: string;
+  amountCharged: number | null; platformFeeAmount: number | null; stripePaymentIntentId: string | null;
   teacher: { user: { name: string; email: string | null } };
   parent: { user: { name: string; email: string | null } };
 }
@@ -27,6 +28,7 @@ const STATUS_COLOR: Record<string, { color: string; bg: string }> = {
   PAYMENT_CONFIRMED: { color: "#34d399", bg: "#052e16" },
   DECLINED:          { color: "#9ca3af", bg: "#1f2937" },
   CANCELLED:         { color: "#9ca3af", bg: "#1f2937" },
+  REFUNDED:          { color: "#f59e0b", bg: "#431d00" },
 };
 
 function selectStyle(): React.CSSProperties {
@@ -81,6 +83,20 @@ export default function AdminMarketplacePage() {
     await fetch(`/api/superadmin/marketplace/bookings/${id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "CANCEL" }),
     });
+    loadBookings();
+  };
+
+  const refundBooking = async (id: string, force = false) => {
+    if (!confirm(force ? "This is past the 24h full-refund window — refund anyway as an admin override?" : "Refund this booking's payment?")) return;
+    const res = await fetch(`/api/superadmin/marketplace/bookings/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "REFUND", force }),
+    });
+    const data = await res.json();
+    if (!data.success && res.status === 409 && !force) {
+      refundBooking(id, true);
+      return;
+    }
+    if (!data.success) alert(data.error || "Refund failed");
     loadBookings();
   };
 
@@ -156,6 +172,7 @@ export default function AdminMarketplacePage() {
                 <option value="PAYMENT_CONFIRMED">Payment confirmed</option>
                 <option value="DECLINED">Declined</option>
                 <option value="CANCELLED">Cancelled</option>
+                <option value="REFUNDED">Refunded</option>
               </select>
             </div>
             <div style={{ background: "#111827", borderRadius: 12, overflow: "hidden", border: "1px solid #1f2937" }}>
@@ -171,9 +188,13 @@ export default function AdminMarketplacePage() {
                     <div style={{ fontSize: 12, color: "white" }}>{b.teacher.user.name}</div>
                     <div style={{ fontSize: 12, color: "white" }}>{b.parent.user.name}</div>
                     <div style={{ fontSize: 11, color: "#9ca3af" }}>{b.program && <>{b.program} · </>}{DAYS[b.dayOfWeek]} {b.startTime}–{b.endTime} ({b.timezone})</div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{b.hourlyRate != null ? `${b.currency} ${b.hourlyRate}/hr` : "—"}</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af" }}>
+                      {b.amountCharged != null
+                        ? <>{b.currency} {b.amountCharged.toFixed(2)} paid{b.platformFeeAmount != null && <div style={{ fontSize: 9, color: "#6b7280" }}>fee {b.currency} {b.platformFeeAmount.toFixed(2)}</div>}</>
+                        : b.hourlyRate != null ? `${b.currency} ${b.hourlyRate}/hr` : "—"}
+                    </div>
                     <span style={{ background: st.bg, color: st.color, padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 700, fontFamily: fonts.heading, width: "fit-content" }}>{b.status.replace("_", " ")}</span>
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {b.status === "ACCEPTED" && (
                         <button onClick={() => confirmPayment(b.id)} style={{ padding: "4px 10px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
                           Mark paid
@@ -182,6 +203,11 @@ export default function AdminMarketplacePage() {
                       {(b.status === "PROPOSED" || b.status === "ACCEPTED") && (
                         <button onClick={() => cancelBooking(b.id)} style={{ padding: "4px 10px", borderRadius: 6, background: "#1f2937", color: "#9ca3af", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
                           Cancel
+                        </button>
+                      )}
+                      {b.status === "PAYMENT_CONFIRMED" && (
+                        <button onClick={() => refundBooking(b.id)} style={{ padding: "4px 10px", borderRadius: 6, background: "#431d00", color: "#f59e0b", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                          Refund
                         </button>
                       )}
                     </div>

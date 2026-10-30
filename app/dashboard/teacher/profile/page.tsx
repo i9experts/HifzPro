@@ -57,6 +57,12 @@ function toggleInArray(arr: string[], val: string): string[] {
   return arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
 }
 
+const STRIPE_COUNTRIES = [
+  { code: "PK", label: "Pakistan" }, { code: "GB", label: "United Kingdom" }, { code: "US", label: "United States" },
+  { code: "AE", label: "United Arab Emirates" }, { code: "SA", label: "Saudi Arabia" }, { code: "CA", label: "Canada" },
+  { code: "AU", label: "Australia" }, { code: "MY", label: "Malaysia" }, { code: "IN", label: "India" }, { code: "EG", label: "Egypt" },
+];
+
 export default function TeacherProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
@@ -67,6 +73,16 @@ export default function TeacherProfilePage() {
   const [langInput, setLangInput] = useState("");
   const [countryInput, setCountryInput] = useState("");
   const [newSlot, setNewSlot] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi" });
+
+  const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; onboardingComplete: boolean } | null>(null);
+  const [stripeCountry, setStripeCountry] = useState("PK");
+  const [connecting, setConnecting] = useState(false);
+
+  const loadStripeStatus = () => {
+    fetch("/api/marketplace/teacher/stripe/status")
+      .then(r => r.json())
+      .then(d => { if (d.success) setStripeStatus(d.data); });
+  };
 
   const load = () => {
     setLoading(true);
@@ -81,6 +97,26 @@ export default function TeacherProfilePage() {
   };
 
   useEffect(load, []);
+  useEffect(loadStripeStatus, []);
+
+  const connectPayouts = async () => {
+    setConnecting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/teacher/stripe/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country: stripeCountry }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to start payout setup"); return; }
+      window.location.href = data.data.url;
+    } catch {
+      setError("Failed to start payout setup");
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   const save = async (patch: Partial<Profile>) => {
     if (!profile) return;
@@ -162,6 +198,32 @@ export default function TeacherProfilePage() {
           >
             {profile.isListed ? "Unlist me" : "List me publicly"}
           </button>
+        </div>
+
+        {/* Payout setup */}
+        <div style={{ background: stripeStatus?.onboardingComplete ? colors.successBg : colors.warningBg, borderRadius: 14, padding: "14px 16px" }}>
+          <div style={{ fontWeight: 700, color: stripeStatus?.onboardingComplete ? colors.successText : colors.warningText, fontFamily: fonts.heading }}>
+            {stripeStatus?.onboardingComplete ? "✅ Payout account connected" : "⚠️ Payout setup needed"}
+          </div>
+          {!stripeStatus?.onboardingComplete && (
+            <>
+              <div style={{ fontSize: 13, color: colors.warningText, marginTop: 6 }}>
+                Parents can't pay you for a booking until you've connected a Stripe payout account. This takes a couple of minutes.
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10, alignItems: "center" }}>
+                <select value={stripeCountry} onChange={e => setStripeCountry(e.target.value)} style={{ ...inputStyle(), width: "auto" }}>
+                  {STRIPE_COUNTRIES.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+                </select>
+                <button
+                  disabled={connecting}
+                  onClick={connectPayouts}
+                  style={{ padding: "8px 16px", borderRadius: 8, border: "none", cursor: connecting ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 13, background: colors.primary, color: "white" }}
+                >
+                  {connecting ? "Redirecting…" : stripeStatus?.connected ? "Finish payout setup" : "Connect payout account"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {error && <div style={{ color: colors.errorText, background: colors.errorBg, padding: "10px 14px", borderRadius: 10, fontSize: 13 }}>{error}</div>}
