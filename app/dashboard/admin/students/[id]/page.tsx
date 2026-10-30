@@ -69,6 +69,13 @@ function getCurrentJuzFromEntries(lessonEntries: any[]): number | null {
   return sabaqEntries[0]?.juzFrom ?? null;
 }
 
+const PROGRAM_OPTIONS: {id:string;label:string}[] = [
+  {id:"NAZRA",   label:"Nazrah"},
+  {id:"HIFZ",    label:"Hifz ul Quran"},
+  {id:"TAJWEED", label:"Tajweed"},
+  {id:"GIRDAAN", label:"Girdaan"},
+];
+
 export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
   const {id} = use(params);
   const [tab,      setTab]      = useState<Tab>("overview");
@@ -76,16 +83,49 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
   const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState("");
 
-  useEffect(() => {
-    fetch(`/api/admin/students/${id}`)
-      .then(r=>r.json())
-      .then(d=>{
-        if(d.success) setStudent(d.data.student);
-        else setError("Student not found");
-      })
-      .catch(()=>setError("Failed to load student"))
-      .finally(()=>setLoading(false));
-  },[id]);
+  const [showPromote,    setShowPromote]    = useState(false);
+  const [promoteProgram, setPromoteProgram] = useState("");
+  const [promoteBatchId, setPromoteBatchId] = useState("");
+  const [promoteBatches, setPromoteBatches] = useState<{id:string;name:string;program:string}[]>([]);
+  const [promoting,      setPromoting]      = useState(false);
+  const [promoteError,   setPromoteError]   = useState("");
+  const [promoteMsg,     setPromoteMsg]     = useState("");
+
+  const loadStudent = () => fetch(`/api/admin/students/${id}`)
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.success) setStudent(d.data.student);
+      else setError("Student not found");
+    })
+    .catch(()=>setError("Failed to load student"))
+    .finally(()=>setLoading(false));
+
+  useEffect(() => { loadStudent(); },[id]);
+
+  const openPromote = () => {
+    setPromoteProgram(PROGRAM_OPTIONS.find(p=>p.id!==student.program)?.id || "HIFZ");
+    setPromoteBatchId(""); setPromoteError(""); setPromoteMsg("");
+    setShowPromote(true);
+    fetch("/api/admin/batches").then(r=>r.json()).then(d=>{
+      if(d.success) setPromoteBatches(d.data.batches.map((b:any)=>({id:b.id,name:b.name,program:b.program})));
+    });
+  };
+
+  const handlePromote = async () => {
+    setPromoting(true); setPromoteError("");
+    try {
+      const res = await fetch(`/api/admin/students/${id}/promote`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ program: promoteProgram, batchId: promoteBatchId || null }),
+      });
+      const data = await res.json();
+      if(data.success){
+        setPromoteMsg(data.data.message);
+        await loadStudent();
+        setTimeout(()=>setShowPromote(false), 1200);
+      } else setPromoteError(data.error || "Failed to promote student");
+    } catch { setPromoteError("Connection error"); } finally { setPromoting(false); }
+  };
 
   if(loading) return <div style={{minHeight:"100vh",background:colors.deep,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{fontFamily:fonts.body,color:"rgba(255,255,255,0.4)"}}>Loading student profile...</div></div>;
   if(error||!student) return <div style={{minHeight:"100vh",background:colors.n50,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center"}}><div style={{fontSize:40,marginBottom:12}}>⚠️</div><div style={{fontFamily:fonts.heading,fontSize:16,color:colors.n700}}>{error||"Student not found"}</div><Link href="/dashboard/admin/students" style={{display:"inline-block",marginTop:16,color:colors.primary,fontFamily:fonts.heading,fontSize:13}}>← Back to Students</Link></div></div>;
@@ -149,6 +189,7 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
               <a href={`/api/admin/students/${id}/report`} target="_blank" rel="noopener noreferrer" style={{padding:"9px 18px",borderRadius:8,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",color:"white",fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>
                 📄 Print Report
               </a>
+              <button onClick={openPromote} style={{padding:"9px 18px",borderRadius:8,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",color:"white",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:fonts.heading}}>🔄 Promote Student</button>
               <Link href={`/dashboard/admin/students/${id}/edit`} style={{padding:"9px 18px",borderRadius:8,background:colors.gold,color:colors.white,fontSize:12,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>Edit Student</Link>
             </div>
           </div>
@@ -500,6 +541,47 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
           </div>
         )}
       </div>
+
+      {/* PROMOTE STUDENT MODAL */}
+      {showPromote && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:20}} onClick={()=>!promoting&&setShowPromote(false)}>
+          <div style={{background:colors.white,borderRadius:16,padding:28,maxWidth:440,width:"100%"}} onClick={e=>e.stopPropagation()}>
+            <div style={{fontFamily:fonts.mono,fontSize:9,letterSpacing:3,color:colors.gold,marginBottom:4}}>PROMOTE / TRANSFER STUDENT</div>
+            <h3 style={{fontFamily:fonts.display,fontSize:"1.3rem",fontWeight:700,color:colors.n800,margin:"0 0 6px"}}>{s.name}</h3>
+            <p style={{fontFamily:fonts.body,fontSize:12,color:colors.n500,marginBottom:20,lineHeight:1.6}}>
+              Currently in <strong>{PROGRAM_LABELS[s.program]||s.program}</strong>. All existing records, progress and history are kept — only the program (and Halqa, if you choose one) will change.
+            </p>
+
+            <div style={{marginBottom:16}}>
+              <label style={{display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:6}}>Promote To</label>
+              <select value={promoteProgram} onChange={e=>{setPromoteProgram(e.target.value);setPromoteBatchId("");}} style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${colors.n200}`,borderRadius:8,fontSize:13,fontFamily:fonts.body,color:colors.n800,background:colors.white,outline:"none"}}>
+                {PROGRAM_OPTIONS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+
+            <div style={{marginBottom:20}}>
+              <label style={{display:"block",fontFamily:fonts.heading,fontSize:12,fontWeight:600,color:colors.n700,marginBottom:6}}>Assign Halqa (optional)</label>
+              <select value={promoteBatchId} onChange={e=>setPromoteBatchId(e.target.value)} style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${colors.n200}`,borderRadius:8,fontSize:13,fontFamily:fonts.body,color:colors.n800,background:colors.white,outline:"none"}}>
+                <option value="">— Leave unassigned for now —</option>
+                {promoteBatches.filter(b=>b.program===promoteProgram).map(b=><option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+              {promoteBatches.filter(b=>b.program===promoteProgram).length===0 && (
+                <div style={{fontFamily:fonts.body,fontSize:11,color:colors.n400,marginTop:4}}>No {PROGRAM_LABELS[promoteProgram]||promoteProgram} Halqas yet — the student will be unassigned until one is created.</div>
+              )}
+            </div>
+
+            {promoteError && <div style={{background:colors.errorBg,borderRadius:10,padding:"10px 14px",marginBottom:16}}><span style={{fontFamily:fonts.body,fontSize:12,color:colors.errorText}}>⚠ {promoteError}</span></div>}
+            {promoteMsg && <div style={{background:colors.successBg,borderRadius:10,padding:"10px 14px",marginBottom:16}}><span style={{fontFamily:fonts.body,fontSize:12,color:colors.successText}}>✓ {promoteMsg}</span></div>}
+
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setShowPromote(false)} disabled={promoting} style={{flex:1,padding:"12px",borderRadius:10,background:colors.n100,border:`1px solid ${colors.n200}`,color:colors.n700,fontSize:13,fontFamily:fonts.heading,cursor:promoting?"not-allowed":"pointer"}}>Cancel</button>
+              <button onClick={handlePromote} disabled={promoting||!!promoteMsg} style={{flex:2,padding:"12px",borderRadius:10,background:promoting?colors.n300:colors.primary,color:"white",fontSize:13,fontWeight:700,border:"none",cursor:promoting||promoteMsg?"not-allowed":"pointer",fontFamily:fonts.heading}}>
+                {promoting?"Promoting...":"Confirm Promotion"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

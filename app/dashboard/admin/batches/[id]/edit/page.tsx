@@ -21,7 +21,7 @@ export default function EditBatchPage({ params }: { params: Promise<{ id: string
   const [asatidha,setAsatidha]= useState<{id:string;user:{name:string}}[]>([]);
 
   const [form, setForm] = useState({
-    name:"", program:"HIFZ", ustadhId:"", sessionTime:"", maxStudents:15, isActive:true,
+    name:"", program:"HIFZ", ustadhId:"", sessionTime:"", customSession:"", maxStudents:15, isActive:true,
   });
 
   const set = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
@@ -32,7 +32,14 @@ export default function EditBatchPage({ params }: { params: Promise<{ id: string
       .then(d=>{
         if(d.success){
           const b = d.data.batch;
-          setForm({ name:b.name, program:b.program, ustadhId:b.ustadhId||"", sessionTime:b.sessionTime||"", maxStudents:b.maxStudents, isActive:b.isActive });
+          const existing = b.sessionTime || "";
+          const isCustom = !!existing && !SESSION_TIMES.includes(existing);
+          setForm({
+            name:b.name, program:b.program, ustadhId:b.ustadhId||"",
+            sessionTime: isCustom ? "custom" : existing,
+            customSession: isCustom ? existing : "",
+            maxStudents:b.maxStudents, isActive:b.isActive,
+          });
           setAsatidha(d.data.asatidha||[]);
         }
       })
@@ -43,9 +50,11 @@ export default function EditBatchPage({ params }: { params: Promise<{ id: string
     if(!form.name.trim()){setError("Name required");return;}
     setSaving(true); setError("");
     try {
+      const sessionTime = form.sessionTime === "custom" ? form.customSession : form.sessionTime;
+      const { customSession, ...rest } = form;
       const res = await fetch(`/api/admin/batches/${id}`,{
         method:"PUT",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({...form,ustadhId:form.ustadhId||null}),
+        body:JSON.stringify({...rest,sessionTime,ustadhId:form.ustadhId||null}),
       });
       const data = await res.json();
       if(data.success) setSaved(true);
@@ -109,7 +118,12 @@ export default function EditBatchPage({ params }: { params: Promise<{ id: string
               <select value={form.sessionTime} onChange={e=>set("sessionTime",e.target.value)} style={inp}>
                 <option value="">Not set</option>
                 {SESSION_TIMES.map(t=><option key={t} value={t}>{t}</option>)}
+                <option value="custom">Custom time...</option>
               </select>
+              {form.sessionTime === "custom" && (
+                <input value={form.customSession} onChange={e=>set("customSession",e.target.value)}
+                  placeholder="e.g. Daily 7:30 - 9:30 AM" style={{ ...inp, marginTop:8 }}/>
+              )}
             </div>
             <div>
               <label style={{ display:"block", fontFamily:fonts.heading, fontSize:12, fontWeight:600, color:colors.n700, marginBottom:6 }}>Max Students</label>
