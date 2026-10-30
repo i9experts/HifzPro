@@ -1,5 +1,31 @@
 import { test, expect } from "@playwright/test";
 
+test("set a custom session time on a batch", async ({ page }) => {
+  const batchName = `QA Custom Time Halqa ${Date.now()}`;
+  const createRes = await page.request.post("/api/admin/batches", {
+    data: { name: batchName, program: "HIFZ", maxStudents: 10 },
+  });
+  expect(createRes.ok()).toBeTruthy();
+  const { data } = await createRes.json();
+  const batchId = data.batch.id;
+
+  await page.goto(`/dashboard/admin/batches/${batchId}/edit`, { waitUntil: "domcontentloaded" });
+  await page.getByText("Session Time").locator("xpath=following-sibling::select").selectOption("custom");
+  await page.getByPlaceholder("e.g. Daily 7:30 - 9:30 AM").fill("Daily 5:15 - 6:45 AM");
+  await page.getByRole("button", { name: "Save Changes" }).last().click();
+
+  await expect(page.getByText(/Saved! Redirecting/i)).toBeVisible({ timeout: 10_000 });
+  await page.waitForURL(`**/dashboard/admin/batches/${batchId}`, { timeout: 10_000, waitUntil: "commit" });
+
+  const check = await page.request.get(`/api/admin/batches/${batchId}`);
+  const { data: after } = await check.json();
+  expect(after.batch.sessionTime).toBe("Daily 5:15 - 6:45 AM");
+
+  // Reopening the edit form should re-select "Custom" and show the saved value
+  await page.goto(`/dashboard/admin/batches/${batchId}/edit`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByPlaceholder("e.g. Daily 7:30 - 9:30 AM")).toHaveValue("Daily 5:15 - 6:45 AM");
+});
+
 test("edit and deactivate a batch", async ({ page }) => {
   const batchName = `QA Edit Halqa ${Date.now()}`;
   const createRes = await page.request.post("/api/admin/batches", {
