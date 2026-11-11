@@ -343,6 +343,7 @@ model Student {
 model Guardian {
   id             String   @id @default(cuid())
   studentId      String
+  parentId       String?
   name           String
   relation       String
   cnic           String?
@@ -356,7 +357,7 @@ model Guardian {
   updatedAt      DateTime @updatedAt
 
   student        Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  parent         Parent?
+  parent         Parent?  @relation(fields: [parentId], references: [id])
 
   @@map("guardians")
 }
@@ -366,15 +367,21 @@ model Guardian {
 // PARENT
 // ─────────────────────────────────────────
 
+// One Parent per login (User), covering however many of their children
+// have a Guardian row — originally a strict 1:1 with Guardian (one parent
+// portal account could only ever be linked to exactly one child's
+// Guardian record). Flipped to one-to-many so a parent with multiple
+// children — or a marketplace parent whose first paid booking links
+// their existing login into the school-side Parent/Guardian model —
+// can be linked across all of them, not capped at one forever.
 model Parent {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  guardianId  String   @unique
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String     @id @default(cuid())
+  userId      String     @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  guardian    Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guardians   Guardian[]
 
   @@map("parents")
 }
@@ -1053,6 +1060,18 @@ model Booking {
   amountCharged         Float?   // total the parent was charged
   platformFeeAmount     Float?   // HifzPro's 15% cut, in the same currency
   refundedAt            DateTime?
+
+  // The child's name, collected before payment — a Student record can't
+  // be created without one, and nothing upstream of payment (signup,
+  // inquiry, proposal) asks for it.
+  studentName           String?
+
+  // Set once lib/marketplace-provisioning.ts has turned this booking into
+  // a tracked Student (lessons/attendance/Manzil Health) in the Hifz
+  // Diary system under the shared marketplace campus. A plain scalar, not
+  // a formal relation, since nothing needs to join through it — just an
+  // idempotency marker plus a lookup id for the admin UI.
+  provisionedStudentId  String?  @unique
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt

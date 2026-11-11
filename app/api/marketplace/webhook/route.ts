@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
+import { provisionBookingIntoHifzDiary } from "@/lib/marketplace-provisioning";
 
 export const runtime = "nodejs"; // Required — edge runtime can't verify Stripe signatures
 
@@ -73,6 +74,16 @@ export async function POST(req: NextRequest) {
         });
 
         console.log("[marketplace-webhook] checkout.session.completed → PAYMENT_CONFIRMED for booking:", bookingId);
+
+        // Turn the paid booking into a tracked Student — best-effort: the
+        // payment already succeeded, so a provisioning failure here must
+        // never turn into a Stripe-visible webhook failure (which would
+        // cause a retry/redelivery of an event that already did its job).
+        try {
+          await provisionBookingIntoHifzDiary(bookingId);
+        } catch (err: any) {
+          console.error("[marketplace-webhook] Auto-provisioning failed for booking:", bookingId, err?.message, err);
+        }
         break;
       }
 

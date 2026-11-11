@@ -13,7 +13,10 @@ export async function GET(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "PARENT") return unauthorizedResponse();
+    // See app/api/parent/dashboard/route.ts — a marketplace parent linked
+    // in via an auto-provisioned booking needs access here too; ownership
+    // is enforced below via the Parent/Guardian chain, not the role.
+    if (!payload || !["PARENT", "MARKETPLACE_PARENT"].includes(payload.role)) return unauthorizedResponse();
 
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId");
