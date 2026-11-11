@@ -9,103 +9,61 @@ export async function GET(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "PARENT") return unauthorizedResponse();
+    // A marketplace parent (role MARKETPLACE_PARENT) whose paid booking has
+    // been auto-provisioned (lib/marketplace-provisioning.ts) gets linked
+    // into this same Parent/Guardian model under their existing login —
+    // so this dashboard has to accept that role too. Data isolation is
+    // still enforced below by the Parent/Guardian ownership chain, not by
+    // which role the token carries.
+    if (!payload || !["PARENT", "MARKETPLACE_PARENT"].includes(payload.role)) return unauthorizedResponse();
 
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get("studentId");
 
-    // Get parent record
-    const parent = await prisma.parent.findUnique({
-      where: { userId: payload.userId },
-      include: {
-        guardian: {
-          include: {
-            student: {
-              include: {
-                batch: {
-                  include: {
-                    ustadh: { include: { user: { select: { name: true, phone: true, whatsapp: true } } } },
-                    campus: { include: { institution: true } },
-                  },
-                },
-                progress:      true,
-                manzilHealth:  { orderBy: { calculatedAt: "desc" }, take: 5 },
-                lessonEntries: {
-                  orderBy:  { date: "desc" },
-                  take:     10,
-                  include:  { mistakes: true },
-                },
-                attendanceRecords: {
-                  orderBy:  { session: { date: "desc" } },
-                  take:     60,
-                  include:  { session: { select: { date: true, sessionTime: true } } },
-                },
-                testRecords: {
-                  orderBy:  { date: "desc" },
-                  take:     20,
-                  include:  { examiner: { include: { user: { select: { name: true } } } } },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Also find other children of this guardian
-    const allGuardians = await prisma.guardian.findMany({
-      where: {
-        OR: [
-          { phone: { in: [payload.userId] } },
-          { whatsapp: { in: [payload.userId] } },
-        ],
-      },
-      include: { student: { select: { id: true, name: true, photo: true, program: true, status: true } } },
-    });
-
+    // Every child linked to this parent's login — a Parent can now be
+    // linked to more than one Guardian row (prisma/schema.prisma: Parent
+    // used to cap at exactly one Guardian; see Guardian.parentId).
     const guardianByUser = await prisma.guardian.findMany({
       where: { parent: { userId: payload.userId } },
       include: { student: { select: { id: true, name: true, nameArabic: true, photo: true, program: true, status: true, enrollmentNumber: true } } },
     });
 
     const children = guardianByUser.map(g => g.student).filter(Boolean);
+    const targetStudentId = studentId || children[0]?.id;
 
-    // Get specific student (first child if not specified)
-    let student = parent?.guardian?.student;
-    if (studentId && studentId !== student?.id) {
-      const specificStudent = await prisma.student.findFirst({
-        where: {
-          id: studentId,
-          guardians: { some: { parent: { userId: payload.userId } } },
-        },
-        include: {
-          batch: {
-            include: {
-              ustadh: { include: { user: { select: { name: true, phone: true, whatsapp: true } } } },
-              campus: { include: { institution: true } },
+    const student = targetStudentId
+      ? await prisma.student.findFirst({
+          where: {
+            id: targetStudentId,
+            guardians: { some: { parent: { userId: payload.userId } } },
+          },
+          include: {
+            batch: {
+              include: {
+                ustadh: { include: { user: { select: { name: true, phone: true, whatsapp: true } } } },
+                campus: { include: { institution: true } },
+              },
+            },
+            progress:      true,
+            manzilHealth:  { orderBy: { calculatedAt: "desc" }, take: 5 },
+            lessonEntries: {
+              orderBy:  { date: "desc" },
+              take:     10,
+              include:  { mistakes: true },
+            },
+            attendanceRecords: {
+              orderBy:  { session: { date: "desc" } },
+              take:     60,
+              include:  { session: { select: { date: true, sessionTime: true } } },
+            },
+            testRecords: {
+              orderBy:  { date: "desc" },
+              take:     20,
+              include:  { examiner: { include: { user: { select: { name: true } } } } },
             },
           },
-          progress:      true,
-          manzilHealth:  { orderBy: { calculatedAt: "desc" }, take: 5 },
-          lessonEntries: {
-            orderBy:  { date: "desc" },
-            take:     10,
-            include:  { mistakes: true },
-          },
-          attendanceRecords: {
-            orderBy:  { session: { date: "desc" } },
-            take:     60,
-            include:  { session: { select: { date: true, sessionTime: true } } },
-          },
-          testRecords: {
-            orderBy:  { date: "desc" },
-            take:     20,
-            include:  { examiner: { include: { user: { select: { name: true } } } } },
-          },
-        },
-      });
-      if (specificStudent) student = specificStudent;
-    }
+        })
+      : null;
 
     if (!student) return successResponse({ student: null, children, hasNoChildren: true });
 
@@ -182,7 +140,7 @@ export async function GET(req: NextRequest) {
         testRecords:    student.testRecords,
       },
       children,
-      guardian: parent?.guardian,
+      guardian: guardianByUser.find(g => g.studentId === student.id) ?? guardianByUser[0],
     });
   } catch (error) {
     console.error("Parent dashboard error:", error);

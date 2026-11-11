@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
 import { refundBookingPayment } from "@/lib/stripe-connect";
+import { provisionBookingIntoHifzDiary } from "@/lib/marketplace-provisioning";
 
 const actionSchema = z.object({
   action: z.enum(["CONFIRM_PAYMENT", "CANCEL", "REFUND"]),
@@ -12,6 +13,11 @@ const actionSchema = z.object({
   // Required to refund once the booking is inside (or past) its 24h
   // full-refund window — an explicit admin override, not an automatic entitlement.
   force: z.boolean().optional(),
+  // CONFIRM_PAYMENT only: the Stripe "Pay Now" path always collects this
+  // first (see BookingPanel.tsx), but a manually-confirmed booking (wire
+  // transfer, a country Connect doesn't cover) may not have it yet —
+  // without it, auto-provisioning into a tracked Student is skipped.
+  studentName: z.string().trim().min(2).optional(),
 });
 
 // Full refund if cancelled more than 24h before the booking's first
@@ -60,9 +66,21 @@ export async function PATCH(
           paymentConfirmedAt: new Date(),
           paymentConfirmedById: payload.userId,
           adminNotes: result.data.adminNotes,
+          studentName: result.data.studentName ?? existing.studentName,
         },
       });
-      return successResponse({ booking });
+
+      // Same best-effort provisioning as the Stripe webhook path — the
+      // payment is already confirmed either way, so a provisioning error
+      // here shouldn't turn into a failed admin action.
+      let provisionedStudentId: string | null = null;
+      try {
+        provisionedStudentId = await provisionBookingIntoHifzDiary(id);
+      } catch (err: any) {
+        console.error("[admin confirm-payment] Auto-provisioning failed for booking:", id, err?.message, err);
+      }
+
+      return successResponse({ booking: { ...booking, provisionedStudentId: provisionedStudentId ?? booking.provisionedStudentId } });
     }
 
     if (result.data.action === "REFUND") {

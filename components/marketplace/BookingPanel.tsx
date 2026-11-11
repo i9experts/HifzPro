@@ -25,6 +25,7 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
   const [error, setError] = useState("");
   const [form, setForm] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi", program: "HIFZ", hourlyRate: "", currency: "USD", notes: "" });
   const [sessions, setSessions] = useState(4);
+  const [studentName, setStudentName] = useState("");
   const [paying, setPaying] = useState(false);
 
   const load = useCallback(() => {
@@ -76,13 +77,14 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
   };
 
   const pay = async (bookingId: string) => {
+    if (!studentName.trim()) { setError("Enter the student's name before paying"); return; }
     setPaying(true);
     setError("");
     try {
       const res = await fetch(`/api/marketplace/inquiries/${inquiryId}/bookings/${bookingId}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessions }),
+        body: JSON.stringify({ sessions, studentName: studentName.trim() }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.error || "Failed to start payment"); return; }
@@ -134,6 +136,10 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
               <div style={{ fontSize: 12, color: colors.successText, fontWeight: 600, marginBottom: 8 }}>
                 ✅ Both sides agreed — pay now to confirm the arrangement.
               </div>
+              <div style={{ marginBottom: 8 }}>
+                <label style={{ fontSize: 12, color: colors.n600, display: "block", marginBottom: 4 }}>Student's name</label>
+                <input value={studentName} onChange={e => setStudentName(e.target.value)} placeholder="Who are these lessons for?" style={{ ...inputStyle(), width: "100%" }} />
+              </div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                 <label style={{ fontSize: 12, color: colors.n600 }}>Pay for</label>
                 <input type="number" min={1} max={52} value={sessions} onChange={e => setSessions(Math.max(1, Number(e.target.value) || 1))} style={{ ...inputStyle(), width: 60 }} />
@@ -142,8 +148,8 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
                   <span style={{ fontSize: 12, color: colors.n500 }}>— {latest.currency} {(latest.hourlyRate * sessions).toFixed(2)} total</span>
                 )}
               </div>
-              <button disabled={paying} onClick={() => pay(latest.id)}
-                style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, border: "none", background: colors.primary, color: "white", fontWeight: 700, fontSize: 13, cursor: paying ? "not-allowed" : "pointer" }}>
+              <button disabled={paying || !studentName.trim()} onClick={() => pay(latest.id)}
+                style={{ marginTop: 8, padding: "8px 16px", borderRadius: 8, border: "none", background: colors.primary, color: "white", fontWeight: 700, fontSize: 13, cursor: paying || !studentName.trim() ? "not-allowed" : "pointer" }}>
                 {paying ? "Redirecting to payment…" : "Pay Now"}
               </button>
             </div>

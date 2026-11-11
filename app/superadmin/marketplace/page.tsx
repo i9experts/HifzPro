@@ -14,6 +14,7 @@ interface Booking {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
   program: string | null; hourlyRate: number | null; currency: string; status: string; updatedAt: string;
   amountCharged: number | null; platformFeeAmount: number | null; stripePaymentIntentId: string | null;
+  studentName: string | null; provisionedStudentId: string | null;
   teacher: { user: { name: string; email: string | null } };
   parent: { user: { name: string; email: string | null } };
 }
@@ -70,10 +71,18 @@ export default function AdminMarketplacePage() {
     loadTeachers();
   };
 
-  const confirmPayment = async (id: string) => {
+  const confirmPayment = async (id: string, existingStudentName: string | null) => {
     if (!confirm("Confirm that payment for this booking has been collected?")) return;
+    // The Stripe "Pay Now" path always collects this first; a manual
+    // confirmation (wire transfer, etc.) needs it too before the booking
+    // can be auto-provisioned into a tracked Student record.
+    let studentName = existingStudentName;
+    if (!studentName) {
+      studentName = prompt("Student's name (needed to create their record) — leave blank to skip for now:");
+    }
     await fetch(`/api/superadmin/marketplace/bookings/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "CONFIRM_PAYMENT" }),
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "CONFIRM_PAYMENT", ...(studentName ? { studentName } : {}) }),
     });
     loadBookings();
   };
@@ -187,7 +196,18 @@ export default function AdminMarketplacePage() {
                   <div key={b.id} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr 90px 110px 160px", gap: 0, padding: "13px 16px", borderBottom: idx < bookings.length - 1 ? "1px solid #1f2937" : "none", alignItems: "center" }}>
                     <div style={{ fontSize: 12, color: "white" }}>{b.teacher.user.name}</div>
                     <div style={{ fontSize: 12, color: "white" }}>{b.parent.user.name}</div>
-                    <div style={{ fontSize: 11, color: "#9ca3af" }}>{b.program && <>{b.program} · </>}{DAYS[b.dayOfWeek]} {b.startTime}–{b.endTime} ({b.timezone})</div>
+                    <div style={{ fontSize: 11, color: "#9ca3af" }}>
+                      {b.program && <>{b.program} · </>}{DAYS[b.dayOfWeek]} {b.startTime}–{b.endTime} ({b.timezone})
+                      {b.provisionedStudentId ? (
+                        <div style={{ marginTop: 3 }}>
+                          <Link href={`/dashboard/admin/students/${b.provisionedStudentId}`} style={{ color: "#60a5fa", fontSize: 10, textDecoration: "none" }}>
+                            → {b.studentName || "Student"} record
+                          </Link>
+                        </div>
+                      ) : b.studentName ? (
+                        <div style={{ marginTop: 3, fontSize: 10, color: "#6b7280" }}>for {b.studentName}</div>
+                      ) : null}
+                    </div>
                     <div style={{ fontSize: 11, color: "#9ca3af" }}>
                       {b.amountCharged != null
                         ? <>{b.currency} {b.amountCharged.toFixed(2)} paid{b.platformFeeAmount != null && <div style={{ fontSize: 9, color: "#6b7280" }}>fee {b.currency} {b.platformFeeAmount.toFixed(2)}</div>}</>
@@ -196,7 +216,7 @@ export default function AdminMarketplacePage() {
                     <span style={{ background: st.bg, color: st.color, padding: "3px 8px", borderRadius: 5, fontSize: 9, fontWeight: 700, fontFamily: fonts.heading, width: "fit-content" }}>{b.status.replace("_", " ")}</span>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {b.status === "ACCEPTED" && (
-                        <button onClick={() => confirmPayment(b.id)} style={{ padding: "4px 10px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                        <button onClick={() => confirmPayment(b.id, b.studentName)} style={{ padding: "4px 10px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
                           Mark paid
                         </button>
                       )}

@@ -22,6 +22,15 @@ const MODULES = [
     bg: "#f5f3ff",
     border: "#ddd6fe",
   },
+  {
+    href: "/dashboard/parent",
+    icon: "📖",
+    title: "My Child's Progress",
+    desc: "Lessons, attendance and Manzil Health for a paid booking",
+    color: colors.gold,
+    bg: "#fff8ec",
+    border: "#f3e0ba",
+  },
 ];
 
 export default function FamilyDashboardPage() {

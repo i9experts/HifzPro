@@ -287,12 +287,8 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          await tx.parent.create({
-            data: {
-              userId:     parentUser.id,
-              guardianId: guardian.id,
-            },
-          });
+          const parent = await tx.parent.create({ data: { userId: parentUser.id } });
+          await tx.guardian.update({ where: { id: guardian.id }, data: { parentId: parent.id } });
         }
       }
 

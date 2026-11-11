@@ -69,7 +69,7 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload): 
 // Call this from lesson entry, attendance, test result, fee routes
 export async function sendPushToStudentParents(studentId: string, payload: PushPayload): Promise<{ sent: number; failed: number }> {
   const parents = await prisma.parent.findMany({
-    where:  { guardian: { studentId } },
+    where:  { guardians: { some: { studentId } } },
     select: { userId: true },
   });
   return sendPushToUsers(parents.map(p => p.userId), payload);

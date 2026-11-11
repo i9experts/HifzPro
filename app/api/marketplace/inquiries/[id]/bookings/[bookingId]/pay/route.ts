@@ -14,6 +14,11 @@ import { createBookingCheckoutSession } from "@/lib/stripe-connect";
 
 const schema = z.object({
   sessions: z.number().int().min(1).max(52).default(4),
+  // Required so a successful payment can be auto-provisioned into a real
+  // tracked Student afterward (lib/marketplace-provisioning.ts) — nothing
+  // upstream of payment (signup, inquiry, proposal) ever asks for the
+  // child's name.
+  studentName: z.string().trim().min(2, "Enter the student's name"),
 });
 
 export async function POST(
@@ -46,7 +51,9 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
     const result = schema.safeParse(body);
     if (!result.success) return errorResponse(result.error.errors[0].message);
-    const { sessions } = result.data;
+    const { sessions, studentName } = result.data;
+
+    await prisma.booking.update({ where: { id: bookingId }, data: { studentName } });
 
     const totalAmount = Math.round(booking.hourlyRate * sessions * 100) / 100;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://hifzpro.com";

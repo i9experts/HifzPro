@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     if (audience === "BATCH" && batchId) {
       // Parents of students in a specific batch
       const parents = await prisma.parent.findMany({
-        where:  { guardian: { student: { batchId } }, user: { institutionId: payload.institutionId } },
+        where:  { guardians: { some: { student: { batchId } } }, user: { institutionId: payload.institutionId } },
         select: { userId: true },
       });
       targetUserIds = parents.map(p => p.userId);
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       audienceLabel = `Batch: ${batch?.name || batchId}`;
     } else if (audience === "PROGRAM" && program) {
       const parents = await prisma.parent.findMany({
-        where:  { guardian: { student: { program, status: "ACTIVE" } }, user: { institutionId: payload.institutionId } },
+        where:  { guardians: { some: { student: { program, status: "ACTIVE" } } }, user: { institutionId: payload.institutionId } },
         select: { userId: true },
       });
       targetUserIds = parents.map(p => p.userId);
