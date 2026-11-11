@@ -82,6 +82,7 @@ export default function FeesPage() {
           </div>
         </div>
         <div style={{ display:"flex", gap:8 }}>
+          <Link href="/help/fees" target="_blank" rel="noopener noreferrer" style={{ padding:"8px 14px", borderRadius:8, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:colors.white, fontSize:12, fontWeight:700, textDecoration:"none", fontFamily:fonts.heading }}>📖 User Manual</Link>
           <Link href="/dashboard/admin/fees/payments/new" style={{ padding:"8px 16px", borderRadius:8, background:colors.gold, color:colors.white, fontSize:12, fontWeight:700, textDecoration:"none", fontFamily:fonts.heading }}>+ Record Payment</Link>
           <button onClick={handleSignOut} style={{ padding:"6px 12px", borderRadius:6, background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)", color:"rgba(255,255,255,0.6)", fontSize:11, cursor:"pointer", fontFamily:fonts.heading }}>Sign Out</button>
         </div>
