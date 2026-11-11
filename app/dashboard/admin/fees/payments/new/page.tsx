@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import { colors, fonts } from "@/lib/tokens";
+import { computeFeeBalance, computeFeePaymentStatus } from "@/lib/fees";
 
 const MONTHS_FULL = ["","January","February","March","April","May","June","July","August","September","October","November","December"];
 const METHODS = [
@@ -70,8 +71,8 @@ function RecordPaymentContent() {
     }
   }, [form.discountAmount]);
 
-  const balance = form.amount - form.paidAmount - (form.discountAmount || 0);
-  const status  = form.paidAmount >= form.amount ? "PAID" : form.paidAmount > 0 ? "PARTIAL" : "PENDING";
+  const balance = computeFeeBalance(form.amount, form.paidAmount, form.discountAmount || 0);
+  const status  = computeFeePaymentStatus(form.amount, form.paidAmount, form.discountAmount || 0);
 
   const handleSubmit = async () => {
     if (!form.studentId) { setError("Please select a student"); return; }

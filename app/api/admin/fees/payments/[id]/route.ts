@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload) return unauthorizedResponse();
+    if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
 
     const { id } = await params;
 

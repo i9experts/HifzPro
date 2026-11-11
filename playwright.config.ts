@@ -12,7 +12,7 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     launchOptions: {
-      executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
+      executablePath: "/opt/pw-browsers/chromium",
     },
   },
   projects: [
