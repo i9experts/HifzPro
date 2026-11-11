@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/dashboard/parent/diary",      icon: "📖", label: "Diary",      labelUr: "ڈائری" },
   { href: "/dashboard/parent/attendance", icon: "📅", label: "Attendance", labelUr: "حاضری" },
   { href: "/dashboard/parent/progress",   icon: "📊", label: "Progress",   labelUr: "ترقی" },
+  { href: "/dashboard/parent/fees",       icon: "💰", label: "Fees",       labelUr: "فیس" },
   { href: "/dashboard/parent/contact",    icon: "📞", label: "Contact",    labelUr: "رابطہ" },
 ];
 

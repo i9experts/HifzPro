@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload) return unauthorizedResponse();
+    if (!payload || !["CAMPUS_ADMIN","SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
 
     const scholarships = await prisma.scholarship.findMany({
       where:   { student: { campusId: payload.campusId || undefined } },

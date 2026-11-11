@@ -2,6 +2,7 @@
 import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import { colors, fonts } from "@/lib/tokens";
+import { computeFeeBalance } from "@/lib/fees";
 
 type Tab = "overview"|"progress"|"attendance"|"tests"|"finance"|"timeline";
 
@@ -25,6 +26,20 @@ const STATUS_STYLES: Record<string,{bg:string;color:string}> = {
 const GRADE_STYLES: Record<string,{color:string}> = {
   EXCELLENT:{color:colors.successText},GOOD:{color:colors.primary},
   WEAK:{color:colors.warningText},REPEAT:{color:colors.errorText},
+};
+const FEE_STATUS_STYLES: Record<string,{label:string;color:string;bg:string}> = {
+  PAID:    {label:"Paid",    color:colors.successText, bg:colors.successBg},
+  PARTIAL: {label:"Partial", color:colors.warningText, bg:colors.warningBg},
+  PENDING: {label:"Pending", color:"#d97706",          bg:"#fffbeb"},
+  OVERDUE: {label:"Overdue", color:colors.errorText,   bg:colors.errorBg},
+  WAIVED:  {label:"Waived",  color:"#7c3aed",          bg:"#f5f3ff"},
+};
+function PKR(amount: number) { return `PKR ${amount.toLocaleString("en-PK")}`; }
+const MONTHS = ["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const SCHOLARSHIP_TYPE_LABELS: Record<string,(sch:any)=>string> = {
+  FULL:            ()    => "Full Scholarship",
+  PARTIAL_PERCENT: (sch) => `${sch.percentage}% Off`,
+  PARTIAL_AMOUNT:  (sch) => `PKR ${(sch.fixedAmount||0).toLocaleString()} Off`,
 };
 
 function InfoRow({label,val}:{label:string;val:string|null|undefined}) {
@@ -90,6 +105,19 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
   const [promoting,      setPromoting]      = useState(false);
   const [promoteError,   setPromoteError]   = useState("");
   const [promoteMsg,     setPromoteMsg]     = useState("");
+
+  const [feePayments, setFeePayments] = useState<any[]>([]);
+  const [feeLoading,  setFeeLoading]  = useState(false);
+  const [feeLoaded,   setFeeLoaded]   = useState(false);
+
+  useEffect(() => {
+    if (tab !== "finance" || feeLoaded) return;
+    setFeeLoading(true);
+    fetch(`/api/admin/fees/payments?studentId=${id}&limit=50`)
+      .then(r=>r.json())
+      .then(d=>{ if(d.success) setFeePayments(d.data.payments); })
+      .finally(()=>{ setFeeLoading(false); setFeeLoaded(true); });
+  }, [tab, feeLoaded, id]);
 
   const loadStudent = () => fetch(`/api/admin/students/${id}`)
     .then(r=>r.json())
@@ -483,12 +511,15 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
                 <div key={sch.id} style={{padding:"14px 0",borderBottom:`1px solid ${colors.n100}`}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
-                      <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800}}>{sch.donor?sch.donor.name:"Institutional Scholarship"}</div>
+                      <div style={{fontFamily:fonts.heading,fontSize:13,fontWeight:700,color:colors.n800}}>{sch.name || (sch.donor?sch.donor.name:"Institutional Scholarship")}</div>
                       <div style={{fontFamily:fonts.body,fontSize:11,color:colors.n500,marginTop:2}}>
-                        {sch.coverage}% fee coverage · Since {new Date(sch.startDate).toLocaleDateString("en-PK",{month:"short",year:"numeric"})}
+                        {sch.isActive ? "Active" : "Ended"} · Since {new Date(sch.startDate).toLocaleDateString("en-PK",{month:"short",year:"numeric"})}
+                        {sch.reason && ` · ${sch.reason}`}
                       </div>
                     </div>
-                    <div style={{fontFamily:fonts.heading,fontSize:16,fontWeight:700,color:colors.primary}}>PKR {sch.amount}</div>
+                    <div style={{fontFamily:fonts.heading,fontSize:16,fontWeight:700,color:colors.primary}}>
+                      {(SCHOLARSHIP_TYPE_LABELS[sch.type]?.(sch)) || sch.type}
+                    </div>
                   </div>
                 </div>
               )) : (
@@ -498,10 +529,48 @@ export default function StudentProfile({params}:{params:Promise<{id:string}>}) {
               )}
             </div>
             <div style={{background:colors.white,borderRadius:14,padding:24,border:`1px solid ${colors.n200}`}}>
-              <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800,marginBottom:16}}>🧾 Fee Records</div>
-              <div style={{fontFamily:fonts.body,fontSize:13,color:colors.n400,textAlign:"center",padding:24}}>
-                Fee management module coming soon. Fee structures, payment history, and outstanding balances will appear here.
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                <div style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.n800}}>🧾 Fee Records</div>
+                <Link href={`/dashboard/admin/fees/payments/new?studentId=${id}`} style={{padding:"6px 14px",borderRadius:8,background:colors.gold,color:"white",fontSize:11,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>+ Record Payment</Link>
               </div>
+              {feeLoading ? (
+                <div style={{fontFamily:fonts.body,fontSize:13,color:colors.n400,textAlign:"center",padding:24}}>Loading fee records...</div>
+              ) : feePayments.length===0 ? (
+                <div style={{background:colors.n50,borderRadius:10,padding:20,textAlign:"center"}}>
+                  <div style={{fontFamily:fonts.body,fontSize:13,color:colors.n400}}>No fee payments recorded yet</div>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const totalBalance = feePayments.reduce((acc:number,p:any)=>acc + computeFeeBalance(p.amount,p.paidAmount,p.discountAmount), 0);
+                    return totalBalance > 0 && (
+                      <div style={{background:colors.errorBg,borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontFamily:fonts.body,fontSize:12,color:colors.errorText}}>Outstanding balance</span>
+                        <span style={{fontFamily:fonts.heading,fontSize:14,fontWeight:700,color:colors.errorText}}>{PKR(totalBalance)}</span>
+                      </div>
+                    );
+                  })()}
+                  {feePayments.map((p:any)=>{
+                    const st = FEE_STATUS_STYLES[p.status] || FEE_STATUS_STYLES.PENDING;
+                    return (
+                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${colors.n100}`}}>
+                        <div>
+                          <div style={{fontFamily:fonts.heading,fontSize:12,fontWeight:700,color:colors.n800}}>{p.feeStructure?.name || "Fee"} · {MONTHS[p.month]} {p.year}</div>
+                          <div style={{fontFamily:fonts.mono,fontSize:9,color:colors.n400,marginTop:1}}>{p.receiptNumber}</div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontFamily:fonts.mono,fontSize:12,fontWeight:700,color:colors.n800}}>{PKR(p.paidAmount)}</div>
+                            {p.paidAmount < p.amount && <div style={{fontFamily:fonts.mono,fontSize:9,color:colors.n400}}>of {PKR(p.amount)}</div>}
+                          </div>
+                          <span style={{background:st.bg,color:st.color,padding:"2px 8px",borderRadius:6,fontSize:9,fontFamily:fonts.mono,fontWeight:700}}>{st.label}</span>
+                          <Link href={`/dashboard/admin/fees/receipts/${p.id}`} style={{padding:"4px 10px",borderRadius:6,background:colors.green50,color:colors.primary,fontSize:10,fontWeight:700,textDecoration:"none",fontFamily:fonts.heading}}>Receipt</Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
             </div>
           </div>
         )}

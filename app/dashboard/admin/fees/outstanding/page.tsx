@@ -14,7 +14,7 @@ interface OutstandingStudent {
   monthsOverdue:    number;
   oldestMonth:      string;
   scholarship:      { name: string; type: string } | null;
-  payments:         { id: string; amount: number; paidAmount: number; month: number; year: number; status: string }[];
+  payments:         { id: string; amount: number; paidAmount: number; discountAmount: number; balance: number; month: number; year: number; status: string }[];
 }
 
 interface Summary {
@@ -251,7 +251,7 @@ export default function OutstandingFeesPage() {
                           padding: "3px 9px", borderRadius: 20, fontSize: 10, fontFamily: fonts.mono, fontWeight: 700,
                           border: `1px solid ${p.status === "PARTIAL" ? colors.warning : colors.error}44`,
                         }}>
-                          {MONTHS[p.month]} {p.year} · {PKR(p.amount - (p.paidAmount || 0))}
+                          {MONTHS[p.month]} {p.year} · {PKR(p.balance)}
                         </span>
                       ))}
                     </div>
