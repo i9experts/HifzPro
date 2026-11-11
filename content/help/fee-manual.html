@@ -1,0 +1,453 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Outfit:wght@400;500;600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@500;700&family=Noto+Nastaliq+Urdu:wght@500;700&display=swap">
+<style>
+/* Layout: a single scrolling handbook — hero, a two-column (EN/UR) jump
+   index, then stacked sections. Each section pairs an English block with
+   an Urdu block set in Nastaliq underneath it, followed by a framed
+   screenshot "slide" captioned in both languages. */
+:root{
+  --bg:#FDFAF6; --surface:#FFFFFF; --surface-2:#F3F3F0;
+  --ink:#1E1E1C; --muted:#5B5B57; --line:#E4E4E0;
+  --primary:#0D5C3A; --primary-dark:#071A10; --primary-tint:#F0FAF5;
+  --gold:#C4882A; --gold-tint:#FBF1E0;
+  --ok:#166534; --ok-bg:#DCFCE7; --warn:#92400E; --warn-bg:#FEF3C7; --bad:#991B1B; --bad-bg:#FEE2E2;
+  --font-display:'Cormorant Garamond',serif;
+  --font-heading:'Outfit',sans-serif;
+  --font-body:'DM Sans',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-urdu:'Noto Nastaliq Urdu',serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1410; --surface:#162019; --surface-2:#1C2820;
+    --ink:#EDEFEC; --muted:#A9B3AC; --line:#2A362E;
+    --primary:#2E9E6C; --primary-dark:#0A160F; --primary-tint:#132A1D;
+    --gold:#E6A83C; --gold-tint:#241C0D;
+    --ok:#4ADE80; --ok-bg:#0F2A1A; --warn:#FBBF24; --warn-bg:#2B2008; --bad:#F87171; --bad-bg:#2B1212;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1410; --surface:#162019; --surface-2:#1C2820;
+  --ink:#EDEFEC; --muted:#A9B3AC; --line:#2A362E;
+  --primary:#2E9E6C; --primary-dark:#0A160F; --primary-tint:#132A1D;
+  --gold:#E6A83C; --gold-tint:#241C0D;
+  --ok:#4ADE80; --ok-bg:#0F2A1A; --warn:#FBBF24; --warn-bg:#2B2008; --bad:#F87171; --bad-bg:#2B1212;
+  color-scheme: dark;
+}
+
+*{box-sizing:border-box}
+html{overflow-x:hidden}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--font-body);
+  font-size:15px; line-height:1.65; margin:0;
+  max-width:100%; overflow-x:hidden;
+  padding-left:max(16px, env(safe-area-inset-left,0px));
+  padding-right:max(16px, env(safe-area-inset-right,0px));
+}
+img{max-width:100%}
+h1,h2,h3{font-family:var(--font-heading); font-weight:700; text-wrap:balance; margin:0}
+.display{font-family:var(--font-display)}
+.urdu{font-family:var(--font-urdu); direction:rtl; text-align:right; line-height:2.3; font-size:1.18em; overflow-wrap:break-word; min-width:0}
+.urdu h2, .urdu h3, .urdu strong{font-family:var(--font-urdu); font-weight:700}
+.eyebrow{font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); font-weight:700}
+
+.wrap{max-width:860px; margin:0 auto; padding-block:0 64px}
+
+/* Hero */
+.hero{
+  padding-block:48px 36px; border-bottom:1px solid var(--line);
+  margin-bottom:40px;
+}
+.hero .eyebrow{margin-bottom:10px}
+.hero h1{font-size:clamp(28px,5vw,42px); color:var(--primary-dark); letter-spacing:-.01em}
+:root[data-theme="dark"] .hero h1, body:not([data-theme]) .hero h1{}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .hero h1{color:var(--ink)} }
+:root[data-theme="dark"] .hero h1{color:var(--ink)}
+.hero .sub{font-size:16px; color:var(--muted); margin-top:10px; max-width:60ch}
+.hero .sub-ur{margin-top:14px}
+.hero .meta{display:flex; gap:10px; flex-wrap:wrap; margin-top:22px}
+.chip{
+  font-family:var(--font-mono); font-size:11px; font-weight:700; letter-spacing:.04em;
+  padding:6px 12px; border-radius:999px; background:var(--primary-tint); color:var(--primary);
+  border:1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* Jump index */
+.index{
+  background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:22px 24px 26px; margin-bottom:48px;
+}
+.index-title{font-family:var(--font-heading); font-weight:700; font-size:13px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:14px}
+.index ol{
+  list-style:none; margin:0; padding:0; counter-reset:idx;
+  display:grid; grid-template-columns:repeat(2,1fr); gap:4px 24px;
+}
+@media (max-width:620px){ .index ol{grid-template-columns:1fr} }
+.index li{counter-increment:idx; min-width:0}
+.index a{
+  display:flex; align-items:baseline; gap:10px; text-decoration:none; color:var(--ink);
+  padding:8px 6px; border-radius:8px; font-size:14px;
+}
+.index a:hover{background:var(--surface-2)}
+.index a::before{
+  content:counter(idx,decimal-leading-zero); font-family:var(--font-mono); font-size:11px;
+  font-weight:700; color:var(--gold); flex-shrink:0;
+}
+.index .ur-label{display:block; font-family:var(--font-urdu); direction:rtl; font-size:.92em; color:var(--muted); margin-top:1px}
+
+/* Sections */
+section.topic{ margin-bottom:56px; scroll-margin-top:16px; min-width:0 }
+.topic-head{display:flex; align-items:center; gap:12px; margin-bottom:18px}
+.topic-num{
+  font-family:var(--font-mono); font-weight:700; font-size:13px; color:var(--surface);
+  background:var(--primary); width:30px; height:30px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.topic-head h2{font-size:22px; color:var(--ink)}
+.topic-head h2 .ur{font-family:var(--font-urdu); direction:rtl; font-size:.95em; color:var(--muted); font-weight:700; margin-inline-start:10px}
+
+.topic p{margin:0 0 14px; max-width:68ch}
+.topic ul, .topic ol.steps{margin:0 0 14px; padding-inline-start:22px; max-width:68ch}
+.topic li{margin-bottom:6px}
+.topic .urdu p, .topic .urdu li{max-width:none}
+
+.divider{border:none; border-top:1px dashed var(--line); margin:20px 0}
+
+.note{
+  background:var(--gold-tint); border:1px solid color-mix(in srgb, var(--gold) 35%, transparent);
+  border-radius:12px; padding:14px 16px; margin:16px 0; font-size:14px;
+}
+.note b{color:var(--gold)}
+.note .urdu{margin-top:6px; font-size:1.05em}
+
+/* Screenshot slide */
+.slide{
+  margin-top:20px; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+  background:var(--surface); box-shadow:0 4px 20px rgba(0,0,0,.08);
+}
+.slide .bar{
+  display:flex; align-items:center; gap:6px; padding:9px 12px; background:var(--surface-2);
+  border-bottom:1px solid var(--line);
+}
+.slide .dot{width:9px; height:9px; border-radius:50%; background:var(--line)}
+.slide img{display:block; width:100%}
+.slide figcaption{padding:12px 16px; font-size:13px; color:var(--muted); border-top:1px solid var(--line)}
+.slide figcaption .ur{display:block; font-family:var(--font-urdu); direction:rtl; font-size:1.05em; margin-top:4px; color:var(--muted)}
+.slide.phone{max-width:300px}
+
+.two-up{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+@media (max-width:620px){ .two-up{grid-template-columns:1fr} }
+
+/* Status pills reused from the app */
+.pill{display:inline-flex; font-family:var(--font-mono); font-size:11px; font-weight:700; padding:2px 9px; border-radius:6px}
+.pill.ok{background:var(--ok-bg); color:var(--ok)}
+.pill.warn{background:var(--warn-bg); color:var(--warn)}
+.pill.bad{background:var(--bad-bg); color:var(--bad)}
+
+/* Role badge */
+.roles{display:flex; gap:8px; flex-wrap:wrap; margin:14px 0}
+.role{
+  font-family:var(--font-heading); font-weight:600; font-size:13px; padding:7px 14px;
+  border-radius:10px; border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+}
+.role.can{background:var(--primary-tint); border-color:color-mix(in srgb, var(--primary) 30%, transparent); color:var(--primary); font-weight:700}
+
+table.spec{width:100%; border-collapse:collapse; margin:14px 0 18px; font-size:13.5px}
+table.spec th, table.spec td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+table.spec th{font-family:var(--font-heading); color:var(--muted); font-weight:600; width:30%}
+.wrap[dir] table.spec{direction:ltr}
+
+/* FAQ */
+.faq-item{border-bottom:1px solid var(--line); padding:16px 0}
+.faq-q{font-family:var(--font-heading); font-weight:700; font-size:15px; margin-bottom:6px}
+.faq-q .ur{display:block; font-family:var(--font-urdu); direction:rtl; font-weight:700; font-size:1.05em; margin-top:2px; color:var(--ink)}
+
+footer{border-top:1px solid var(--line); padding-block:32px 8px; color:var(--muted); font-size:12.5px}
+footer .ur{display:block; font-family:var(--font-urdu); direction:rtl; font-size:1.05em; margin-top:6px}
+</style>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">HifzPro · subscriber handbook</div>
+    <h1 class="display">Fee Module — Complete Guide</h1>
+    <div class="sub">A step-by-step guide to collecting tuition, tracking outstanding balances, granting scholarships, and letting parents see their own fee history — written for campus admins, with every screen shown exactly as it appears in HifzPro.</div>
+    <div class="sub urdu sub-ur">فیس وصول کرنے، باقی رقم کا حساب رکھنے، وظائف دینے، اور والدین کو اپنے بچے کی فیس کی تفصیل دکھانے کا مکمل، آسان طریقہ — کیمپس ایڈمن حضرات کے لیے، ہر صفحہ اسی طرح دکھایا گیا ہے جیسا وہ ہِفزپرو میں نظر آتا ہے۔</div>
+    <div class="meta">
+      <span class="chip">FOR CAMPUS ADMINS</span>
+      <span class="chip">فیس ماڈیول</span>
+    </div>
+  </div>
+
+  <nav class="index" aria-label="Contents">
+    <div class="index-title">In this guide · اس کتابچے میں</div>
+    <ol>
+      <li><a href="#access"><span>Who can use this module<span class="ur-label">یہ ماڈیول کون استعمال کر سکتا ہے</span></span></a></li>
+      <li><a href="#dashboard"><span>The Fee Management dashboard<span class="ur-label">فیس مینجمنٹ ڈیش بورڈ</span></span></a></li>
+      <li><a href="#structures"><span>Setting up Fee Structures<span class="ur-label">فیس ڈھانچہ بنانا</span></span></a></li>
+      <li><a href="#recording"><span>Recording a fee payment<span class="ur-label">فیس کی ادائیگی درج کرنا</span></span></a></li>
+      <li><a href="#receipts"><span>Viewing &amp; sharing a receipt<span class="ur-label">رسید دیکھنا اور بھیجنا</span></span></a></li>
+      <li><a href="#outstanding"><span>Outstanding fees &amp; reminders<span class="ur-label">باقی فیس اور یاددہانی</span></span></a></li>
+      <li><a href="#scholarships"><span>Granting scholarships<span class="ur-label">وظیفہ دینا</span></span></a></li>
+      <li><a href="#profile"><span>Fee records on a student's profile<span class="ur-label">طالب علم کے پروفائل پر فیس کا ریکارڈ</span></span></a></li>
+      <li><a href="#parent"><span>For parents — the Fees tab<span class="ur-label">والدین کے لیے — فیس ٹیب</span></span></a></li>
+      <li><a href="#faq"><span>Frequently asked questions<span class="ur-label">اکثر پوچھے جانے والے سوالات</span></span></a></li>
+    </ol>
+  </nav>
+
+  <!-- 1 -->
+  <section class="topic" id="access">
+    <div class="topic-head"><div class="topic-num">01</div><h2>Who can use this module <span class="ur">یہ ماڈیول کون استعمال کر سکتا ہے</span></h2></div>
+    <p>Fee Management is built for <b>Campus Admins</b> and <b>Super Admins</b> — the people responsible for a campus's finances. Asātidha (teachers) and other staff cannot open any fee screen; this keeps every student's payment history, discounts, and scholarship reasons private to the admin office.</p>
+    <div class="urdu">
+      <p>فیس مینجمنٹ صرف <b>کیمپس ایڈمن</b> اور <b>سپر ایڈمن</b> کے لیے بنائی گئی ہے — یعنی وہ لوگ جو کیمپس کے مالی معاملات کے ذمہ دار ہیں۔ اساتذہ اور دیگر عملہ فیس کا کوئی بھی صفحہ نہیں کھول سکتے؛ اس طرح ہر طالب علم کی ادائیگی کی تاریخ، رعایت، اور وظیفے کی وجہ صرف ایڈمن آفس تک محدود رہتی ہے۔</p>
+    </div>
+    <div class="roles">
+      <span class="role can">✓ Campus Admin</span>
+      <span class="role can">✓ Super Admin</span>
+      <span class="role">✕ Ustadh / Teacher</span>
+      <span class="role">✕ Other staff</span>
+    </div>
+    <p>Parents have their own, separate, read-only view — covered in <a href="#parent">section 9</a> — where they can see only their own child's fee history, never anyone else's.</p>
+    <div class="urdu">
+      <p>والدین کے لیے ایک الگ اور صرف دیکھنے والا (read-only) صفحہ موجود ہے — تفصیل <a href="#parent">حصہ 9</a> میں — جہاں وہ صرف اپنے بچے کی فیس کی تفصیل دیکھ سکتے ہیں، کسی اور کی نہیں۔</p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="topic" id="dashboard">
+    <div class="topic-head"><div class="topic-num">02</div><h2>The Fee Management dashboard <span class="ur">فیس مینجمنٹ ڈیش بورڈ</span></h2></div>
+    <p>Open it from the admin sidebar, or go to <b>Dashboard → Fee Management</b>. This one screen is home base for everything in this guide: four summary cards, four quick-action tiles, and a tabbed area underneath for Payments, Outstanding, Fee Structures, and Scholarships.</p>
+    <div class="urdu">
+      <p>اسے ایڈمن سائیڈبار سے کھولیں، یا <b>ڈیش بورڈ → فیس مینجمنٹ</b> پر جائیں۔ یہ ایک صفحہ اس پوری کتابچے کا مرکز ہے: چار خلاصہ کارڈز، چار فوری اختیارات، اور نیچے ٹیبز کی صورت میں Payments، Outstanding، Fee Structures اور Scholarships۔</p>
+    </div>
+
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/01-dashboard.png" alt="Fee Management dashboard showing four summary cards and the Payments tab">
+      <figcaption>Example data shown for illustration. The Payments tab lists every payment recorded for the month selected at top right.
+        <span class="ur">یہ مثال کے طور پر دکھایا گیا ڈیٹا ہے۔ Payments ٹیب میں اوپر دائیں طرف منتخب کردہ مہینے کی ہر درج شدہ ادائیگی کی فہرست ہوتی ہے۔</span>
+      </figcaption>
+    </figure>
+
+    <h3 style="margin-top:28px; font-size:17px">What the four cards mean <span class="ur" style="font-family:var(--font-urdu); direction:rtl; font-weight:700">چاروں کارڈز کا مطلب</span></h3>
+    <table class="spec">
+      <tr><th>Collected This Month<br><span class="urdu" style="font-size:1em">اس مہینے کی وصولی</span></th><td>Total cash actually received this month, across every payment recorded.</td></tr>
+      <tr><th></th><td class="urdu">اس مہینے اب تک درج کی گئی تمام ادائیگیوں سے وصول شدہ کل رقم۔</td></tr>
+      <tr><th>Collection Rate<br><span class="urdu" style="font-size:1em">وصولی کی شرح</span></th><td>Of the fee amounts you've recorded this month, the percentage actually paid so far (fully paid + partially paid together).</td></tr>
+      <tr><th></th><td class="urdu">اس مہینے جو فیس آپ نے درج کی ہے، اس میں سے اب تک کتنے فیصد وصول ہو چکی ہے (مکمل اور جزوی ادائیگی ملا کر)۔</td></tr>
+      <tr><th>Outstanding<br><span class="urdu" style="font-size:1em">باقی فیس</span></th><td>Total unpaid amount across <b>all months</b>, not just the one selected at top right — this figure does not change when you switch the month/year filter.</td></tr>
+      <tr><th></th><td class="urdu"><b>تمام مہینوں</b> کی کل غیر ادا شدہ رقم، نہ کہ صرف وہ مہینہ جو اوپر منتخب کیا گیا ہے — مہینہ یا سال بدلنے پر یہ رقم تبدیل نہیں ہوتی۔</td></tr>
+      <tr><th>Total Due This Month<br><span class="urdu" style="font-size:1em">اس مہینے کی کل واجب الادا رقم</span></th><td>The sum of the fee amounts you've recorded for this month so far — not an automatic calculation of what every enrolled student owes.</td></tr>
+      <tr><th></th><td class="urdu">اب تک اس مہینے کے لیے آپ نے جو فیس رقمیں درج کی ہیں ان کا مجموعہ — یہ ہر داخلہ شدہ طالب علم کے واجب الادا کا خودکار حساب نہیں ہے۔</td></tr>
+    </table>
+    <div class="note">
+      <b>Good to know</b> — HifzPro doesn't yet generate a month's dues on its own; a figure only appears on these two cards once you've recorded a payment entry for it (even a "Pending" one with PKR 0 paid — see <a href="#recording">section 4</a>). For the most accurate "Total Due" picture, record every student's expected fee for the month as soon as it's due, even before anyone has paid.
+      <div class="urdu">ہِفزپرو ابھی مہینے کی واجب الادا رقم خود بخود نہیں بناتا؛ یہ رقم اس وقت نظر آتی ہے جب آپ اس کے لیے کوئی ادائیگی اندراج کریں (چاہے وہ "Pending" ہو، یعنی PKR 0 ادا شدہ — دیکھیں <a href="#recording">حصہ 4</a>)۔ "Total Due" کی درست ترین تصویر کے لیے، ہر طالب علم کی متوقع فیس جیسے ہی واجب ہو، فوراً درج کر لیں — چاہے ابھی کسی نے ادا نہ کی ہو۔</div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="topic" id="structures">
+    <div class="topic-head"><div class="topic-num">03</div><h2>Setting up Fee Structures <span class="ur">فیس ڈھانچہ بنانا</span></h2></div>
+    <p>A Fee Structure is a reusable fee template — Monthly Tuition, Admission Fee, Transport, Hostel, Exam Fee, and so on. Set these up once; after that, recording a payment is just picking the structure and the amount fills in automatically.</p>
+    <div class="urdu"><p>Fee Structure دراصل ایک دوبارہ قابلِ استعمال فیس کا سانچہ ہے — جیسے ماہانہ تعلیمی فیس، داخلہ فیس، ٹرانسپورٹ، ہاسٹل، امتحانی فیس وغیرہ۔ یہ ایک بار بنا لیں؛ اس کے بعد فیس درج کرتے وقت صرف سانچہ منتخب کریں اور رقم خود بخود آ جائے گی۔</p></div>
+    <ol class="steps">
+      <li>Open the <b>Fee Structures</b> tab and tap <b>+ Add Fee Structure</b>.</li>
+      <li>Give it a name (e.g. "Monthly Tuition"), the amount in PKR, how often it's charged (Monthly / Quarterly / Annual / One-Time), and a fee type (Tuition, Registration, Transport, Hostel, Exam, Books, Other).</li>
+      <li>Optionally tie it to one program (Hifz, Nazrah, Tajweed, or Girdaan) if the fee only applies there.</li>
+      <li>Save — it now appears as a card here, and as a selectable option when recording a payment.</li>
+    </ol>
+    <div class="urdu">
+      <ol class="steps" style="padding-inline-start:0; padding-inline-end:22px">
+        <li><b>Fee Structures</b> ٹیب کھولیں اور <b>+ Add Fee Structure</b> پر ٹیپ کریں۔</li>
+        <li>نام دیں (مثلاً "Monthly Tuition")، روپے میں رقم، وقفہ (ماہانہ / سہ ماہی / سالانہ / یک مشت)، اور فیس کی قسم (تعلیمی، داخلہ، ٹرانسپورٹ، ہاسٹل، امتحان، کتب، دیگر)۔</li>
+        <li>اگر یہ فیس صرف ایک پروگرام (حفظ، ناظرہ، تجوید یا گردان) کے لیے ہے تو اسے اس سے منسلک کر سکتے ہیں۔</li>
+        <li>محفوظ کریں — اب یہ یہاں ایک کارڈ کے طور پر نظر آئے گی، اور فیس درج کرتے وقت ایک انتخاب کے طور پر دستیاب ہوگی۔</li>
+      </ol>
+    </div>
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/03-dashboard-structures-tab.png" alt="Fee Structures tab showing Monthly Tuition, Admission Fee, and Transport Fee cards">
+      <figcaption>Three structures set up — one monthly, one one-time, one monthly transport fee.
+        <span class="ur">تین فیس ڈھانچے بنائے گئے ہیں — ایک ماہانہ، ایک یک مشت، اور ایک ماہانہ ٹرانسپورٹ فیس۔</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 4 -->
+  <section class="topic" id="recording">
+    <div class="topic-head"><div class="topic-num">04</div><h2>Recording a fee payment <span class="ur">فیس کی ادائیگی درج کرنا</span></h2></div>
+    <p>This is the screen you'll use most. Tap <b>+ Record Payment</b> from the dashboard, or from a student's own profile page.</p>
+    <div class="urdu"><p>یہ وہ صفحہ ہے جو آپ سب سے زیادہ استعمال کریں گے۔ ڈیش بورڈ سے، یا طالب علم کے اپنے پروفائل صفحے سے، <b>+ Record Payment</b> پر ٹیپ کریں۔</p></div>
+    <ol class="steps">
+      <li>Pick the <b>student</b>, then the <b>Fee Type</b> — the amount fills in by itself. (You can still type a custom amount if this is a one-off charge.)</li>
+      <li>Choose the <b>Month / Year</b> this payment covers.</li>
+      <li>If the family gets a discount or an active scholarship covers part of the fee, enter it under <b>Discount / Scholarship</b> — <b>Amount Paid</b> adjusts automatically, and the Balance and Status strip updates live so you can check it before saving.</li>
+      <li>Pick the <b>Payment Method</b> (Cash, Bank Transfer, JazzCash, EasyPaisa, Cheque, or Online), set the date, and add a note if useful.</li>
+      <li>Leave <b>Send WhatsApp Receipt to Parent</b> on if you'd like the guardian notified automatically once the fee is fully settled.</li>
+      <li>Tap <b>Record Payment</b>. You'll land on a confirmation screen with a link straight to the printable receipt.</li>
+    </ol>
+    <div class="urdu">
+      <ol class="steps" style="padding-inline-start:0; padding-inline-end:22px">
+        <li><b>طالب علم</b> منتخب کریں، پھر <b>Fee Type</b> — رقم خود بخود بھر جائے گی۔ (اگر یہ یک دفعہ کی رقم ہے تو آپ خود بھی رقم لکھ سکتے ہیں۔)</li>
+        <li>وہ <b>مہینہ / سال</b> منتخب کریں جس کے لیے یہ ادائیگی ہے۔</li>
+        <li>اگر خاندان کو رعایت دی جا رہی ہے یا کوئی فعال وظیفہ فیس کا کچھ حصہ پورا کرتا ہے تو اسے <b>Discount / Scholarship</b> میں درج کریں — <b>Amount Paid</b> خود بخود ایڈجسٹ ہو جائے گی، اور Balance اور Status والی پٹی فوراً اپڈیٹ ہو جائے گی تاکہ محفوظ کرنے سے پہلے آپ اسے جانچ سکیں۔</li>
+        <li><b>Payment Method</b> منتخب کریں (نقد، بینک ٹرانسفر، جاز کیش، ایزی پیسہ، چیک، یا آن لائن)، تاریخ درج کریں، اور ضرورت ہو تو نوٹ لکھیں۔</li>
+        <li>اگر چاہتے ہیں کہ فیس مکمل ادا ہونے پر سرپرست کو خودکار اطلاع جائے تو <b>Send WhatsApp Receipt to Parent</b> کو آن رہنے دیں۔</li>
+        <li><b>Record Payment</b> پر ٹیپ کریں۔ اب آپ ایک تصدیقی صفحے پر پہنچ جائیں گے جہاں سے براہِ راست پرنٹ ایبل رسید تک لنک موجود ہوگا۔</li>
+      </ol>
+    </div>
+
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/05-record-payment-form.png" alt="Record Payment form with a 5000 fee, 1000 discount, 4000 paid, balance 0, status PAID">
+      <figcaption>A PKR 5,000 fee with a PKR 1,000 discount and PKR 4,000 collected — Balance and Status agree: fully settled.
+        <span class="ur">پانچ ہزار روپے فیس، ایک ہزار روپے رعایت، اور چار ہزار روپے وصول — Balance اور Status دونوں ایک ہی بات بتاتے ہیں: فیس مکمل ادا ہو چکی۔</span>
+      </figcaption>
+    </figure>
+
+    <div class="note">
+      <b>About the Discount field</b> — it covers both a one-off discount and an active scholarship's share. Whatever you enter there is treated exactly like cash received when deciding whether the fee counts as fully Paid, Partially paid, or still Pending — so a fee fully covered between cash and discount always shows <span class="pill ok">PAID</span>, never <span class="pill warn">PARTIAL</span>.
+      <div class="urdu">
+        <b>Discount خانے کے بارے میں</b> — یہ یک دفعہ کی رعایت اور فعال وظیفے، دونوں کا حصہ شامل کر سکتا ہے۔ جو بھی رقم آپ یہاں درج کریں گے وہ فیس کے Paid، Partial یا Pending ہونے کا فیصلہ کرتے وقت بالکل نقد وصولی کی طرح شمار ہوگی — چنانچہ جو فیس نقد اور رعایت ملا کر مکمل ادا ہو جائے وہ ہمیشہ <span class="pill ok">PAID</span> ہی دکھائے گی، کبھی <span class="pill warn">PARTIAL</span> نہیں۔
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="topic" id="receipts">
+    <div class="topic-head"><div class="topic-num">05</div><h2>Viewing &amp; sharing a receipt <span class="ur">رسید دیکھنا اور بھیجنا</span></h2></div>
+    <p>Every recorded payment gets its own numbered receipt (format <code>RCP-YYMM-NNNNN</code>), reachable by tapping <b>Receipt</b> next to any row in the Payments list. It shows the institute's letterhead, the student and guardian details, the fee breakdown (including any discount), the amount in words, and a signature line.</p>
+    <div class="urdu"><p>ہر درج شدہ ادائیگی کی اپنی ایک نمبر والی رسید بنتی ہے (فارمیٹ <code style="direction:ltr; display:inline-block">RCP-YYMM-NNNNN</code>)، جو Payments کی فہرست میں کسی بھی قطار کے ساتھ <b>Receipt</b> پر ٹیپ کر کے کھولی جا سکتی ہے۔ اس میں ادارے کا لیٹر ہیڈ، طالب علم اور سرپرست کی تفصیل، فیس کی تفصیل (رعایت سمیت)، الفاظ میں رقم، اور دستخط کی جگہ شامل ہوتی ہے۔</p></div>
+    <p>Use <b>Print / Save PDF</b> to hand over a physical copy, or <b>Share</b> to send the receipt details over WhatsApp yourself.</p>
+    <div class="urdu"><p>کاغذی کاپی کے لیے <b>Print / Save PDF</b> استعمال کریں، یا خود واٹس ایپ پر رسید کی تفصیل بھیجنے کے لیے <b>Share</b> کا بٹن استعمال کریں۔</p></div>
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/08-receipt.png" alt="Printable fee receipt showing fee, discount, amount paid, and a PAID status badge">
+      <figcaption>The same discount example from section 4, now as a finished receipt — still correctly marked PAID.
+        <span class="ur">حصہ 4 کی وہی مثال، اب ایک مکمل رسید کی صورت میں — اب بھی درست طور پر PAID دکھائی گئی ہے۔</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 6 -->
+  <section class="topic" id="outstanding">
+    <div class="topic-head"><div class="topic-num">06</div><h2>Outstanding fees &amp; reminders <span class="ur">باقی فیس اور یاددہانی</span></h2></div>
+    <p>Tap <b>View Outstanding</b> from the dashboard for a dedicated page listing every student with pending, partial, or overdue fees — sorted by how much they owe, with search by name, enrollment number, or batch.</p>
+    <div class="urdu"><p>ڈیش بورڈ سے <b>View Outstanding</b> پر ٹیپ کریں تاکہ ایک الگ صفحہ کھلے جس میں ہر وہ طالب علم شامل ہو جس کی فیس Pending، Partial یا Overdue ہے — زیادہ باقی رقم والوں کو پہلے دکھایا جاتا ہے، اور نام، داخلہ نمبر یا بیچ سے تلاش بھی کی جا سکتی ہے۔</p></div>
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/06-outstanding-page.png" alt="Outstanding Fees page with three students, one marked CRITICAL for three months overdue">
+      <figcaption>A student overdue for 3 months is flagged <span class="pill bad" style="vertical-align:1px">CRITICAL</span>; a scholarship badge shows wherever one already reduces what's owed.
+        <span class="ur">تین مہینے سے باقی فیس والے طالب علم کو <span class="pill bad" style="vertical-align:1px">CRITICAL</span> کا نشان لگایا جاتا ہے؛ وظیفہ موجود ہونے پر اس کا بیج بھی ساتھ دکھایا جاتا ہے جہاں وہ باقی رقم کم کر رہا ہو۔</span>
+      </figcaption>
+    </figure>
+    <ul>
+      <li><b>💬 Remind</b> sends a WhatsApp message to the guardian with the total overdue amount and the months it covers. This needs your institute's WhatsApp number to already be connected under Settings → WhatsApp — if it isn't, you'll see a clear error instead of a false "sent" message.</li>
+      <li><b>💰 Collect</b> jumps straight to Record Payment with this student pre-selected.</li>
+    </ul>
+    <div class="urdu">
+      <ul style="padding-inline-start:0; padding-inline-end:22px">
+        <li><b>💬 Remind</b> سرپرست کو واٹس ایپ پیغام بھیجتا ہے جس میں کل باقی رقم اور وہ مہینے بتائے جاتے ہیں جن کی فیس باقی ہے۔ اس کے لیے آپ کے ادارے کا واٹس ایپ نمبر Settings → WhatsApp میں پہلے سے جُڑا ہونا ضروری ہے — اگر نہیں جُڑا تو جھوٹی "sent" اطلاع کی بجائے واضح خرابی کا پیغام دکھایا جائے گا۔</li>
+        <li><b>💰 Collect</b> براہِ راست Record Payment پر لے جاتا ہے، اس طالب علم کے پہلے سے منتخب ہونے کے ساتھ۔</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="topic" id="scholarships">
+    <div class="topic-head"><div class="topic-num">07</div><h2>Granting scholarships <span class="ur">وظیفہ دینا</span></h2></div>
+    <p>Open <b>Scholarships</b> from the dashboard, then <b>+ Grant Scholarship</b>. Pick the student and a type:</p>
+    <div class="urdu"><p>ڈیش بورڈ سے <b>Scholarships</b> کھولیں، پھر <b>+ Grant Scholarship</b> پر جائیں۔ طالب علم اور قسم منتخب کریں:</p></div>
+    <table class="spec">
+      <tr><th>Full Scholarship</th><td>Waives the fee entirely.</td></tr>
+      <tr><th></th><td class="urdu">فیس مکمل طور پر معاف کر دی جاتی ہے۔</td></tr>
+      <tr><th>Partial — Percentage</th><td>Reduces what's owed by a set percentage (e.g. 50%).</td></tr>
+      <tr><th></th><td class="urdu">واجب الادا رقم کو ایک مقررہ فیصد (مثلاً 50%) کم کر دیتا ہے۔</td></tr>
+      <tr><th>Partial — Fixed Amount</th><td>Reduces what's owed by a fixed PKR amount every time.</td></tr>
+      <tr><th></th><td class="urdu">ہر بار واجب الادا رقم کو ایک مقررہ روپے کی رقم سے کم کر دیتا ہے۔</td></tr>
+    </table>
+    <p>Add a short reason (useful for your own records) and save. Granting a new scholarship for a student automatically ends any earlier one they had.</p>
+    <div class="urdu"><p>ایک مختصر وجہ لکھیں (یہ آپ کے اپنے ریکارڈ کے لیے مفید ہے) اور محفوظ کریں۔ کسی طالب علم کو نیا وظیفہ دینے سے اس کا پچھلا وظیفہ خود بخود ختم ہو جاتا ہے۔</p></div>
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/07-scholarships-page.png" alt="Scholarship Registry showing a full scholarship and a 50 percent scholarship">
+      <figcaption>A Full scholarship and a 50% Partial scholarship, both Active.
+        <span class="ur">ایک مکمل وظیفہ اور ایک 50% جزوی وظیفہ، دونوں فعال۔</span>
+      </figcaption>
+    </figure>
+    <div class="note">
+      <b>Where the discount actually applies</b> — a scholarship automatically reduces what shows as owed on the <a href="#outstanding">Outstanding page</a> and in <b>reminder</b> messages. It does <b>not</b> automatically fill in the Discount field when you record a payment — you still enter that amount yourself in <a href="#recording">section 4</a>, so the receipt always shows exactly what was waived for that specific payment.
+      <div class="urdu">
+        <b>رعایت اصل میں کہاں لاگو ہوتی ہے</b> — وظیفہ <a href="#outstanding">Outstanding صفحے</a> پر اور <b>reminder</b> پیغامات میں واجب الادا رقم کو خود بخود کم کر دیتا ہے۔ لیکن یہ فیس درج کرتے وقت Discount خانے کو خود بخود نہیں بھرتا — وہ رقم آپ کو خود <a href="#recording">حصہ 4</a> میں درج کرنی ہوگی، تاکہ رسید پر ہمیشہ بالکل وہی رقم نظر آئے جو اس مخصوص ادائیگی میں معاف کی گئی۔
+      </div>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="topic" id="profile">
+    <div class="topic-head"><div class="topic-num">08</div><h2>Fee records on a student's profile <span class="ur">طالب علم کے پروفائل پر فیس کا ریکارڈ</span></h2></div>
+    <p>Open any student from <b>Students</b>, then the <b>Finance</b> tab. You'll see their active scholarship (if any) and every fee payment recorded for them, with a running outstanding balance at the top and a quick link to record a new payment for just this student.</p>
+    <div class="urdu"><p><b>Students</b> سے کسی بھی طالب علم کو کھولیں، پھر <b>Finance</b> ٹیب پر جائیں۔ یہاں آپ کو اس کا فعال وظیفہ (اگر ہو) اور اس کے لیے درج کی گئی ہر فیس ادائیگی نظر آئے گی، اوپر چلتی ہوئی باقی رقم کے ساتھ، اور اسی طالب علم کے لیے نئی ادائیگی درج کرنے کا فوری لنک بھی۔</p></div>
+    <figure class="slide">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/09-student-finance-tab.png" alt="Student profile Finance tab showing a scholarship and one pending fee record">
+      <figcaption>The outstanding figure here is the fee amount before any scholarship discount — check the <a href="#outstanding">Outstanding page</a> for the amount actually due after the scholarship.
+        <span class="ur">یہاں دکھائی گئی باقی رقم وظیفے کی رعایت سے پہلے کی فیس ہے — وظیفے کے بعد اصل واجب الادا رقم کے لیے <a href="#outstanding">Outstanding صفحہ</a> دیکھیں۔</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 9 -->
+  <section class="topic" id="parent">
+    <div class="topic-head"><div class="topic-num">09</div><h2>For parents — the Fees tab <span class="ur">والدین کے لیے — فیس ٹیب</span></h2></div>
+    <p>Parents who sign in to the HifzPro parent app now have their own <b>Fees</b> tab in the bottom navigation — a read-only view of their own child's account: the outstanding balance (or a clear "All Paid Up" message), any active scholarship, and the complete payment history with dates, methods, and receipt numbers.</p>
+    <div class="urdu"><p>ہِفزپرو کے پیرنٹ ایپ میں لاگ ان ہونے والے والدین کو اب نیچے کی نیویگیشن میں اپنا ایک <b>Fees</b> ٹیب ملتا ہے — صرف دیکھنے کے لیے، اپنے ہی بچے کے اکاؤنٹ کا: باقی رقم (یا واضح "All Paid Up" کا پیغام)، کوئی فعال وظیفہ، اور تاریخوں، طریقۂ ادائیگی اور رسید نمبروں کے ساتھ ادائیگی کی مکمل تاریخ۔</p></div>
+    <p>They cannot edit anything here, and they never see any other family's information — only what belongs to their own child.</p>
+    <div class="urdu"><p>وہ یہاں کچھ بھی تبدیل نہیں کر سکتے، اور انہیں کبھی کسی اور خاندان کی معلومات نظر نہیں آتیں — صرف وہی جو ان کے اپنے بچے سے متعلق ہو۔</p></div>
+    <figure class="slide phone">
+      <div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <img src="/help/fee-manual/10-parent-fees.png" alt="Parent app Fees tab showing All Paid Up, an active scholarship, and payment history">
+      <figcaption>A parent's view: fully paid, with the discount visible on the one payment made so far.
+        <span class="ur">والدین کا منظر: فیس مکمل ادا، اور اب تک کی واحد ادائیگی پر رعایت بھی نظر آ رہی ہے۔</span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- 10 -->
+  <section class="topic" id="faq">
+    <div class="topic-head"><div class="topic-num">10</div><h2>Frequently asked questions <span class="ur">اکثر پوچھے جانے والے سوالات</span></h2></div>
+
+    <div class="faq-item">
+      <div class="faq-q">What's the difference between Paid, Partial, and Pending?<span class="ur">Paid، Partial اور Pending میں کیا فرق ہے؟</span></div>
+      <p><span class="pill ok">PAID</span> — cash received plus any discount covers the full fee. <span class="pill warn">PARTIAL</span> — some money has come in, but less than the full fee. <span class="pill bad">PENDING</span> — nothing paid yet.</p>
+      <p class="urdu"><span class="pill ok">PAID</span> — نقد رقم اور رعایت ملا کر پوری فیس پوری ہو چکی۔ <span class="pill warn">PARTIAL</span> — کچھ رقم آ چکی ہے، مگر پوری فیس سے کم۔ <span class="pill bad">PENDING</span> — ابھی تک کچھ ادا نہیں ہوا۔</p>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Why does the WhatsApp receipt or reminder say it failed?<span class="ur">واٹس ایپ رسید یا یاددہانی ناکام کیوں بتاتی ہے؟</span></div>
+      <p>Your institute's WhatsApp number isn't connected yet under Settings → WhatsApp. Once it's connected, both features send automatically — and you'll always get an honest success or failure message, never a false "sent".</p>
+      <p class="urdu">آپ کے ادارے کا واٹس ایپ نمبر ابھی Settings → WhatsApp میں جُڑا نہیں ہے۔ جُڑنے کے بعد دونوں خصوصیات خودکار طور پر کام کریں گی — اور آپ کو ہمیشہ درست کامیابی یا ناکامی کا پیغام ملے گا، کبھی جھوٹا "sent" نہیں۔</p>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">I recorded two payments at almost the same moment — is that safe?<span class="ur">میں نے دو ادائیگیاں تقریباً ایک ہی وقت میں درج کیں — کیا یہ محفوظ ہے؟</span></div>
+      <p>Yes. Every payment gets its own unique receipt number, generated safely even if two staff members are recording payments at the same time.</p>
+      <p class="urdu">جی ہاں۔ ہر ادائیگی کا اپنا منفرد رسید نمبر بنتا ہے، اور یہ محفوظ طریقے سے بنتا ہے چاہے دو عملے کے افراد ایک ہی وقت میں ادائیگیاں درج کر رہے ہوں۔</p>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Can a teacher (Ustadh) see fee information?<span class="ur">کیا ایک استاد فیس کی معلومات دیکھ سکتے ہیں؟</span></div>
+      <p>No. Fee screens and data are restricted to Campus Admins and Super Admins only.</p>
+      <p class="urdu">نہیں۔ فیس کے صفحات اور ڈیٹا صرف کیمپس ایڈمن اور سپر ایڈمن تک محدود ہیں۔</p>
+    </div>
+  </section>
+
+  <footer>
+    HifzPro Fee Module Handbook · For questions about your account, contact your HifzPro onboarding team.
+    <span class="ur">ہِفزپرو فیس ماڈیول کتابچہ · اپنے اکاؤنٹ سے متعلق سوالات کے لیے اپنی ہِفزپرو آن بورڈنگ ٹیم سے رابطہ کریں۔</span>
+  </footer>
+
+</div>
