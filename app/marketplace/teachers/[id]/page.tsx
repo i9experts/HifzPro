@@ -16,6 +16,24 @@ interface Teacher {
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const AGE_GROUP_OPTIONS = ["5-8", "9-12", "13-17", "Adult"];
+const PROGRAM_OPTIONS = [
+  { id: "HIFZ", label: "Hifz (memorization)" },
+  { id: "NAZRA", label: "Nazrah (reading)" },
+  { id: "TAJWEED", label: "Tajweed" },
+  { id: "GIRDAAN", label: "Girdaan (revision)" },
+];
+
+function chipStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: "6px 12px", borderRadius: 999, fontSize: 12.5, cursor: "pointer",
+    border: `1.5px solid ${active ? colors.primary : colors.n200}`,
+    background: active ? colors.green50 : colors.white,
+    color: active ? colors.primary : colors.n600,
+    fontWeight: active ? 700 : 500,
+  };
+}
 
 export default function TeacherPublicProfilePage() {
   const params = useParams();
@@ -23,10 +41,15 @@ export default function TeacherPublicProfilePage() {
   const [teacher, setTeacher] = useState<Teacher | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
-  const [message, setMessage] = useState("");
+  const [childAge, setChildAge] = useState("");
+  const [program, setProgram] = useState("");
+  const [preferredDays, setPreferredDays] = useState<number[]>([]);
+  const [goal, setGoal] = useState("");
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+
+  const toggleDay = (d: number) => setPreferredDays(ds => ds.includes(d) ? ds.filter(x => x !== d) : [...ds, d].sort());
 
   useEffect(() => {
     fetch(`/api/public/marketplace/teachers/${id}`)
@@ -35,6 +58,17 @@ export default function TeacherPublicProfilePage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const composedMessage = () => {
+    const lines: string[] = [];
+    if (childAge) lines.push(`Child's age group: ${childAge}`);
+    if (program) lines.push(`Program: ${PROGRAM_OPTIONS.find(p => p.id === program)?.label || program}`);
+    if (preferredDays.length) lines.push(`Preferred days: ${preferredDays.map(d => DAY_FULL[d]).join(", ")}`);
+    const details = lines.length ? lines.map(l => `• ${l}`).join("\n") + "\n\n" : "";
+    return `${details}${goal.trim()}`;
+  };
+
+  const canSend = childAge && program && goal.trim().length > 0;
+
   const sendInquiry = async () => {
     setSending(true);
     setError("");
@@ -42,7 +76,7 @@ export default function TeacherPublicProfilePage() {
       const res = await fetch("/api/marketplace/inquiries", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId: id, message }),
+        body: JSON.stringify({ teacherId: id, message: composedMessage() }),
       });
       const data = await res.json();
       if (!data.success) {
@@ -74,8 +108,8 @@ export default function TeacherPublicProfilePage() {
 
       <main style={{ maxWidth: 760, margin: "0 auto", padding: "24px 16px", display: "grid", gap: 18 }}>
         <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 18, padding: 22, display: "flex", gap: 16, alignItems: "flex-start" }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: colors.green100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0 }}>
-            {teacher.gender === "FEMALE" ? "👩" : "👨"}
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: colors.green100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, overflow: "hidden" }}>
+            {teacher.user.avatar ? <img src={teacher.user.avatar} alt={teacher.user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (teacher.gender === "FEMALE" ? "👩" : "👨")}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 20, color: colors.n800 }}>{teacher.user.name}</div>
@@ -122,23 +156,53 @@ export default function TeacherPublicProfilePage() {
         )}
 
         <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18 }}>
-          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Message this teacher</div>
+          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Message this teacher</div>
+          <div style={{ fontSize: 12.5, color: colors.n500, marginBottom: 14 }}>A few quick details help the teacher reply with a real answer right away.</div>
           {sent ? (
             <div style={{ color: colors.successText }}>Your message has been sent — the teacher will reply from their inbox.</div>
           ) : (
             <>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: colors.n600, display: "block", marginBottom: 6 }}>Child's age group</label>
+                  <select value={childAge} onChange={e => setChildAge(e.target.value)}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: `1.5px solid ${colors.n200}`, fontSize: 13, background: colors.white }}>
+                    <option value="">Select…</option>
+                    {AGE_GROUP_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: colors.n600, display: "block", marginBottom: 6 }}>Program</label>
+                  <select value={program} onChange={e => setProgram(e.target.value)}
+                    style={{ width: "100%", padding: "9px 10px", borderRadius: 10, border: `1.5px solid ${colors.n200}`, fontSize: 13, background: colors.white }}>
+                    <option value="">Select…</option>
+                    {PROGRAM_OPTIONS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: colors.n600, display: "block", marginBottom: 6 }}>Preferred days (optional)</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {DAYS.map((d, i) => (
+                    <span key={d} style={chipStyle(preferredDays.includes(i))} onClick={() => toggleDay(i)}>{d}</span>
+                  ))}
+                </div>
+              </div>
+
+              <label style={{ fontSize: 12, fontWeight: 600, color: colors.n600, display: "block", marginBottom: 6 }}>Tell the teacher a bit more</label>
               <textarea
-                value={message}
-                onChange={e => setMessage(e.target.value)}
+                value={goal}
+                onChange={e => setGoal(e.target.value)}
                 rows={3}
-                placeholder="Introduce yourself and your child's level, then ask your question…"
+                placeholder="Your child's current level, your goals, and anything else the teacher should know…"
                 style={{ width: "100%", padding: 10, borderRadius: 10, border: `1.5px solid ${colors.n200}`, fontSize: 14, marginBottom: 10 }}
               />
               {error && <div style={{ color: colors.errorText, fontSize: 13, marginBottom: 8 }}>{error}</div>}
               <button
-                disabled={sending || !message.trim()}
+                disabled={sending || !canSend}
                 onClick={sendInquiry}
-                style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: colors.primary, color: "white", fontWeight: 700, cursor: "pointer" }}
+                style={{ padding: "10px 20px", borderRadius: 8, border: "none", background: colors.primary, color: "white", fontWeight: 700, cursor: canSend ? "pointer" : "not-allowed", opacity: canSend ? 1 : 0.6 }}
               >
                 {sending ? "Sending…" : "Send message"}
               </button>

@@ -57,7 +57,10 @@ export async function GET(req: NextRequest) {
 
     const profile = await prisma.teacherProfile.findUnique({
       where: { userId: payload!.userId },
-      include: { availabilitySlots: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] } },
+      include: {
+        availabilitySlots: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] },
+        user: { select: { name: true, avatar: true } },
+      },
     });
     if (!profile) return notFoundResponse("Teacher profile not found");
 

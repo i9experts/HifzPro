@@ -78,7 +78,7 @@ export default function FamilyInquiryThreadPage() {
                   background: mine ? colors.primary : colors.white,
                   color: mine ? "white" : colors.n800,
                   border: mine ? "none" : `1px solid ${colors.n200}`,
-                  fontSize: 14,
+                  fontSize: 14, whiteSpace: "pre-wrap",
                 }}>
                   {m.body}
                   <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4 }}>{new Date(m.createdAt).toLocaleString()}</div>
