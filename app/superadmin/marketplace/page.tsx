@@ -10,6 +10,21 @@ interface Teacher {
   avgRating: number | null; totalReviews: number; createdAt: string;
   user: { id: string; name: string; email: string | null; phone: string | null };
 }
+interface VerificationRequest {
+  id: string; verificationTier: string; verificationDocumentUrl: string | null;
+  verificationRequestedTier: string | null; verificationStatus: string;
+  verificationRequestedAt: string | null; verificationRejectionReason: string | null;
+  user: { name: string; email: string | null };
+}
+interface Dispute {
+  id: string; reason: string; status: "OPEN" | "RESOLVED" | "DISMISSED"; resolution: string | null; createdAt: string;
+  raisedBy: { name: string; email: string | null; role: string };
+  resolvedBy: { name: string } | null;
+  booking: {
+    id: string; inquiryId: string; dayOfWeek: number; startTime: string; endTime: string; status: string;
+    teacher: { user: { name: string } }; parent: { user: { name: string } };
+  };
+}
 interface Booking {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
   program: string | null; hourlyRate: number | null; currency: string; status: string; updatedAt: string;
@@ -37,11 +52,50 @@ function selectStyle(): React.CSSProperties {
 }
 
 export default function AdminMarketplacePage() {
-  const [tab, setTab] = useState<"teachers" | "bookings">("teachers");
+  const [tab, setTab] = useState<"teachers" | "bookings" | "verification" | "disputes">("teachers");
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [verifRequests, setVerifRequests] = useState<VerificationRequest[]>([]);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
+
+  const loadDisputes = useCallback(() => {
+    fetch("/api/superadmin/marketplace/disputes").then(r => r.json()).then(d => { if (d.success) setDisputes(d.data.disputes); });
+  }, []);
+  useEffect(() => { if (tab === "disputes") loadDisputes(); }, [tab, loadDisputes]);
+
+  const resolveDispute = async (id: string, action: "RESOLVE" | "DISMISS") => {
+    const resolution = prompt(action === "RESOLVE" ? "How was this resolved?" : "Why is this being dismissed?");
+    if (!resolution) return;
+    const res = await fetch(`/api/superadmin/marketplace/disputes/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, resolution }),
+    });
+    const data = await res.json();
+    if (!data.success) alert(data.error || "Failed to update dispute");
+    loadDisputes();
+  };
+
+  const loadVerifRequests = useCallback(() => {
+    fetch("/api/superadmin/marketplace/verification-requests").then(r => r.json()).then(d => { if (d.success) setVerifRequests(d.data.requests); });
+  }, []);
+  useEffect(() => { if (tab === "verification") loadVerifRequests(); }, [tab, loadVerifRequests]);
+
+  const reviewVerification = async (teacherId: string, action: "APPROVE" | "REJECT") => {
+    let rejectionReason: string | undefined;
+    if (action === "REJECT") {
+      rejectionReason = prompt("Why is this request being rejected?") || undefined;
+      if (!rejectionReason) return;
+    } else if (!confirm("Approve this verification request?")) {
+      return;
+    }
+    const res = await fetch(`/api/superadmin/marketplace/verification-requests/${teacherId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, rejectionReason }),
+    });
+    const data = await res.json();
+    if (!data.success) alert(data.error || "Failed to review request");
+    loadVerifRequests();
+  };
 
   const loadTeachers = useCallback(() => {
     fetch("/api/superadmin/marketplace/teachers").then(r => r.json()).then(d => { if (d.success) setTeachers(d.data.teachers); });
@@ -126,11 +180,14 @@ export default function AdminMarketplacePage() {
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 24px" }}>
         <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          {(["teachers", "bookings"] as const).map(t => (
+          {(["teachers", "bookings", "verification", "disputes"] as const).map(t => (
             <button key={t} onClick={() => setTab(t)}
               style={{ padding: "8px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontFamily: fonts.heading, fontWeight: 700, fontSize: 12,
                 background: tab === t ? colors.primary : "#111827", color: tab === t ? "white" : "#9ca3af" }}>
-              {t === "teachers" ? `Teachers (${teachers.length})` : `Bookings (${bookings.length})`}
+              {t === "teachers" ? `Teachers (${teachers.length})`
+                : t === "bookings" ? `Bookings (${bookings.length})`
+                : t === "verification" ? `Verification (${verifRequests.filter(r => r.verificationStatus === "PENDING").length})`
+                : `Disputes (${disputes.filter(d => d.status === "OPEN").length})`}
             </button>
           ))}
         </div>
@@ -236,6 +293,94 @@ export default function AdminMarketplacePage() {
               })}
               {bookings.length === 0 && <div style={{ padding: 30, textAlign: "center", color: "#6b7280" }}>No bookings yet.</div>}
             </div>
+          </div>
+        )}
+
+        {!loading && tab === "verification" && (
+          <div style={{ background: "#111827", borderRadius: 12, overflow: "hidden", border: "1px solid #1f2937" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 160px", gap: 0, padding: "10px 16px", background: "#0f172a", borderBottom: "1px solid #1f2937" }}>
+              {["Teacher", "Requesting", "Document", "Status", "Actions"].map((h, i) => (
+                <div key={i} style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: "#4b5563" }}>{h}</div>
+              ))}
+            </div>
+            {verifRequests.map((r, idx) => (
+              <div key={r.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 160px", gap: 0, padding: "13px 16px", borderBottom: idx < verifRequests.length - 1 ? "1px solid #1f2937" : "none", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: "white" }}>{r.user.name}</div>
+                  <div style={{ fontFamily: fonts.mono, fontSize: 9, color: "#4b5563", marginTop: 1 }}>{r.user.email || "—"}</div>
+                </div>
+                <div style={{ fontSize: 12, color: "#9ca3af" }}>{(r.verificationRequestedTier || "").replace("_", " ")}</div>
+                <div>
+                  {r.verificationDocumentUrl ? (
+                    <a href={r.verificationDocumentUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 11, textDecoration: "none" }}>View document →</a>
+                  ) : <span style={{ color: "#4b5563", fontSize: 11 }}>—</span>}
+                </div>
+                <div>
+                  <span style={{
+                    padding: "3px 9px", borderRadius: 5, fontSize: 9, fontWeight: 700, fontFamily: fonts.heading,
+                    background: r.verificationStatus === "PENDING" ? "#431d00" : r.verificationStatus === "APPROVED" ? "#052e16" : "#7f1d1d",
+                    color: r.verificationStatus === "PENDING" ? "#d97706" : r.verificationStatus === "APPROVED" ? "#34d399" : "#fca5a5",
+                  }}>{r.verificationStatus}</span>
+                  {r.verificationStatus === "REJECTED" && r.verificationRejectionReason && (
+                    <div style={{ fontSize: 10, color: "#6b7280", marginTop: 4 }}>{r.verificationRejectionReason}</div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {r.verificationStatus === "PENDING" && (
+                    <>
+                      <button onClick={() => reviewVerification(r.id, "APPROVE")} style={{ padding: "4px 10px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                        Approve
+                      </button>
+                      <button onClick={() => reviewVerification(r.id, "REJECT")} style={{ padding: "4px 10px", borderRadius: 6, background: "#431d00", color: "#f59e0b", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                        Reject
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+            {verifRequests.length === 0 && <div style={{ padding: 30, textAlign: "center", color: "#6b7280" }}>No verification requests yet.</div>}
+          </div>
+        )}
+
+        {!loading && tab === "disputes" && (
+          <div style={{ display: "grid", gap: 10 }}>
+            {disputes.map(d => (
+              <div key={d.id} style={{ background: "#111827", borderRadius: 12, border: "1px solid #1f2937", padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: "white" }}>
+                      {d.booking.teacher.user.name} ↔ {d.booking.parent.user.name}
+                    </div>
+                    <div style={{ fontFamily: fonts.mono, fontSize: 9, color: "#4b5563", marginTop: 2 }}>
+                      Raised by {d.raisedBy.name} ({d.raisedBy.role === "MARKETPLACE_TEACHER" ? "teacher" : "parent"}) · {new Date(d.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <span style={{
+                    padding: "3px 9px", borderRadius: 5, fontSize: 9, fontWeight: 700, fontFamily: fonts.heading,
+                    background: d.status === "OPEN" ? "#431d00" : d.status === "RESOLVED" ? "#052e16" : "#1f2937",
+                    color: d.status === "OPEN" ? "#d97706" : d.status === "RESOLVED" ? "#34d399" : "#9ca3af",
+                  }}>{d.status}</span>
+                </div>
+                <div style={{ fontSize: 13, color: "#d1d5db", marginTop: 10, background: "#0f172a", borderRadius: 8, padding: "10px 12px" }}>{d.reason}</div>
+                {d.resolution && (
+                  <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 8 }}>
+                    <strong style={{ color: "#6b7280" }}>Resolution</strong> ({d.resolvedBy?.name}): {d.resolution}
+                  </div>
+                )}
+                {d.status === "OPEN" && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button onClick={() => resolveDispute(d.id, "RESOLVE")} style={{ padding: "5px 12px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 11, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                      Mark resolved
+                    </button>
+                    <button onClick={() => resolveDispute(d.id, "DISMISS")} style={{ padding: "5px 12px", borderRadius: 6, background: "#1f2937", color: "#9ca3af", border: "none", fontSize: 11, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+            {disputes.length === 0 && <div style={{ padding: 30, textAlign: "center", color: "#6b7280", background: "#111827", borderRadius: 12, border: "1px solid #1f2937" }}>No disputes raised yet.</div>}
           </div>
         )}
       </div>

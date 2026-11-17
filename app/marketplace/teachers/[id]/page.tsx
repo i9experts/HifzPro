@@ -16,9 +16,17 @@ interface Teacher {
   qiraat: string | null; yearsExperience: number | null; languages: string[]; countriesServed: string[];
   ageGroupsTaught: string[]; programsOffered: string[]; hourlyRate: number | null; currency: string;
   verificationTier: string; avgRating: number | null; totalReviews: number;
+  avgResponseMinutes: number | null; responseSampleCount: number;
+  completionRate: number | null; completionSampleSize: number;
   user: { name: string; avatar: string | null };
   availabilitySlots: Slot[];
   reviews: Review[];
+}
+
+function formatResponseTime(minutes: number): string {
+  if (minutes < 60) return `~${Math.round(minutes)} min`;
+  if (minutes < 24 * 60) return `~${Math.round(minutes / 60)} hr`;
+  return `~${Math.round(minutes / (24 * 60))} day${minutes >= 2 * 24 * 60 ? "s" : ""}`;
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -157,6 +165,14 @@ export default function TeacherPublicProfilePage() {
               {teacher.yearsExperience != null && <> · {teacher.yearsExperience} yrs experience</>}
             </div>
             {teacher.avgRating != null && <div style={{ fontSize: 13, color: colors.n600, marginTop: 4 }}>⭐ {teacher.avgRating.toFixed(1)} ({teacher.totalReviews} reviews)</div>}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
+              {teacher.responseSampleCount > 0 && teacher.avgResponseMinutes != null && (
+                <span style={{ fontSize: 12, color: colors.n500 }}>⏱ Replies in {formatResponseTime(teacher.avgResponseMinutes)}</span>
+              )}
+              {teacher.completionRate != null && teacher.completionSampleSize >= 3 && (
+                <span style={{ fontSize: 12, color: colors.n500 }}>✅ {Math.round(teacher.completionRate * 100)}% of bookings completed</span>
+              )}
+            </div>
           </div>
           <div style={{ textAlign: "right", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
             <button onClick={toggleSave} aria-label="Save teacher"

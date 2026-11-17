@@ -9,6 +9,7 @@ interface Booking {
   proposedById: string;
   amountCharged: number | null;
   review: { id: string; rating: number; comment: string | null } | null;
+  disputes: { id: string; reason: string; createdAt: string }[];
 }
 interface AvailabilitySlot {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
@@ -47,6 +48,9 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
   const [rating, setRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [submittingDispute, setSubmittingDispute] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/marketplace/inquiries/${inquiryId}/bookings`)
@@ -139,6 +143,27 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
     }
   };
 
+  const submitDispute = async (bookingId: string) => {
+    setSubmittingDispute(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/marketplace/inquiries/${inquiryId}/bookings/${bookingId}/dispute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: disputeReason.trim() }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to submit"); return; }
+      setShowDisputeForm(false);
+      setDisputeReason("");
+      load();
+    } catch {
+      setError("Failed to submit dispute");
+    } finally {
+      setSubmittingDispute(false);
+    }
+  };
+
   if (loading) return null;
 
   const latest = bookings[0];
@@ -226,6 +251,32 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
                   {submittingReview ? "Submitting…" : "Submit review"}
                 </button>
               </div>
+            )
+          )}
+          {(latest.status === "ACCEPTED" || latest.status === "PAYMENT_CONFIRMED") && (
+            latest.disputes.length > 0 ? (
+              <div style={{ marginTop: 10, fontSize: 12, color: colors.warningText, fontWeight: 600 }}>
+                ⏳ A problem was reported on this booking and is under review by HifzPro support.
+              </div>
+            ) : showDisputeForm ? (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${colors.n200}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: colors.n700, marginBottom: 6 }}>What went wrong?</div>
+                <textarea value={disputeReason} onChange={e => setDisputeReason(e.target.value)} rows={3} placeholder="Describe the problem — HifzPro support will review it and follow up."
+                  style={{ width: "100%", padding: 8, borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body }} />
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button disabled={submittingDispute || disputeReason.trim().length < 10} onClick={() => submitDispute(latest.id)}
+                    style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: colors.errorText, color: "white", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                    {submittingDispute ? "Submitting…" : "Submit report"}
+                  </button>
+                  <button onClick={() => setShowDisputeForm(false)} style={{ padding: "7px 16px", borderRadius: 8, border: `1.5px solid ${colors.n200}`, background: colors.white, color: colors.n700, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowDisputeForm(true)} style={{ marginTop: 10, border: "none", background: "none", color: colors.n500, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>
+                ⚠️ Report a problem
+              </button>
             )
           )}
           {latest.status === "REFUNDED" && (

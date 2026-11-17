@@ -55,7 +55,10 @@ export async function GET(
     const bookings = await prisma.booking.findMany({
       where: { inquiryId: id },
       orderBy: { createdAt: "desc" },
-      include: { review: { select: { id: true, rating: true, comment: true } } },
+      include: {
+        review: { select: { id: true, rating: true, comment: true } },
+        disputes: { where: { status: "OPEN" }, take: 1, select: { id: true, reason: true, createdAt: true } },
+      },
     });
     // The teacher's weekly availability, so either side can propose a time
     // straight off a visual calendar instead of typing day/time by hand.

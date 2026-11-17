@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
         id: true, gender: true, residenceCountry: true, bio: true, qiraat: true,
         yearsExperience: true, languages: true, countriesServed: true, ageGroupsTaught: true,
         programsOffered: true, hourlyRate: true, currency: true, verificationTier: true,
-        avgRating: true, totalReviews: true,
+        avgRating: true, totalReviews: true, avgResponseMinutes: true, responseSampleCount: true,
         user: { select: { name: true, avatar: true } },
       },
       orderBy: [{ avgRating: "desc" }, { createdAt: "desc" }],
