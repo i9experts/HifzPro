@@ -23,6 +23,15 @@ const MODULES = [
     border: "#ddd6fe",
   },
   {
+    href: "/dashboard/family/saved",
+    icon: "♥",
+    title: "Saved Teachers",
+    desc: "Your shortlist for later",
+    color: "#e0245e",
+    bg: "#fdf0f3",
+    border: "#f7d4dd",
+  },
+  {
     href: "/dashboard/parent",
     icon: "📖",
     title: "My Child's Progress",
