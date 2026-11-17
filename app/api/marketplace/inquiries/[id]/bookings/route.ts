@@ -52,8 +52,19 @@ export async function GET(
     const found = await loadParticipant(id, payload.userId);
     if (!found) return notFoundResponse("Inquiry not found");
 
-    const bookings = await prisma.booking.findMany({ where: { inquiryId: id }, orderBy: { createdAt: "desc" } });
-    return successResponse({ bookings });
+    const bookings = await prisma.booking.findMany({
+      where: { inquiryId: id },
+      orderBy: { createdAt: "desc" },
+      include: { review: { select: { id: true, rating: true, comment: true } } },
+    });
+    // The teacher's weekly availability, so either side can propose a time
+    // straight off a visual calendar instead of typing day/time by hand.
+    const availabilitySlots = await prisma.teacherAvailabilitySlot.findMany({
+      where: { teacherId: found.inquiry.teacherId, isActive: true },
+      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+      select: { id: true, dayOfWeek: true, startTime: true, endTime: true, timezone: true },
+    });
+    return successResponse({ bookings, availabilitySlots });
   } catch (error) {
     console.error("List bookings error:", error);
     return serverErrorResponse();

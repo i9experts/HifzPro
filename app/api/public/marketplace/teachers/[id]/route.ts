@@ -19,6 +19,14 @@ export async function GET(
         avgRating: true, totalReviews: true,
         user: { select: { name: true, avatar: true } },
         availabilitySlots: { where: { isActive: true }, orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] },
+        reviews: {
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          select: {
+            id: true, rating: true, comment: true, createdAt: true,
+            parent: { select: { user: { select: { name: true } } } },
+          },
+        },
       },
     });
     if (!teacher) return notFoundResponse("Teacher not found or not listed");

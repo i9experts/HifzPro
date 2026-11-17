@@ -29,6 +29,7 @@ export default function MarketplacePage() {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ program: "", gender: "", language: "", country: "", ageGroup: "", maxRate: "" });
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   const load = useCallback(() => {
     setLoading(true);
@@ -42,6 +43,32 @@ export default function MarketplacePage() {
 
   useEffect(load, [load]);
 
+  // Silently ignore 401 — the directory is public; the heart button only
+  // does anything once a parent is signed in.
+  useEffect(() => {
+    fetch("/api/marketplace/saved-teachers")
+      .then(r => r.json())
+      .then(d => { if (d.success) setSavedIds(new Set<string>(d.data.teacherIds)); })
+      .catch(() => {});
+  }, []);
+
+  const toggleSave = async (e: React.MouseEvent, teacherId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isSaved = savedIds.has(teacherId);
+    try {
+      if (isSaved) {
+        const res = await fetch(`/api/marketplace/saved-teachers?teacherId=${teacherId}`, { method: "DELETE" });
+        if (res.status === 401) { window.location.href = "/marketplace/join/parent"; return; }
+        setSavedIds(s => { const n = new Set(s); n.delete(teacherId); return n; });
+      } else {
+        const res = await fetch("/api/marketplace/saved-teachers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ teacherId }) });
+        if (res.status === 401) { window.location.href = "/marketplace/join/parent"; return; }
+        setSavedIds(s => new Set(s).add(teacherId));
+      }
+    } catch { /* best-effort */ }
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body }}>
       <header style={{ background: colors.primary, padding: "20px 20px" }}>
@@ -51,6 +78,7 @@ export default function MarketplacePage() {
             <div style={{ color: "white", fontFamily: fonts.heading, fontWeight: 700, fontSize: 17 }}>HifzPro Marketplace</div>
           </Link>
           <div style={{ display: "flex", gap: 10 }}>
+            <Link href="/dashboard/family/saved" style={{ color: "white", fontSize: 13, textDecoration: "underline" }}>Saved teachers</Link>
             <Link href="/marketplace/join/parent" style={{ color: "white", fontSize: 13, textDecoration: "underline" }}>Find a teacher</Link>
             <Link href="/marketplace/join/teacher" style={{ color: colors.goldLight, fontSize: 13, fontWeight: 700, textDecoration: "underline" }}>Teach on HifzPro</Link>
           </div>
@@ -115,12 +143,18 @@ export default function MarketplacePage() {
                     ))}
                   </div>
                 </div>
-                {t.hourlyRate != null && (
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 18, color: colors.primary }}>{t.currency} {t.hourlyRate}</div>
-                    <div style={{ fontSize: 11, color: colors.n500 }}>per hour</div>
-                  </div>
-                )}
+                <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                  <button onClick={e => toggleSave(e, t.id)} aria-label="Save teacher"
+                    style={{ border: "none", background: "none", cursor: "pointer", fontSize: 18, padding: 0, lineHeight: 1, color: savedIds.has(t.id) ? "#e0245e" : colors.n300 }}>
+                    {savedIds.has(t.id) ? "♥" : "♡"}
+                  </button>
+                  {t.hourlyRate != null && (
+                    <div>
+                      <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 18, color: colors.primary }}>{t.currency} {t.hourlyRate}</div>
+                      <div style={{ fontSize: 11, color: colors.n500 }}>per hour</div>
+                    </div>
+                  )}
+                </div>
               </div>
             </Link>
           ))}

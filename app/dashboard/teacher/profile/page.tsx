@@ -59,6 +59,19 @@ function toggleInArray(arr: string[], val: string): string[] {
   return arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
 }
 
+// Mirrors lib-side minimumFieldsMissing() in app/api/marketplace/teacher/profile/route.ts —
+// the API only ever returns the ones still missing, so diffing against this
+// full list turns that into a real done/not-done checklist.
+const REQUIRED_FOR_LISTING = [
+  "a bio (at least 20 characters)",
+  "qiraat specialization",
+  "hourly rate",
+  "at least one language",
+  "at least one country you'll teach students in",
+  "at least one age group",
+  "at least one program you teach",
+];
+
 const STRIPE_COUNTRIES = [
   { code: "PK", label: "Pakistan" }, { code: "GB", label: "United Kingdom" }, { code: "US", label: "United States" },
   { code: "AE", label: "United Arab Emirates" }, { code: "SA", label: "Saudi Arabia" }, { code: "CA", label: "Canada" },
@@ -207,16 +220,41 @@ export default function TeacherProfilePage() {
           />
         </div>
 
-        {/* Listing status */}
+        {/* Listing status + onboarding checklist */}
         <div style={{ background: profile.isListed ? colors.successBg : colors.warningBg, borderRadius: 14, padding: "14px 16px" }}>
           <div style={{ fontWeight: 700, color: profile.isListed ? colors.successText : colors.warningText, fontFamily: fonts.heading }}>
             {profile.isListed ? "✅ You're listed publicly" : "⚠️ Not listed yet"}
           </div>
-          {!profile.isListed && missing.length > 0 && (
-            <div style={{ fontSize: 13, color: colors.warningText, marginTop: 6 }}>
-              Complete: {missing.join(", ")}.
-            </div>
-          )}
+          {!profile.isListed && (() => {
+            const required = REQUIRED_FOR_LISTING.map(label => ({ label, done: !missing.includes(label) }));
+            const recommended = [
+              { label: "Profile photo", done: !!profile.user.avatar },
+              { label: "Payout account connected", done: !!stripeStatus?.onboardingComplete },
+            ];
+            const doneCount = required.filter(r => r.done).length;
+            return (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: colors.warningText, marginBottom: 4 }}>
+                  <span>Required to list</span><span>{doneCount}/{required.length}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: "rgba(0,0,0,0.08)", overflow: "hidden", marginBottom: 10 }}>
+                  <div style={{ height: "100%", width: `${(doneCount / required.length) * 100}%`, background: colors.warning, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {required.map(item => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: item.done ? colors.successText : colors.n700 }}>
+                      <span>{item.done ? "✅" : "⬜"}</span>{item.label}
+                    </div>
+                  ))}
+                  {recommended.map(item => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: item.done ? colors.successText : colors.n500 }}>
+                      <span>{item.done ? "✅" : "⬜"}</span>{item.label} <span style={{ fontSize: 11, color: colors.n400 }}>(recommended)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           <button
             disabled={saving}
             onClick={() => save({ isListed: !profile.isListed })}
