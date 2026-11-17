@@ -153,6 +153,66 @@ export async function notifyPaymentConfirmed(
   });
 }
 
+export async function notifyVerificationApproved(
+  recipient: NotifyRecipient,
+  opts: { tierLabel: string }
+): Promise<void> {
+  await notify(recipient, {
+    subject: `You're now ${opts.tierLabel} on HifzPro Marketplace`,
+    html: renderEmail({
+      heading: `Congratulations — you're ${opts.tierLabel}`,
+      bodyHtml: `Your verification document was reviewed and approved. Your profile now shows the <strong>${escapeHtml(opts.tierLabel)}</strong> badge to parents.`,
+      ctaUrl: `${baseUrl()}/dashboard/teacher/profile`,
+      ctaLabel: "View your profile",
+    }),
+    waMessage: `✅ Verification approved!\n\nYou're now ${opts.tierLabel} on HifzPro Marketplace. Your profile now shows this badge to parents.`,
+  });
+}
+
+export async function notifyVerificationRejected(
+  recipient: NotifyRecipient,
+  opts: { reason: string }
+): Promise<void> {
+  await notify(recipient, {
+    subject: `Your HifzPro verification request needs another look`,
+    html: renderEmail({
+      heading: `Your verification request wasn't approved`,
+      bodyHtml: `Reason: <em>${escapeHtml(opts.reason)}</em><br><br>You can submit a new document any time from your profile.`,
+      ctaUrl: `${baseUrl()}/dashboard/teacher/profile`,
+      ctaLabel: "Resubmit",
+    }),
+    waMessage: `Your HifzPro verification request wasn't approved.\n\nReason: ${opts.reason}\n\nYou can resubmit a document any time from your profile.`,
+  });
+}
+
+export async function notifyDisputeRaised(
+  recipients: NotifyRecipient[],
+  opts: { raisedByName: string; reason: string; bookingUrl: string }
+): Promise<void> {
+  await Promise.allSettled(recipients.map(r => notify(r, {
+    subject: `A booking dispute was raised on HifzPro Marketplace`,
+    html: renderEmail({
+      heading: `${opts.raisedByName} raised a dispute`,
+      bodyHtml: `<em>"${escapeHtml(truncate(opts.reason, 300))}"</em>`,
+      ctaUrl: opts.bookingUrl,
+      ctaLabel: "Review in admin",
+    }),
+    waMessage: `⚠️ Dispute raised on HifzPro Marketplace\n\n${opts.raisedByName} wrote:\n"${truncate(opts.reason, 300)}"\n\nReview: ${opts.bookingUrl}`,
+  })));
+}
+
+export async function notifyDisputeResolved(
+  recipient: NotifyRecipient,
+  opts: { resolution: string; dismissed: boolean; inquiryUrl: string }
+): Promise<void> {
+  const heading = opts.dismissed ? "Your dispute was reviewed and dismissed" : "Your dispute has been resolved";
+  await notify(recipient, {
+    subject: heading,
+    html: renderEmail({ heading, bodyHtml: `<em>"${escapeHtml(opts.resolution)}"</em>`, ctaUrl: opts.inquiryUrl, ctaLabel: "View booking" }),
+    waMessage: `${heading}\n\n"${opts.resolution}"\n\nDetails: ${opts.inquiryUrl}`,
+  });
+}
+
 export function inquiryUrlFor(role: "teacher" | "parent", inquiryId: string): string {
   const path = role === "teacher" ? `/dashboard/teacher/inquiries/${inquiryId}` : `/dashboard/family/inquiries/${inquiryId}`;
   return `${baseUrl()}${path}`;

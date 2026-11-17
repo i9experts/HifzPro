@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import PhotoUpload from "@/components/ui/PhotoUpload";
+import DocumentUpload, { type UploadedDoc } from "@/components/ui/DocumentUpload";
 import { colors, fonts } from "@/lib/tokens";
 
 interface AvailabilitySlot {
@@ -24,6 +25,12 @@ interface Profile {
   currency: string;
   isListed: boolean;
   availabilitySlots: AvailabilitySlot[];
+  verificationTier: "UNVERIFIED" | "ID_VERIFIED" | "CREDENTIAL_VERIFIED" | "BACKGROUND_CHECKED";
+  verificationStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  verificationRequestedTier: string | null;
+  verificationRejectionReason: string | null;
+  avgResponseMinutes: number | null;
+  responseSampleCount: number;
 }
 
 const PROGRAM_OPTIONS = [
@@ -88,6 +95,10 @@ export default function TeacherProfilePage() {
   const [langInput, setLangInput] = useState("");
   const [countryInput, setCountryInput] = useState("");
   const [newSlot, setNewSlot] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi" });
+
+  const [verifDocs, setVerifDocs] = useState<UploadedDoc[]>([]);
+  const [verifTier, setVerifTier] = useState("ID_VERIFIED");
+  const [submittingVerif, setSubmittingVerif] = useState(false);
 
   const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; onboardingComplete: boolean } | null>(null);
   const [stripeCountry, setStripeCountry] = useState("PK");
@@ -175,6 +186,28 @@ export default function TeacherProfilePage() {
   const removeSlot = async (id: string) => {
     await fetch(`/api/marketplace/teacher/availability/${id}`, { method: "DELETE" });
     load();
+  };
+
+  const submitVerification = async () => {
+    if (!verifDocs[0]) { setError("Upload a document first"); return; }
+    setSubmittingVerif(true);
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/teacher/verification", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentUrl: verifDocs[0].url, requestedTier: verifTier }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to submit"); return; }
+      setVerifDocs([]);
+      setMessage("Verification request submitted — we'll review it soon.");
+      load();
+    } catch {
+      setError("Failed to submit verification request");
+    } finally {
+      setSubmittingVerif(false);
+    }
   };
 
   const saveAvatar = async (avatarUrl: string) => {
@@ -291,6 +324,49 @@ export default function TeacherProfilePage() {
                   {connecting ? "Redirecting…" : stripeStatus?.connected ? "Finish payout setup" : "Connect payout account"}
                 </button>
               </div>
+            </>
+          )}
+        </div>
+
+        {/* Verification */}
+        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: "16px" }}>
+          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Verification</div>
+          <div style={{ fontSize: 12, color: colors.n500, marginBottom: 12 }}>
+            Current badge: <strong>{profile.verificationTier === "UNVERIFIED" ? "None yet" : profile.verificationTier.replace("_", " ")}</strong>
+          </div>
+
+          {profile.verificationStatus === "PENDING" && (
+            <div style={{ background: colors.warningBg, color: colors.warningText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
+              ⏳ Your request for <strong>{(profile.verificationRequestedTier || "").replace("_", " ")}</strong> is under review.
+            </div>
+          )}
+          {profile.verificationStatus === "REJECTED" && (
+            <div style={{ background: colors.errorBg, color: colors.errorText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
+              Your last request wasn't approved. Reason: {profile.verificationRejectionReason}
+            </div>
+          )}
+          {profile.verificationStatus === "APPROVED" && (
+            <div style={{ background: colors.successBg, color: colors.successText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
+              ✅ Approved — this badge now shows on your public profile.
+            </div>
+          )}
+
+          {profile.verificationStatus !== "PENDING" && (
+            <>
+              <label style={labelStyle()}>Requesting</label>
+              <select value={verifTier} onChange={e => setVerifTier(e.target.value)} style={{ ...inputStyle(), marginBottom: 12 }}>
+                <option value="ID_VERIFIED">ID Verified — government ID</option>
+                <option value="CREDENTIAL_VERIFIED">Credential Verified — ijazah/sanad</option>
+                <option value="BACKGROUND_CHECKED">Background Checked</option>
+              </select>
+              <DocumentUpload documents={verifDocs} onChange={setVerifDocs} label="Upload your ID or credential" maxFiles={1} />
+              <button
+                disabled={submittingVerif || !verifDocs[0]}
+                onClick={submitVerification}
+                style={{ marginTop: 10, padding: "8px 16px", borderRadius: 8, border: "none", cursor: verifDocs[0] ? "pointer" : "not-allowed", opacity: verifDocs[0] ? 1 : 0.6, fontWeight: 700, fontSize: 13, background: colors.primary, color: "white" }}
+              >
+                {submittingVerif ? "Submitting…" : "Submit for review"}
+              </button>
             </>
           )}
         </div>

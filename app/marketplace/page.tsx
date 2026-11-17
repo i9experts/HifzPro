@@ -9,11 +9,18 @@ interface Teacher {
   yearsExperience: number | null; languages: string[]; countriesServed: string[]; ageGroupsTaught: string[];
   programsOffered: string[]; hourlyRate: number | null; currency: string; verificationTier: string;
   avgRating: number | null; totalReviews: number;
+  avgResponseMinutes: number | null; responseSampleCount: number;
   user: { name: string; avatar: string | null };
 }
 
 const PROGRAM_OPTIONS = ["HIFZ", "NAZRA", "TAJWEED", "GIRDAAN"];
 const AGE_GROUP_OPTIONS = ["5-8", "9-12", "13-17", "Adult"];
+
+function formatResponseTime(minutes: number): string {
+  if (minutes < 60) return `~${Math.round(minutes)} min`;
+  if (minutes < 24 * 60) return `~${Math.round(minutes / 60)} hr`;
+  return `~${Math.round(minutes / (24 * 60))} day${minutes >= 2 * 24 * 60 ? "s" : ""}`;
+}
 
 function selectStyle(): React.CSSProperties {
   return { padding: "9px 10px", borderRadius: 10, border: `1.5px solid ${colors.n200}`, fontSize: 13, background: colors.white, fontFamily: fonts.body };
@@ -132,6 +139,9 @@ export default function MarketplacePage() {
                     <span style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 16, color: colors.n800 }}>{t.user.name}</span>
                     <VerificationBadge tier={t.verificationTier} />
                     {t.avgRating != null && <span style={{ fontSize: 13, color: colors.n600 }}>⭐ {t.avgRating.toFixed(1)} ({t.totalReviews})</span>}
+                    {t.responseSampleCount > 0 && t.avgResponseMinutes != null && (
+                      <span style={{ fontSize: 12, color: colors.n500 }}>⏱ Replies in {formatResponseTime(t.avgResponseMinutes)}</span>
+                    )}
                   </div>
                   <div style={{ fontSize: 13, color: colors.n600, marginTop: 4 }}>
                     {t.qiraat && <>{t.qiraat} · </>}{t.residenceCountry}{t.yearsExperience != null && <> · {t.yearsExperience} yrs experience</>}
