@@ -4,13 +4,17 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken, type TokenPayload } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
+import { notifyNewMessage, inquiryUrlFor } from "@/lib/marketplace-notify";
 
 const sendSchema = z.object({ body: z.string().min(1).max(4000) });
 
 async function loadInquiryForParticipant(id: string, payload: TokenPayload) {
   const inquiry = await prisma.teacherInquiry.findUnique({
     where: { id },
-    include: { teacher: { select: { userId: true } }, parent: { select: { userId: true } } },
+    include: {
+      teacher: { select: { userId: true, user: { select: { name: true, email: true, whatsapp: true } } } },
+      parent:  { select: { userId: true, user: { select: { name: true, email: true, whatsapp: true } } } },
+    },
   });
   if (!inquiry) return null;
   const isTeacher = inquiry.teacher.userId === payload.userId;
@@ -78,6 +82,11 @@ export async function POST(
     // for inbox sort order (status assigned to itself to force the bump).
     const nextStatus = found.isTeacher && found.inquiry.status === "PENDING" ? "ACCEPTED" : found.inquiry.status;
     await prisma.teacherInquiry.update({ where: { id }, data: { status: nextStatus } });
+
+    const recipient = found.isTeacher ? found.inquiry.parent.user : found.inquiry.teacher.user;
+    const inquiryUrl = inquiryUrlFor(found.isTeacher ? "parent" : "teacher", id);
+    await notifyNewMessage(recipient, { senderName: payload.name, preview: result.data.body, inquiryUrl })
+      .catch((err) => console.error("[messages] notify failed:", err));
 
     return successResponse({ message }, 201);
   } catch (error) {

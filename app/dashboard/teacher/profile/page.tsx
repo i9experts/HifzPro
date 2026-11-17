@@ -2,12 +2,14 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
+import PhotoUpload from "@/components/ui/PhotoUpload";
 import { colors, fonts } from "@/lib/tokens";
 
 interface AvailabilitySlot {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
 }
 interface Profile {
+  user: { name: string; avatar: string | null };
   gender: "MALE" | "FEMALE";
   residenceCountry: string;
   bio: string | null;
@@ -162,6 +164,22 @@ export default function TeacherProfilePage() {
     load();
   };
 
+  const saveAvatar = async (avatarUrl: string) => {
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/teacher/avatar", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarUrl }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to save photo"); return; }
+      setProfile(p => p ? { ...p, user: { ...p.user, avatar: data.data.avatar } } : p);
+    } catch {
+      setError("Failed to save photo");
+    }
+  };
+
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: colors.n500 }}>Loading…</div>;
   if (!profile) return <div style={{ padding: 40, textAlign: "center", color: colors.errorText }}>{error || "Profile not found"}</div>;
 
@@ -176,6 +194,19 @@ export default function TeacherProfilePage() {
       </header>
 
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 16px", display: "grid", gap: 20 }}>
+        {/* Photo */}
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <PhotoUpload
+            value={profile.user.avatar}
+            onChange={saveAvatar}
+            label="Your photo"
+            size={96}
+            shape="circle"
+            initials={profile.user.name.charAt(0).toUpperCase()}
+            folder="hifzpro/teachers"
+          />
+        </div>
+
         {/* Listing status */}
         <div style={{ background: profile.isListed ? colors.successBg : colors.warningBg, borderRadius: 14, padding: "14px 16px" }}>
           <div style={{ fontWeight: 700, color: profile.isListed ? colors.successText : colors.warningText, fontFamily: fonts.heading }}>

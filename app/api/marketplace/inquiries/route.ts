@@ -7,6 +7,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
+import { notifyNewInquiry, notifyNewMessage, inquiryUrlFor } from "@/lib/marketplace-notify";
 
 const createSchema = z.object({
   teacherId: z.string().min(1),
@@ -27,7 +28,10 @@ export async function POST(req: NextRequest) {
 
     const [parentProfile, teacherProfile] = await Promise.all([
       prisma.marketplaceParentProfile.findUnique({ where: { userId: payload.userId } }),
-      prisma.teacherProfile.findFirst({ where: { id: teacherId, isListed: true, isActive: true } }),
+      prisma.teacherProfile.findFirst({
+        where: { id: teacherId, isListed: true, isActive: true },
+        include: { user: { select: { name: true, email: true, whatsapp: true } } },
+      }),
     ]);
     if (!parentProfile) return notFoundResponse("Parent profile not found");
     if (!teacherProfile) return notFoundResponse("Teacher not found or not listed");
@@ -41,6 +45,15 @@ export async function POST(req: NextRequest) {
     const sentMessage = await prisma.teacherMessage.create({
       data: { inquiryId: inquiry.id, senderId: payload.userId, body: message },
     });
+
+    // First message on a freshly-created thread reads as "a new inquiry";
+    // a later message to the same teacher (upsert reused the thread) reads
+    // as an ordinary new message instead.
+    const messageCount = await prisma.teacherMessage.count({ where: { inquiryId: inquiry.id } });
+    const inquiryUrl = inquiryUrlFor("teacher", inquiry.id);
+    const notifyFn = messageCount === 1 ? notifyNewInquiry : notifyNewMessage;
+    await notifyFn(teacherProfile.user, { senderName: payload.name, preview: message, inquiryUrl })
+      .catch((err) => console.error("[inquiries] notify failed:", err));
 
     return successResponse({ inquiry, message: sentMessage }, 201);
   } catch (error) {
