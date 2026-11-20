@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import HifzMark from "@/components/ui/HifzMark";
 import { HomeIcon, UserIcon, GraduationCapIcon, ChatIcon, SignOutIcon } from "@/components/ui/Icons";
-import { colors, fonts } from "@/lib/tokens";
+import { colors } from "@/lib/tokens";
 
 const NAV = [
   { href: "/dashboard/teacher", icon: HomeIcon, label: "Dashboard", exact: true },
@@ -25,12 +25,12 @@ export default function TeacherPortalLayout({ children }: { children: React.Reac
   };
 
   return (
-    <div className="hp-teacher-shell" style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body }}>
+    <div className="hp-teacher-shell" style={{ minHeight: "100vh", background: colors.n50 }}>
       <aside className="hp-teacher-sidebar" style={{ background: colors.primaryDark }}>
         <div className="hp-teacher-brand">
           <HifzMark size={26} />
           <div>
-            <div style={{ color: "white", fontFamily: fonts.heading, fontWeight: 700, fontSize: 14 }}>HifzPro</div>
+            <div style={{ color: "white", fontWeight: 700, fontSize: 14 }}>HifzPro</div>
             <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 10.5 }}>Teacher Portal</div>
           </div>
         </div>
@@ -62,8 +62,13 @@ export default function TeacherPortalLayout({ children }: { children: React.Reac
 
       <main className="hp-teacher-main">{children}</main>
 
+      {/* NOTE: do not interpolate JS values (e.g. ${fonts.heading}) inside this
+          style jsx block — in this app, dynamic interpolation inside a
+          `layout.tsx` file's <style jsx> reproducibly hangs the webpack/SWC
+          compile (confirmed by bisection). Static CSS only; font-family is
+          hardcoded to match lib/tokens.ts's `fonts.heading`. */}
       <style jsx>{`
-        .hp-teacher-shell { display: flex; }
+        .hp-teacher-shell { display: flex; font-family: 'DM Sans', sans-serif; }
         .hp-teacher-sidebar {
           width: 216px; flex-shrink: 0; min-height: 100vh;
           display: flex; flex-direction: column; position: sticky; top: 0;
@@ -72,21 +77,24 @@ export default function TeacherPortalLayout({ children }: { children: React.Reac
         .hp-teacher-nav { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; flex: 1; }
         .hp-teacher-navlink {
           display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px;
-          font-family: ${fonts.heading}; font-size: 13px; font-weight: 600; text-decoration: none;
+          font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 600; text-decoration: none;
         }
         .hp-teacher-signout {
           display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: transparent; border: none;
-          font-family: ${fonts.heading}; font-size: 12.5px; font-weight: 600; cursor: pointer; text-align: left;
+          font-family: 'Outfit', sans-serif; font-size: 12.5px; font-weight: 600; cursor: pointer; text-align: left;
         }
         .hp-teacher-main { flex: 1; min-width: 0; }
 
         @media (max-width: 760px) {
           .hp-teacher-shell { flex-direction: column; }
-          .hp-teacher-sidebar { width: 100%; min-height: auto; position: static; flex-direction: row; align-items: center; flex-wrap: wrap; }
-          .hp-teacher-brand { padding: 12px 14px; }
-          .hp-teacher-nav { flex-direction: row; flex: 1; padding: 6px 8px; overflow-x: auto; }
-          .hp-teacher-navlink { flex-shrink: 0; border-left: none !important; }
-          .hp-teacher-signout { padding: 10px 14px; border-top: none !important; }
+          .hp-teacher-sidebar { width: 100%; min-height: auto; position: static; flex-direction: column; }
+          .hp-teacher-brand { padding: 12px 14px; justify-content: space-between; }
+          .hp-teacher-nav {
+            flex-direction: row; flex-wrap: nowrap; gap: 4px; padding: 6px 8px;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
+          }
+          .hp-teacher-navlink { flex-shrink: 0; white-space: nowrap; border-left: none !important; }
+          .hp-teacher-signout { padding: 10px 14px; justify-content: center; }
         }
       `}</style>
     </div>
