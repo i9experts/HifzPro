@@ -2,7 +2,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
-import { colors, fonts } from "@/lib/tokens";
+import EmptyState from "@/components/marketplace/EmptyState";
+import { SkeletonBlock } from "@/components/marketplace/Skeleton";
+import { colors, fonts, shadows } from "@/lib/tokens";
 
 interface Teacher {
   id: string; gender: string; residenceCountry: string; bio: string | null; qiraat: string | null;
@@ -38,15 +40,22 @@ export default function SavedTeachersPage() {
       </header>
 
       <main style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
-        {loading && <div style={{ color: colors.n500, textAlign: "center", padding: 30 }}>Loading…</div>}
-        {!loading && teachers.length === 0 && (
-          <div style={{ color: colors.n500, textAlign: "center", padding: 30, background: colors.white, borderRadius: 14 }}>
-            No saved teachers yet. Tap the ♡ on a teacher's profile to keep them here.
+        {loading && (
+          <div style={{ display: "grid", gap: 14 }}>
+            {[0, 1].map(i => (
+              <div key={i} style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 16, padding: 18, display: "flex", gap: 14, alignItems: "center" }}>
+                <SkeletonBlock width={48} height={48} radius={999} />
+                <div style={{ flex: 1, display: "grid", gap: 8 }}><SkeletonBlock width="50%" height={15} /><SkeletonBlock width="35%" height={12} /></div>
+              </div>
+            ))}
           </div>
+        )}
+        {!loading && teachers.length === 0 && (
+          <EmptyState icon="♡" title="No saved teachers yet" description="Tap the heart on a teacher's profile to keep them here for later." action={{ label: "Browse teachers", href: "/marketplace" }} />
         )}
         <div style={{ display: "grid", gap: 14 }}>
           {teachers.map(t => (
-            <div key={t.id} style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 16, padding: 18, display: "flex", gap: 14, alignItems: "flex-start" }}>
+            <div key={t.id} style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 16, padding: 18, display: "flex", gap: 14, alignItems: "flex-start", boxShadow: shadows.sm }}>
               <Link href={`/marketplace/teachers/${t.id}`} style={{ display: "flex", gap: 14, flex: 1, textDecoration: "none" }}>
                 <div style={{ width: 48, height: 48, borderRadius: "50%", background: colors.green100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0, overflow: "hidden" }}>
                   {t.user.avatar ? <img src={t.user.avatar} alt={t.user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (t.gender === "FEMALE" ? "👩" : "👨")}

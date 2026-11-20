@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import BookingPanel from "@/components/marketplace/BookingPanel";
+import { SkeletonBlock } from "@/components/marketplace/Skeleton";
 import { colors, fonts } from "@/lib/tokens";
 
 interface Message { id: string; body: string; senderId: string; createdAt: string }
@@ -64,7 +65,13 @@ export default function FamilyInquiryThreadPage() {
       </header>
 
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px", flex: 1, width: "100%", display: "flex", flexDirection: "column" }}>
-        {loading && <div style={{ color: colors.n500, textAlign: "center", padding: 30 }}>Loading…</div>}
+        {loading && (
+          <div style={{ display: "grid", gap: 10, marginBottom: 14 }}>
+            <div style={{ alignSelf: "flex-start" }}><SkeletonBlock width={180} height={44} radius={14} /></div>
+            <div style={{ alignSelf: "flex-end", marginLeft: "auto" }}><SkeletonBlock width={140} height={32} radius={14} /></div>
+            <div style={{ alignSelf: "flex-start" }}><SkeletonBlock width={200} height={44} radius={14} /></div>
+          </div>
+        )}
 
         {myUserId && <BookingPanel inquiryId={id} myUserId={myUserId} role="parent" />}
 

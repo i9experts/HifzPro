@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
-import { colors, fonts } from "@/lib/tokens";
+import EmptyState from "@/components/marketplace/EmptyState";
+import { SkeletonBlock } from "@/components/marketplace/Skeleton";
+import { colors, fonts, shadows } from "@/lib/tokens";
 
 interface Slot { id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string }
 interface Review { id: string; rating: number; comment: string | null; createdAt: string; parent: { user: { name: string } } }
@@ -139,27 +141,53 @@ export default function TeacherPublicProfilePage() {
     }
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: colors.n500 }}>Loading…</div>;
-  if (notFound || !teacher) return <div style={{ padding: 40, textAlign: "center", color: colors.errorText }}>Teacher not found.</div>;
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body }}>
+        <div style={{ background: `linear-gradient(160deg, ${colors.deep} 0%, ${colors.primary} 100%)`, height: 120 }} />
+        <main style={{ maxWidth: 760, margin: "0 auto", padding: "0 16px 24px", display: "grid", gap: 18 }}>
+          <div style={{ background: colors.white, borderRadius: 18, padding: 22, marginTop: -56, boxShadow: shadows.lg, display: "flex", gap: 16 }}>
+            <SkeletonBlock width={72} height={72} radius={999} />
+            <div style={{ flex: 1, display: "grid", gap: 8, paddingTop: 6 }}>
+              <SkeletonBlock width="50%" height={18} />
+              <SkeletonBlock width="70%" height={13} />
+              <SkeletonBlock width="40%" height={13} />
+            </div>
+          </div>
+          <SkeletonBlock height={100} radius={14} />
+          <SkeletonBlock height={140} radius={14} />
+        </main>
+      </div>
+    );
+  }
+  if (notFound || !teacher) {
+    return (
+      <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ maxWidth: 420, width: "100%" }}>
+          <EmptyState icon="🙁" title="Teacher not found" description="This profile may have been unlisted or the link is incorrect." action={{ label: "Back to directory", href: "/marketplace" }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body }}>
-      <header style={{ background: colors.primary, padding: "18px 20px" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", alignItems: "center", gap: 10 }}>
+      <div style={{ background: `linear-gradient(160deg, ${colors.deep} 0%, ${colors.primary} 100%)` }}>
+        <div style={{ maxWidth: 760, margin: "0 auto", padding: "18px 20px 72px" }}>
           <Link href="/marketplace" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 10 }}>
-            <HifzMark size={28} />
-            <span style={{ color: "white", fontFamily: fonts.heading, fontWeight: 700 }}>← Back to directory</span>
+            <HifzMark size={26} />
+            <span style={{ color: "rgba(255,255,255,0.9)", fontFamily: fonts.heading, fontWeight: 700, fontSize: 14 }}>← Back to directory</span>
           </Link>
         </div>
-      </header>
+      </div>
 
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "24px 16px", display: "grid", gap: 18 }}>
-        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 18, padding: 22, display: "flex", gap: 16, alignItems: "flex-start" }}>
-          <div style={{ width: 64, height: 64, borderRadius: "50%", background: colors.green100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, overflow: "hidden" }}>
+      <main style={{ maxWidth: 760, margin: "0 auto", padding: "0 16px 24px", display: "grid", gap: 18 }}>
+        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 18, padding: 22, display: "flex", gap: 16, alignItems: "flex-start", marginTop: -56, boxShadow: shadows.lg }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: colors.green100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, flexShrink: 0, overflow: "hidden", border: `3px solid ${colors.white}`, boxShadow: shadows.sm }}>
             {teacher.user.avatar ? <img src={teacher.user.avatar} alt={teacher.user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (teacher.gender === "FEMALE" ? "👩" : "👨")}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 20, color: colors.n800 }}>{teacher.user.name}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: fonts.display, fontWeight: 700, fontSize: 24, color: colors.n800 }}>{teacher.user.name}</div>
             <div style={{ fontSize: 13, color: colors.n600, marginTop: 4 }}>
               {teacher.qiraat && <>{teacher.qiraat} · </>}{teacher.residenceCountry}
               {teacher.yearsExperience != null && <> · {teacher.yearsExperience} yrs experience</>}
@@ -189,13 +217,14 @@ export default function TeacherPublicProfilePage() {
         </div>
 
         {teacher.bio && (
-          <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18 }}>
-            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 8, color: colors.n800 }}>About</div>
+          <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18, boxShadow: shadows.sm }}>
+            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 8, color: colors.n800 }}>📖 About</div>
             <div style={{ fontSize: 14, color: colors.n700, lineHeight: 1.6 }}>{teacher.bio}</div>
           </div>
         )}
 
-        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18, display: "grid", gap: 10 }}>
+        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18, display: "grid", gap: 10, boxShadow: shadows.sm }}>
+          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 2, color: colors.n800 }}>📋 Details</div>
           <div><strong style={{ fontSize: 13 }}>Programs:</strong> <span style={{ fontSize: 13 }}>{teacher.programsOffered.join(", ") || "—"}</span></div>
           <div><strong style={{ fontSize: 13 }}>Age groups:</strong> <span style={{ fontSize: 13 }}>{teacher.ageGroupsTaught.join(", ") || "—"}</span></div>
           <div><strong style={{ fontSize: 13 }}>Languages:</strong> <span style={{ fontSize: 13 }}>{teacher.languages.join(", ") || "—"}</span></div>
@@ -204,8 +233,8 @@ export default function TeacherPublicProfilePage() {
         </div>
 
         {teacher.availabilitySlots.length > 0 && (
-          <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18 }}>
-            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>Weekly availability</div>
+          <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18, boxShadow: shadows.sm }}>
+            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 8 }}>📅 Weekly availability</div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {teacher.availabilitySlots.map(s => (
                 <span key={s.id} style={{ fontSize: 12, background: colors.green50, color: colors.primary, padding: "4px 10px", borderRadius: 999 }}>
@@ -217,9 +246,9 @@ export default function TeacherPublicProfilePage() {
         )}
 
         {teacher.reviews.length > 0 && (
-          <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18 }}>
+          <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18, boxShadow: shadows.sm }}>
             <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 12 }}>
-              Reviews {teacher.avgRating != null && <span style={{ color: colors.n500, fontWeight: 400 }}>· ⭐ {teacher.avgRating.toFixed(1)} from {teacher.totalReviews}</span>}
+              ⭐ Reviews {teacher.avgRating != null && <span style={{ color: colors.n500, fontWeight: 400 }}>· {teacher.avgRating.toFixed(1)} from {teacher.totalReviews}</span>}
             </div>
             <div style={{ display: "grid", gap: 12 }}>
               {teacher.reviews.map(r => (
@@ -236,8 +265,8 @@ export default function TeacherPublicProfilePage() {
           </div>
         )}
 
-        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18 }}>
-          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Message this teacher</div>
+        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 18, boxShadow: shadows.sm }}>
+          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 2 }}>💬 Message this teacher</div>
           <div style={{ fontSize: 12.5, color: colors.n500, marginBottom: 14 }}>A few quick details help the teacher reply with a real answer right away.</div>
           {sent ? (
             <div style={{ color: colors.successText }}>Your message has been sent — the teacher will reply from their inbox.</div>
@@ -293,11 +322,11 @@ export default function TeacherPublicProfilePage() {
 
         {similar.length > 0 && (
           <div>
-            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 10, color: colors.n700 }}>Similar teachers</div>
+            <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 10, color: colors.n700 }}>👥 Similar teachers</div>
             <div style={{ display: "grid", gap: 10 }}>
               {similar.map(t => (
                 <Link key={t.id} href={`/marketplace/teachers/${t.id}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 14, display: "flex", gap: 12, alignItems: "center" }}>
+                  <div className="hp-similar-card" style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 14, display: "flex", gap: 12, alignItems: "center", boxShadow: shadows.sm }}>
                     <div style={{ width: 40, height: 40, borderRadius: "50%", background: colors.green100, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0, overflow: "hidden" }}>
                       {t.user.avatar ? <img src={t.user.avatar} alt={t.user.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : (t.gender === "FEMALE" ? "👩" : "👨")}
                     </div>
@@ -313,6 +342,11 @@ export default function TeacherPublicProfilePage() {
           </div>
         )}
       </main>
+
+      <style jsx global>{`
+        .hp-similar-card { transition: box-shadow 0.15s ease, transform 0.15s ease; }
+        .hp-similar-card:hover { box-shadow: ${shadows.md}; transform: translateY(-1px); }
+      `}</style>
     </div>
   );
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
 import PhotoUpload from "@/components/ui/PhotoUpload";
 import DocumentUpload, { type UploadedDoc } from "@/components/ui/DocumentUpload";
+import EmptyState from "@/components/marketplace/EmptyState";
+import { SkeletonBlock } from "@/components/marketplace/Skeleton";
 import { colors, fonts } from "@/lib/tokens";
 
 interface AvailabilitySlot {
@@ -226,8 +228,28 @@ export default function TeacherProfilePage() {
     }
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: colors.n500 }}>Loading…</div>;
-  if (!profile) return <div style={{ padding: 40, textAlign: "center", color: colors.errorText }}>{error || "Profile not found"}</div>;
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, paddingBottom: 60 }}>
+        <header style={{ background: colors.primary, padding: "18px 20px" }} />
+        <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 16px", display: "grid", gap: 20 }}>
+          <div style={{ display: "flex", justifyContent: "center" }}><SkeletonBlock width={96} height={96} radius={999} /></div>
+          <SkeletonBlock height={70} radius={14} />
+          <SkeletonBlock height={90} radius={14} />
+          <SkeletonBlock height={120} radius={14} />
+        </main>
+      </div>
+    );
+  }
+  if (!profile) {
+    return (
+      <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ maxWidth: 420, width: "100%" }}>
+          <EmptyState icon="⚠️" title="Couldn't load your profile" description={error || "Something went wrong — try refreshing the page."} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, paddingBottom: 60 }}>
