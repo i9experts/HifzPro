@@ -8,6 +8,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
+import { notifyBookingProposed, inquiryUrlFor, DAY_LABELS } from "@/lib/marketplace-notify";
 
 const PROGRAMS = ["HIFZ", "NAZRA", "TAJWEED", "GIRDAAN"] as const;
 
@@ -25,7 +26,10 @@ const proposeSchema = z.object({
 async function loadParticipant(id: string, userId: string) {
   const inquiry = await prisma.teacherInquiry.findUnique({
     where: { id },
-    include: { teacher: { select: { userId: true } }, parent: { select: { userId: true } } },
+    include: {
+      teacher: { select: { userId: true, user: { select: { name: true, email: true, whatsapp: true } } } },
+      parent:  { select: { userId: true, user: { select: { name: true, email: true, whatsapp: true } } } },
+    },
   });
   if (!inquiry) return null;
   const isTeacher = inquiry.teacher.userId === userId;
@@ -48,8 +52,22 @@ export async function GET(
     const found = await loadParticipant(id, payload.userId);
     if (!found) return notFoundResponse("Inquiry not found");
 
-    const bookings = await prisma.booking.findMany({ where: { inquiryId: id }, orderBy: { createdAt: "desc" } });
-    return successResponse({ bookings });
+    const bookings = await prisma.booking.findMany({
+      where: { inquiryId: id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        review: { select: { id: true, rating: true, comment: true } },
+        disputes: { where: { status: "OPEN" }, take: 1, select: { id: true, reason: true, createdAt: true } },
+      },
+    });
+    // The teacher's weekly availability, so either side can propose a time
+    // straight off a visual calendar instead of typing day/time by hand.
+    const availabilitySlots = await prisma.teacherAvailabilitySlot.findMany({
+      where: { teacherId: found.inquiry.teacherId, isActive: true },
+      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+      select: { id: true, dayOfWeek: true, startTime: true, endTime: true, timezone: true },
+    });
+    return successResponse({ bookings, availabilitySlots });
   } catch (error) {
     console.error("List bookings error:", error);
     return serverErrorResponse();
@@ -89,6 +107,17 @@ export async function POST(
         proposedById: payload.userId,
       },
     });
+
+    const recipient = found.isTeacher ? found.inquiry.parent.user : found.inquiry.teacher.user;
+    const inquiryUrl = inquiryUrlFor(found.isTeacher ? "parent" : "teacher", id);
+    await notifyBookingProposed(recipient, {
+      proposerName: payload.name,
+      dayLabel: DAY_LABELS[result.data.dayOfWeek],
+      startTime: result.data.startTime,
+      endTime: result.data.endTime,
+      timezone: result.data.timezone,
+      inquiryUrl,
+    }).catch((err) => console.error("[bookings] notify failed:", err));
 
     return successResponse({ booking }, 201);
   } catch (error) {

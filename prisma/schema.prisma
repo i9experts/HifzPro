@@ -204,6 +204,8 @@ model User {
   sentTeacherMessages     TeacherMessage[] @relation("SentTeacherMessages")
   proposedBookings        Booking[] @relation("ProposedBookings")
   paymentConfirmedBookings Booking[] @relation("PaymentConfirmedBookings")
+  raisedDisputes          BookingDispute[] @relation("RaisedDisputes")
+  resolvedDisputes        BookingDispute[] @relation("ResolvedDisputes")
 
   @@map("users")
 }
@@ -910,6 +912,13 @@ enum TeacherVerificationTier {
   BACKGROUND_CHECKED  // Tier 3: formal background check (where legally available)
 }
 
+enum VerificationRequestStatus {
+  NONE     // never submitted anything
+  PENDING  // document submitted, awaiting admin review
+  APPROVED
+  REJECTED
+}
+
 enum TeacherInquiryStatus {
   PENDING
   ACCEPTED
@@ -938,6 +947,24 @@ model TeacherProfile {
   avgRating         Float?
   totalReviews      Int      @default(0)
 
+  // Verification queue — a teacher submits a credential/ID document and
+  // the tier they're requesting; an admin reviews it and either raises
+  // verificationTier (APPROVED) or leaves it with a reason (REJECTED).
+  // Separate from verificationTier itself, which is the public badge.
+  verificationDocumentUrl    String?
+  verificationRequestedTier  TeacherVerificationTier?
+  verificationStatus         VerificationRequestStatus @default(NONE)
+  verificationRequestedAt    DateTime?
+  verificationRejectionReason String?
+
+  // Running average of how long a teacher takes to send their first
+  // reply on a new inquiry — updated incrementally (see
+  // app/api/marketplace/inquiries/[id]/messages/route.ts), not
+  // recomputed from scratch, so it stays cheap to read on every
+  // directory/profile request.
+  avgResponseMinutes   Float?
+  responseSampleCount  Int    @default(0)
+
   // Stripe Connect Express — lets the teacher receive payouts directly.
   // A booking can't be paid for until stripeOnboardingComplete is true.
   stripeConnectAccountId    String?  @unique
@@ -950,6 +977,8 @@ model TeacherProfile {
   availabilitySlots TeacherAvailabilitySlot[]
   inquiries         TeacherInquiry[]
   bookings          Booking[]
+  reviews           TeacherReview[]
+  savedBy           SavedTeacher[]
 
   @@map("teacher_profiles")
 }
@@ -982,6 +1011,8 @@ model MarketplaceParentProfile {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   inquiries         TeacherInquiry[]
   bookings          Booking[]
+  reviews           TeacherReview[]
+  savedTeachers     SavedTeacher[]
 
   @@map("marketplace_parent_profiles")
 }
@@ -1081,8 +1112,73 @@ model Booking {
   parent              MarketplaceParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
   proposedBy          User     @relation("ProposedBookings", fields: [proposedById], references: [id], onDelete: Cascade)
   paymentConfirmedBy  User?    @relation("PaymentConfirmedBookings", fields: [paymentConfirmedById], references: [id])
+  review              TeacherReview?
+  disputes            BookingDispute[]
 
   @@map("bookings")
+}
+
+// One review per booking, left by the parent once payment is confirmed —
+// a booking is a recurring weekly arrangement rather than a single dated
+// lesson, so "completed" here means "paid and underway" rather than a
+// specific lesson date having passed.
+model TeacherReview {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  teacherId String
+  parentId  String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  booking   Booking                  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  teacher   TeacherProfile           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  parent    MarketplaceParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_reviews")
+}
+
+// A parent's shortlist of teachers they want to come back to.
+model SavedTeacher {
+  id        String   @id @default(cuid())
+  parentId  String
+  teacherId String
+  createdAt DateTime @default(now())
+
+  parent    MarketplaceParentProfile @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  teacher   TeacherProfile           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, teacherId])
+  @@map("saved_teachers")
+}
+
+enum DisputeStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// Either side of a booking can raise a problem for HifzPro support to
+// look at — separate from REFUND/CANCEL (lib/stripe-connect.ts,
+// app/api/superadmin/marketplace/bookings/[id]/route.ts), which move
+// money. A dispute just records the complaint and its outcome; an admin
+// still uses the existing booking actions if money needs to move.
+model BookingDispute {
+  id           String        @id @default(cuid())
+  bookingId    String
+  raisedById   String
+  reason       String
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime      @default(now())
+
+  booking      Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  raisedBy     User    @relation("RaisedDisputes", fields: [raisedById], references: [id], onDelete: Cascade)
+  resolvedBy   User?   @relation("ResolvedDisputes", fields: [resolvedById], references: [id])
+
+  @@map("booking_disputes")
 }
 
 // ─────────────────────────────────────────

@@ -9,10 +9,11 @@ interface PhotoUploadProps {
   size?:     number;
   shape?:    "circle" | "square";
   initials?: string;
+  folder?:   string;
 }
 
 export default function PhotoUpload({
-  value, onChange, label = "Photo", size = 80, shape = "square", initials = "?",
+  value, onChange, label = "Photo", size = 80, shape = "square", initials = "?", folder = "hifzpro/students",
 }: PhotoUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [progress,  setProgress]  = useState(0);
@@ -48,7 +49,7 @@ export default function PhotoUpload({
           const formData = new FormData();
           formData.append("file",          file);
           formData.append("upload_preset",  UPLOAD_PRESET);
-          formData.append("folder",         "hifzpro/students");
+          formData.append("folder",         folder);
 
           const res  = await fetch(
             `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,

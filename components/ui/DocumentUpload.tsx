@@ -47,6 +47,14 @@ export default function DocumentUpload({
   const CLOUD_NAME    = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "hifzpro_uploads";
 
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const handleFile = async (file: File) => {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { setError("File must be under 10MB"); return; }
@@ -57,21 +65,27 @@ export default function DocumentUpload({
     try {
       let url = "";
 
-      if (!CLOUD_NAME) {
-        // Dev fallback — use object URL
-        url = URL.createObjectURL(file);
-      } else {
-        const formData = new FormData();
-        formData.append("file",          file);
-        formData.append("upload_preset", UPLOAD_PRESET);
-        formData.append("folder",        "hifzpro/documents");
+      // If Cloudinary looks configured, try it first — but never let a
+      // network/config failure block the upload; a base64 data URL always
+      // works and (unlike an object URL) survives being sent to the server.
+      if (CLOUD_NAME && CLOUD_NAME.length > 3) {
+        try {
+          const formData = new FormData();
+          formData.append("file",          file);
+          formData.append("upload_preset", UPLOAD_PRESET);
+          formData.append("folder",        "hifzpro/documents");
 
-        const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
-          method: "POST", body: formData,
-        });
-        const data = await res.json();
-        url = data.secure_url;
+          const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`, {
+            method: "POST", body: formData,
+          });
+          const data = await res.json();
+          if (data.secure_url) url = data.secure_url;
+        } catch {
+          // Cloudinary failed — fall through to the base64 fallback below.
+        }
       }
+
+      if (!url) url = await toBase64(file);
 
       if (url) {
         const typeConfig = DOC_TYPES.find(t => t.value === docType) || DOC_TYPES[6];

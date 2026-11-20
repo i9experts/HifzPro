@@ -6,6 +6,7 @@ import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
 import { refundBookingPayment } from "@/lib/stripe-connect";
 import { provisionBookingIntoHifzDiary } from "@/lib/marketplace-provisioning";
+import { notifyPaymentConfirmed, inquiryUrlFor, DAY_LABELS } from "@/lib/marketplace-notify";
 
 const actionSchema = z.object({
   action: z.enum(["CONFIRM_PAYMENT", "CANCEL", "REFUND"]),
@@ -68,7 +69,29 @@ export async function PATCH(
           adminNotes: result.data.adminNotes,
           studentName: result.data.studentName ?? existing.studentName,
         },
+        include: {
+          teacher: { select: { user: { select: { name: true, email: true, whatsapp: true } } } },
+          parent:  { select: { user: { select: { name: true, email: true, whatsapp: true } } } },
+        },
       });
+
+      const dayLabel = DAY_LABELS[booking.dayOfWeek];
+      await Promise.allSettled([
+        notifyPaymentConfirmed(booking.teacher.user, {
+          otherPartyName: booking.parent.user.name,
+          dayLabel, startTime: booking.startTime, endTime: booking.endTime,
+          amount: booking.amountCharged, currency: booking.currency,
+          inquiryUrl: inquiryUrlFor("teacher", booking.inquiryId),
+          forTeacher: true,
+        }),
+        notifyPaymentConfirmed(booking.parent.user, {
+          otherPartyName: booking.teacher.user.name,
+          dayLabel, startTime: booking.startTime, endTime: booking.endTime,
+          amount: booking.amountCharged, currency: booking.currency,
+          inquiryUrl: inquiryUrlFor("parent", booking.inquiryId),
+          forTeacher: false,
+        }),
+      ]).catch((err) => console.error("[admin confirm-payment] notify failed:", err));
 
       // Same best-effort provisioning as the Stripe webhook path — the
       // payment is already confirmed either way, so a provisioning error

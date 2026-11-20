@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import prisma from "@/lib/prisma";
 import { provisionBookingIntoHifzDiary } from "@/lib/marketplace-provisioning";
+import { notifyPaymentConfirmed, inquiryUrlFor, DAY_LABELS } from "@/lib/marketplace-notify";
 
 export const runtime = "nodejs"; // Required — edge runtime can't verify Stripe signatures
 
@@ -49,7 +50,13 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+        const booking = await prisma.booking.findUnique({
+          where: { id: bookingId },
+          include: {
+            teacher: { select: { user: { select: { name: true, email: true, whatsapp: true } } } },
+            parent:  { select: { user: { select: { name: true, email: true, whatsapp: true } } } },
+          },
+        });
         if (!booking) {
           console.error("[marketplace-webhook] checkout.session.completed: booking not found", bookingId);
           break;
@@ -74,6 +81,24 @@ export async function POST(req: NextRequest) {
         });
 
         console.log("[marketplace-webhook] checkout.session.completed → PAYMENT_CONFIRMED for booking:", bookingId);
+
+        const dayLabel = DAY_LABELS[booking.dayOfWeek];
+        await Promise.allSettled([
+          notifyPaymentConfirmed(booking.teacher.user, {
+            otherPartyName: booking.parent.user.name,
+            dayLabel, startTime: booking.startTime, endTime: booking.endTime,
+            amount: amountCharged, currency: booking.currency,
+            inquiryUrl: inquiryUrlFor("teacher", booking.inquiryId),
+            forTeacher: true,
+          }),
+          notifyPaymentConfirmed(booking.parent.user, {
+            otherPartyName: booking.teacher.user.name,
+            dayLabel, startTime: booking.startTime, endTime: booking.endTime,
+            amount: amountCharged, currency: booking.currency,
+            inquiryUrl: inquiryUrlFor("parent", booking.inquiryId),
+            forTeacher: false,
+          }),
+        ]).catch((err) => console.error("[marketplace-webhook] notify failed:", err));
 
         // Turn the paid booking into a tracked Student — best-effort: the
         // payment already succeeded, so a provisioning failure here must

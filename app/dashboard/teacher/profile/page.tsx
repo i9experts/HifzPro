@@ -2,12 +2,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import HifzMark from "@/components/ui/HifzMark";
+import PhotoUpload from "@/components/ui/PhotoUpload";
+import DocumentUpload, { type UploadedDoc } from "@/components/ui/DocumentUpload";
+import EmptyState from "@/components/marketplace/EmptyState";
+import { SkeletonBlock } from "@/components/marketplace/Skeleton";
 import { colors, fonts } from "@/lib/tokens";
 
 interface AvailabilitySlot {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
 }
 interface Profile {
+  user: { name: string; avatar: string | null };
   gender: "MALE" | "FEMALE";
   residenceCountry: string;
   bio: string | null;
@@ -22,6 +27,12 @@ interface Profile {
   currency: string;
   isListed: boolean;
   availabilitySlots: AvailabilitySlot[];
+  verificationTier: "UNVERIFIED" | "ID_VERIFIED" | "CREDENTIAL_VERIFIED" | "BACKGROUND_CHECKED";
+  verificationStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+  verificationRequestedTier: string | null;
+  verificationRejectionReason: string | null;
+  avgResponseMinutes: number | null;
+  responseSampleCount: number;
 }
 
 const PROGRAM_OPTIONS = [
@@ -57,6 +68,19 @@ function toggleInArray(arr: string[], val: string): string[] {
   return arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val];
 }
 
+// Mirrors lib-side minimumFieldsMissing() in app/api/marketplace/teacher/profile/route.ts —
+// the API only ever returns the ones still missing, so diffing against this
+// full list turns that into a real done/not-done checklist.
+const REQUIRED_FOR_LISTING = [
+  "a bio (at least 20 characters)",
+  "qiraat specialization",
+  "hourly rate",
+  "at least one language",
+  "at least one country you'll teach students in",
+  "at least one age group",
+  "at least one program you teach",
+];
+
 const STRIPE_COUNTRIES = [
   { code: "PK", label: "Pakistan" }, { code: "GB", label: "United Kingdom" }, { code: "US", label: "United States" },
   { code: "AE", label: "United Arab Emirates" }, { code: "SA", label: "Saudi Arabia" }, { code: "CA", label: "Canada" },
@@ -73,6 +97,10 @@ export default function TeacherProfilePage() {
   const [langInput, setLangInput] = useState("");
   const [countryInput, setCountryInput] = useState("");
   const [newSlot, setNewSlot] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi" });
+
+  const [verifDocs, setVerifDocs] = useState<UploadedDoc[]>([]);
+  const [verifTier, setVerifTier] = useState("ID_VERIFIED");
+  const [submittingVerif, setSubmittingVerif] = useState(false);
 
   const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; onboardingComplete: boolean } | null>(null);
   const [stripeCountry, setStripeCountry] = useState("PK");
@@ -162,8 +190,66 @@ export default function TeacherProfilePage() {
     load();
   };
 
-  if (loading) return <div style={{ padding: 40, textAlign: "center", color: colors.n500 }}>Loading…</div>;
-  if (!profile) return <div style={{ padding: 40, textAlign: "center", color: colors.errorText }}>{error || "Profile not found"}</div>;
+  const submitVerification = async () => {
+    if (!verifDocs[0]) { setError("Upload a document first"); return; }
+    setSubmittingVerif(true);
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/teacher/verification", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentUrl: verifDocs[0].url, requestedTier: verifTier }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to submit"); return; }
+      setVerifDocs([]);
+      setMessage("Verification request submitted — we'll review it soon.");
+      load();
+    } catch {
+      setError("Failed to submit verification request");
+    } finally {
+      setSubmittingVerif(false);
+    }
+  };
+
+  const saveAvatar = async (avatarUrl: string) => {
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/teacher/avatar", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatarUrl }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to save photo"); return; }
+      setProfile(p => p ? { ...p, user: { ...p.user, avatar: data.data.avatar } } : p);
+    } catch {
+      setError("Failed to save photo");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, paddingBottom: 60 }}>
+        <header style={{ background: colors.primary, padding: "18px 20px" }} />
+        <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 16px", display: "grid", gap: 20 }}>
+          <div style={{ display: "flex", justifyContent: "center" }}><SkeletonBlock width={96} height={96} radius={999} /></div>
+          <SkeletonBlock height={70} radius={14} />
+          <SkeletonBlock height={90} radius={14} />
+          <SkeletonBlock height={120} radius={14} />
+        </main>
+      </div>
+    );
+  }
+  if (!profile) {
+    return (
+      <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ maxWidth: 420, width: "100%" }}>
+          <EmptyState icon="⚠️" title="Couldn't load your profile" description={error || "Something went wrong — try refreshing the page."} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body, paddingBottom: 60 }}>
@@ -176,16 +262,54 @@ export default function TeacherProfilePage() {
       </header>
 
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "24px 16px", display: "grid", gap: 20 }}>
-        {/* Listing status */}
+        {/* Photo */}
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <PhotoUpload
+            value={profile.user.avatar}
+            onChange={saveAvatar}
+            label="Your photo"
+            size={96}
+            shape="circle"
+            initials={profile.user.name.charAt(0).toUpperCase()}
+            folder="hifzpro/teachers"
+          />
+        </div>
+
+        {/* Listing status + onboarding checklist */}
         <div style={{ background: profile.isListed ? colors.successBg : colors.warningBg, borderRadius: 14, padding: "14px 16px" }}>
           <div style={{ fontWeight: 700, color: profile.isListed ? colors.successText : colors.warningText, fontFamily: fonts.heading }}>
             {profile.isListed ? "✅ You're listed publicly" : "⚠️ Not listed yet"}
           </div>
-          {!profile.isListed && missing.length > 0 && (
-            <div style={{ fontSize: 13, color: colors.warningText, marginTop: 6 }}>
-              Complete: {missing.join(", ")}.
-            </div>
-          )}
+          {!profile.isListed && (() => {
+            const required = REQUIRED_FOR_LISTING.map(label => ({ label, done: !missing.includes(label) }));
+            const recommended = [
+              { label: "Profile photo", done: !!profile.user.avatar },
+              { label: "Payout account connected", done: !!stripeStatus?.onboardingComplete },
+            ];
+            const doneCount = required.filter(r => r.done).length;
+            return (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: colors.warningText, marginBottom: 4 }}>
+                  <span>Required to list</span><span>{doneCount}/{required.length}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: "rgba(0,0,0,0.08)", overflow: "hidden", marginBottom: 10 }}>
+                  <div style={{ height: "100%", width: `${(doneCount / required.length) * 100}%`, background: colors.warning, transition: "width 0.3s" }} />
+                </div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  {required.map(item => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: item.done ? colors.successText : colors.n700 }}>
+                      <span>{item.done ? "✅" : "⬜"}</span>{item.label}
+                    </div>
+                  ))}
+                  {recommended.map(item => (
+                    <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: item.done ? colors.successText : colors.n500 }}>
+                      <span>{item.done ? "✅" : "⬜"}</span>{item.label} <span style={{ fontSize: 11, color: colors.n400 }}>(recommended)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
           <button
             disabled={saving}
             onClick={() => save({ isListed: !profile.isListed })}
@@ -222,6 +346,49 @@ export default function TeacherProfilePage() {
                   {connecting ? "Redirecting…" : stripeStatus?.connected ? "Finish payout setup" : "Connect payout account"}
                 </button>
               </div>
+            </>
+          )}
+        </div>
+
+        {/* Verification */}
+        <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: "16px" }}>
+          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Verification</div>
+          <div style={{ fontSize: 12, color: colors.n500, marginBottom: 12 }}>
+            Current badge: <strong>{profile.verificationTier === "UNVERIFIED" ? "None yet" : profile.verificationTier.replace("_", " ")}</strong>
+          </div>
+
+          {profile.verificationStatus === "PENDING" && (
+            <div style={{ background: colors.warningBg, color: colors.warningText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
+              ⏳ Your request for <strong>{(profile.verificationRequestedTier || "").replace("_", " ")}</strong> is under review.
+            </div>
+          )}
+          {profile.verificationStatus === "REJECTED" && (
+            <div style={{ background: colors.errorBg, color: colors.errorText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
+              Your last request wasn't approved. Reason: {profile.verificationRejectionReason}
+            </div>
+          )}
+          {profile.verificationStatus === "APPROVED" && (
+            <div style={{ background: colors.successBg, color: colors.successText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
+              ✅ Approved — this badge now shows on your public profile.
+            </div>
+          )}
+
+          {profile.verificationStatus !== "PENDING" && (
+            <>
+              <label style={labelStyle()}>Requesting</label>
+              <select value={verifTier} onChange={e => setVerifTier(e.target.value)} style={{ ...inputStyle(), marginBottom: 12 }}>
+                <option value="ID_VERIFIED">ID Verified — government ID</option>
+                <option value="CREDENTIAL_VERIFIED">Credential Verified — ijazah/sanad</option>
+                <option value="BACKGROUND_CHECKED">Background Checked</option>
+              </select>
+              <DocumentUpload documents={verifDocs} onChange={setVerifDocs} label="Upload your ID or credential" maxFiles={1} />
+              <button
+                disabled={submittingVerif || !verifDocs[0]}
+                onClick={submitVerification}
+                style={{ marginTop: 10, padding: "8px 16px", borderRadius: 8, border: "none", cursor: verifDocs[0] ? "pointer" : "not-allowed", opacity: verifDocs[0] ? 1 : 0.6, fontWeight: 700, fontSize: 13, background: colors.primary, color: "white" }}
+              >
+                {submittingVerif ? "Submitting…" : "Submit for review"}
+              </button>
             </>
           )}
         </div>

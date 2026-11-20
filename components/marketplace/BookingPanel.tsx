@@ -8,34 +8,62 @@ interface Booking {
   status: "PROPOSED" | "ACCEPTED" | "DECLINED" | "PAYMENT_CONFIRMED" | "CANCELLED" | "REFUNDED";
   proposedById: string;
   amountCharged: number | null;
+  review: { id: string; rating: number; comment: string | null } | null;
+  disputes: { id: string; reason: string; createdAt: string }[];
+}
+interface AvailabilitySlot {
+  id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
 }
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const PROGRAMS = ["HIFZ", "NAZRA", "TAJWEED", "GIRDAAN"];
 
 function inputStyle(): React.CSSProperties {
   return { padding: "9px 10px", borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body };
 }
 
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div style={{ display: "flex", gap: 4 }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span key={n} onClick={() => onChange(n)} style={{ fontSize: 24, cursor: "pointer", color: n <= value ? colors.gold : colors.n200 }}>★</span>
+      ))}
+    </div>
+  );
+}
+
 export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId: string; myUserId: string; role: "parent" | "teacher" }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [customTime, setCustomTime] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi", program: "HIFZ", hourlyRate: "", currency: "USD", notes: "" });
   const [sessions, setSessions] = useState(4);
   const [studentName, setStudentName] = useState("");
   const [paying, setPaying] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
+  const [submittingDispute, setSubmittingDispute] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/marketplace/inquiries/${inquiryId}/bookings`)
       .then(r => r.json())
-      .then(d => { if (d.success) setBookings(d.data.bookings); })
+      .then(d => { if (d.success) { setBookings(d.data.bookings); setAvailability(d.data.availabilitySlots || []); } })
       .finally(() => setLoading(false));
   }, [inquiryId]);
 
   useEffect(load, [load]);
+
+  const pickSlot = (slot: AvailabilitySlot) => {
+    setForm(f => ({ ...f, dayOfWeek: slot.dayOfWeek, startTime: slot.startTime, endTime: slot.endTime, timezone: slot.timezone }));
+  };
 
   const propose = async () => {
     setSaving(true);
@@ -96,10 +124,52 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
     }
   };
 
+  const submitReview = async (bookingId: string) => {
+    setSubmittingReview(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/marketplace/inquiries/${inquiryId}/bookings/${bookingId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rating, comment: reviewComment.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to submit review"); return; }
+      load();
+    } catch {
+      setError("Failed to submit review");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const submitDispute = async (bookingId: string) => {
+    setSubmittingDispute(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/marketplace/inquiries/${inquiryId}/bookings/${bookingId}/dispute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: disputeReason.trim() }),
+      });
+      const data = await res.json();
+      if (!data.success) { setError(data.error || "Failed to submit"); return; }
+      setShowDisputeForm(false);
+      setDisputeReason("");
+      load();
+    } catch {
+      setError("Failed to submit dispute");
+    } finally {
+      setSubmittingDispute(false);
+    }
+  };
+
   if (loading) return null;
 
   const latest = bookings[0];
   const canProposeNew = !latest || ["DECLINED", "CANCELLED", "REFUNDED"].includes(latest.status);
+  const slotsByDay: AvailabilitySlot[][] = Array.from({ length: 7 }, (_, d) => availability.filter(s => s.dayOfWeek === d));
+  const hasAvailability = availability.length > 0;
 
   return (
     <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: 16, marginBottom: 14 }}>
@@ -164,6 +234,51 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
               ✅ Payment confirmed{latest.amountCharged != null && <> ({latest.currency} {latest.amountCharged.toFixed(2)})</>} — this arrangement is active.
             </div>
           )}
+          {latest.status === "PAYMENT_CONFIRMED" && role === "parent" && (
+            latest.review ? (
+              <div style={{ marginTop: 10, fontSize: 12, color: colors.n600 }}>
+                You rated this teacher: <span style={{ color: colors.gold }}>{"★".repeat(latest.review.rating)}{"☆".repeat(5 - latest.review.rating)}</span>
+                {latest.review.comment && <div style={{ marginTop: 4, fontStyle: "italic" }}>"{latest.review.comment}"</div>}
+              </div>
+            ) : (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${colors.n200}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: colors.n700, marginBottom: 6 }}>How are lessons going? Rate this teacher</div>
+                <StarPicker value={rating} onChange={setRating} />
+                <textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)} rows={2} placeholder="Optional comment for other parents…"
+                  style={{ width: "100%", marginTop: 8, padding: 8, borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body }} />
+                <button disabled={submittingReview} onClick={() => submitReview(latest.id)}
+                  style={{ marginTop: 8, padding: "7px 16px", borderRadius: 8, border: "none", background: colors.gold, color: "white", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                  {submittingReview ? "Submitting…" : "Submit review"}
+                </button>
+              </div>
+            )
+          )}
+          {(latest.status === "ACCEPTED" || latest.status === "PAYMENT_CONFIRMED") && (
+            latest.disputes.length > 0 ? (
+              <div style={{ marginTop: 10, fontSize: 12, color: colors.warningText, fontWeight: 600 }}>
+                ⏳ A problem was reported on this booking and is under review by HifzPro support.
+              </div>
+            ) : showDisputeForm ? (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px dashed ${colors.n200}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: colors.n700, marginBottom: 6 }}>What went wrong?</div>
+                <textarea value={disputeReason} onChange={e => setDisputeReason(e.target.value)} rows={3} placeholder="Describe the problem — HifzPro support will review it and follow up."
+                  style={{ width: "100%", padding: 8, borderRadius: 8, border: `1.5px solid ${colors.n200}`, fontSize: 13, fontFamily: fonts.body }} />
+                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                  <button disabled={submittingDispute || disputeReason.trim().length < 10} onClick={() => submitDispute(latest.id)}
+                    style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: colors.errorText, color: "white", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                    {submittingDispute ? "Submitting…" : "Submit report"}
+                  </button>
+                  <button onClick={() => setShowDisputeForm(false)} style={{ padding: "7px 16px", borderRadius: 8, border: `1.5px solid ${colors.n200}`, background: colors.white, color: colors.n700, fontWeight: 600, fontSize: 12, cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowDisputeForm(true)} style={{ marginTop: 10, border: "none", background: "none", color: colors.n500, fontSize: 11, cursor: "pointer", textDecoration: "underline" }}>
+                ⚠️ Report a problem
+              </button>
+            )
+          )}
           {latest.status === "REFUNDED" && (
             <div style={{ fontSize: 12, color: colors.n500, marginTop: 8, fontWeight: 600 }}>This booking's payment was refunded.</div>
           )}
@@ -183,15 +298,56 @@ export default function BookingPanel({ inquiryId, myUserId, role }: { inquiryId:
       )}
 
       {canProposeNew && showForm && (
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select value={form.dayOfWeek} onChange={e => setForm(f => ({ ...f, dayOfWeek: Number(e.target.value) }))} style={{ ...inputStyle(), width: 130 }}>
-              {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-            </select>
-            <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} style={{ ...inputStyle(), width: 100 }} />
-            <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} style={{ ...inputStyle(), width: 100 }} />
-            <input value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} placeholder="Timezone" style={{ ...inputStyle(), width: 130 }} />
-          </div>
+        <div style={{ display: "grid", gap: 10, minWidth: 0 }}>
+          {hasAvailability && !customTime ? (
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: colors.n700, marginBottom: 8 }}>Pick from the teacher's weekly availability</div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, minWidth: 0 }}>
+                {DAYS_SHORT.map((d, i) => (
+                  <div key={d} style={{ minWidth: 86, flexShrink: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: colors.n500, textAlign: "center", marginBottom: 4 }}>{d}</div>
+                    <div style={{ display: "grid", gap: 4 }}>
+                      {slotsByDay[i].length === 0 && <div style={{ fontSize: 10, color: colors.n300, textAlign: "center" }}>—</div>}
+                      {slotsByDay[i].map(s => {
+                        const active = form.dayOfWeek === s.dayOfWeek && form.startTime === s.startTime && form.endTime === s.endTime;
+                        return (
+                          <div key={s.id} onClick={() => pickSlot(s)}
+                            style={{
+                              fontSize: 11, textAlign: "center", padding: "6px 4px", borderRadius: 8, cursor: "pointer",
+                              border: `1.5px solid ${active ? colors.primary : colors.n200}`,
+                              background: active ? colors.green50 : colors.white,
+                              color: active ? colors.primary : colors.n600,
+                              fontWeight: active ? 700 : 500,
+                            }}>
+                            {s.startTime}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setCustomTime(true)} style={{ marginTop: 8, border: "none", background: "none", color: colors.primary, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
+                Propose a different time instead
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <select value={form.dayOfWeek} onChange={e => setForm(f => ({ ...f, dayOfWeek: Number(e.target.value) }))} style={{ ...inputStyle(), width: 130 }}>
+                  {DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                </select>
+                <input type="time" value={form.startTime} onChange={e => setForm(f => ({ ...f, startTime: e.target.value }))} style={{ ...inputStyle(), width: 100 }} />
+                <input type="time" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} style={{ ...inputStyle(), width: 100 }} />
+                <input value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))} placeholder="Timezone" style={{ ...inputStyle(), width: 130 }} />
+              </div>
+              {hasAvailability && (
+                <button onClick={() => setCustomTime(false)} style={{ marginTop: 8, border: "none", background: "none", color: colors.primary, fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>
+                  ← Back to weekly availability
+                </button>
+              )}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <select value={form.program} onChange={e => setForm(f => ({ ...f, program: e.target.value }))} style={inputStyle()}>
               {PROGRAMS.map(p => <option key={p} value={p}>{p}</option>)}
