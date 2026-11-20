@@ -13,12 +13,10 @@ export async function GET(req: NextRequest) {
 
     const requests = await prisma.teacherProfile.findMany({
       where: { verificationStatus: { not: "NONE" } },
-      orderBy: { verificationRequestedAt: "desc" },
-      select: {
-        id: true, verificationTier: true, verificationDocumentUrl: true,
-        verificationRequestedTier: true, verificationStatus: true,
-        verificationRequestedAt: true, verificationRejectionReason: true,
-        user: { select: { name: true, email: true } },
+      orderBy: { applicationSubmittedAt: "desc" },
+      include: {
+        references: true,
+        user: { select: { name: true, email: true, phone: true } },
       },
     });
 

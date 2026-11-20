@@ -11,6 +11,7 @@ import { colors, fonts } from "@/lib/tokens";
 interface AvailabilitySlot {
   id: string; dayOfWeek: number; startTime: string; endTime: string; timezone: string;
 }
+interface Reference { id: string; name: string; relationship: string; phone: string | null; email: string | null }
 interface Profile {
   user: { name: string; avatar: string | null };
   gender: "MALE" | "FEMALE";
@@ -29,8 +30,17 @@ interface Profile {
   availabilitySlots: AvailabilitySlot[];
   verificationTier: "UNVERIFIED" | "ID_VERIFIED" | "CREDENTIAL_VERIFIED" | "BACKGROUND_CHECKED";
   verificationStatus: "NONE" | "PENDING" | "APPROVED" | "REJECTED";
-  verificationRequestedTier: string | null;
   verificationRejectionReason: string | null;
+  dateOfBirth: string | null;
+  nationality: string | null;
+  govIdType: string | null;
+  govIdDocumentUrl: string | null;
+  educationDocumentUrl: string | null;
+  ijazahChain: string | null;
+  ijazahIssuer: string | null;
+  ijazahDocumentUrl: string | null;
+  videoIntroUrl: string | null;
+  references: Reference[];
   avgResponseMinutes: number | null;
   responseSampleCount: number;
 }
@@ -98,9 +108,16 @@ export default function TeacherProfilePage() {
   const [countryInput, setCountryInput] = useState("");
   const [newSlot, setNewSlot] = useState({ dayOfWeek: 0, startTime: "16:00", endTime: "17:00", timezone: "Asia/Karachi" });
 
-  const [verifDocs, setVerifDocs] = useState<UploadedDoc[]>([]);
-  const [verifTier, setVerifTier] = useState("ID_VERIFIED");
-  const [submittingVerif, setSubmittingVerif] = useState(false);
+  const [app, setApp] = useState({
+    dateOfBirth: "", nationality: "", govIdType: "Passport",
+    qualification: "", ijazahChain: "", ijazahIssuer: "",
+  });
+  const [refs, setRefs] = useState([{ name: "", relationship: "", phone: "", email: "" }]);
+  const [govIdDocs, setGovIdDocs] = useState<UploadedDoc[]>([]);
+  const [eduDocs, setEduDocs] = useState<UploadedDoc[]>([]);
+  const [ijazahDocs, setIjazahDocs] = useState<UploadedDoc[]>([]);
+  const [videoDocs, setVideoDocs] = useState<UploadedDoc[]>([]);
+  const [submittingApp, setSubmittingApp] = useState(false);
 
   const [stripeStatus, setStripeStatus] = useState<{ connected: boolean; onboardingComplete: boolean } | null>(null);
   const [stripeCountry, setStripeCountry] = useState("PK");
@@ -117,8 +134,26 @@ export default function TeacherProfilePage() {
     fetch("/api/marketplace/teacher/profile")
       .then(r => r.json())
       .then(d => {
-        if (d.success) { setProfile(d.data.profile); setMissing(d.data.missingForListing); }
-        else setError(d.error || "Failed to load profile");
+        if (d.success) {
+          const p: Profile = d.data.profile;
+          setProfile(p);
+          setMissing(d.data.missingForListing);
+          // Pre-fill the application form from whatever was last submitted,
+          // so a rejected applicant edits instead of starting from scratch.
+          setApp({
+            dateOfBirth: p.dateOfBirth ? p.dateOfBirth.slice(0, 10) : "",
+            nationality: p.nationality || "",
+            govIdType: p.govIdType || "Passport",
+            qualification: p.qualification || "",
+            ijazahChain: p.ijazahChain || "",
+            ijazahIssuer: p.ijazahIssuer || "",
+          });
+          if (p.references.length > 0) {
+            setRefs(p.references.map(r => ({ name: r.name, relationship: r.relationship, phone: r.phone || "", email: r.email || "" })));
+          }
+        } else {
+          setError(d.error || "Failed to load profile");
+        }
       })
       .catch(() => setError("Failed to load profile"))
       .finally(() => setLoading(false));
@@ -190,25 +225,53 @@ export default function TeacherProfilePage() {
     load();
   };
 
-  const submitVerification = async () => {
-    if (!verifDocs[0]) { setError("Upload a document first"); return; }
-    setSubmittingVerif(true);
+  const addRef = () => setRefs(r => r.length < 2 ? [...r, { name: "", relationship: "", phone: "", email: "" }] : r);
+  const removeRef = (i: number) => setRefs(r => r.filter((_, idx) => idx !== i));
+  const updateRef = (i: number, patch: Partial<typeof refs[0]>) => setRefs(r => r.map((ref, idx) => idx === i ? { ...ref, ...patch } : ref));
+
+  const applicationMissing = (): string[] => {
+    const missing: string[] = [];
+    if (!app.dateOfBirth) missing.push("date of birth");
+    if (!app.nationality.trim()) missing.push("nationality");
+    if (!govIdDocs[0]) missing.push("government ID document");
+    if (!app.qualification.trim() || app.qualification.trim().length < 5) missing.push("education & qualifications");
+    if (!eduDocs[0]) missing.push("education certificate");
+    if (!app.ijazahChain.trim() || app.ijazahChain.trim().length < 5) missing.push("ijazah/sanad chain of narration");
+    if (!app.ijazahIssuer.trim()) missing.push("ijazah issuer");
+    if (!ijazahDocs[0]) missing.push("ijazah document");
+    if (!videoDocs[0]) missing.push("video introduction");
+    const validRefs = refs.filter(r => r.name.trim() && r.relationship.trim() && (r.phone.trim() || r.email.trim()));
+    if (validRefs.length === 0) missing.push("at least one reference");
+    return missing;
+  };
+
+  const submitApplication = async () => {
+    const missingItems = applicationMissing();
+    if (missingItems.length > 0) { setError(`Complete your application: ${missingItems.join(", ")}.`); return; }
+    setSubmittingApp(true);
     setError("");
     try {
       const res = await fetch("/api/marketplace/teacher/verification", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentUrl: verifDocs[0].url, requestedTier: verifTier }),
+        body: JSON.stringify({
+          dateOfBirth: app.dateOfBirth, nationality: app.nationality.trim(), govIdType: app.govIdType,
+          govIdDocumentUrl: govIdDocs[0].url,
+          qualification: app.qualification.trim(), educationDocumentUrl: eduDocs[0].url,
+          ijazahChain: app.ijazahChain.trim(), ijazahIssuer: app.ijazahIssuer.trim(), ijazahDocumentUrl: ijazahDocs[0].url,
+          videoIntroUrl: videoDocs[0].url,
+          references: refs.filter(r => r.name.trim() && r.relationship.trim() && (r.phone.trim() || r.email.trim()))
+            .map(r => ({ name: r.name.trim(), relationship: r.relationship.trim(), phone: r.phone.trim() || undefined, email: r.email.trim() || undefined })),
+        }),
       });
       const data = await res.json();
       if (!data.success) { setError(data.error || "Failed to submit"); return; }
-      setVerifDocs([]);
-      setMessage("Verification request submitted — we'll review it soon.");
+      setMessage("Application submitted — we'll review it soon.");
       load();
     } catch {
-      setError("Failed to submit verification request");
+      setError("Failed to submit application");
     } finally {
-      setSubmittingVerif(false);
+      setSubmittingApp(false);
     }
   };
 
@@ -281,7 +344,10 @@ export default function TeacherProfilePage() {
             {profile.isListed ? "✅ You're listed publicly" : "⚠️ Not listed yet"}
           </div>
           {!profile.isListed && (() => {
-            const required = REQUIRED_FOR_LISTING.map(label => ({ label, done: !missing.includes(label) }));
+            const required = [
+              ...REQUIRED_FOR_LISTING.map(label => ({ label, done: !missing.includes(label) })),
+              { label: "Onboarding application approved", done: profile.verificationStatus === "APPROVED" },
+            ];
             const recommended = [
               { label: "Profile photo", done: !!profile.user.avatar },
               { label: "Payout account connected", done: !!stripeStatus?.onboardingComplete },
@@ -350,46 +416,104 @@ export default function TeacherProfilePage() {
           )}
         </div>
 
-        {/* Verification */}
+        {/* Onboarding application — mandatory before you can be listed */}
         <div style={{ background: colors.white, border: `1px solid ${colors.n200}`, borderRadius: 14, padding: "16px" }}>
-          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>Verification</div>
+          <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Onboarding application</div>
           <div style={{ fontSize: 12, color: colors.n500, marginBottom: 12 }}>
-            Current badge: <strong>{profile.verificationTier === "UNVERIFIED" ? "None yet" : profile.verificationTier.replace("_", " ")}</strong>
+            Required before you can be listed publicly. Current badge: <strong>{profile.verificationTier === "UNVERIFIED" ? "None yet" : profile.verificationTier.replace("_", " ")}</strong>
           </div>
 
           {profile.verificationStatus === "PENDING" && (
             <div style={{ background: colors.warningBg, color: colors.warningText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
-              ⏳ Your request for <strong>{(profile.verificationRequestedTier || "").replace("_", " ")}</strong> is under review.
+              ⏳ Your application is under review. We'll notify you once it's decided.
             </div>
           )}
           {profile.verificationStatus === "REJECTED" && (
             <div style={{ background: colors.errorBg, color: colors.errorText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
-              Your last request wasn't approved. Reason: {profile.verificationRejectionReason}
+              Your application wasn't approved. Reason: {profile.verificationRejectionReason}<br />Edit the details below and resubmit.
             </div>
           )}
           {profile.verificationStatus === "APPROVED" && (
             <div style={{ background: colors.successBg, color: colors.successText, borderRadius: 10, padding: "10px 12px", fontSize: 13, marginBottom: 12 }}>
-              ✅ Approved — this badge now shows on your public profile.
+              ✅ Approved — you can now list yourself publicly.
             </div>
           )}
 
-          {profile.verificationStatus !== "PENDING" && (
-            <>
-              <label style={labelStyle()}>Requesting</label>
-              <select value={verifTier} onChange={e => setVerifTier(e.target.value)} style={{ ...inputStyle(), marginBottom: 12 }}>
-                <option value="ID_VERIFIED">ID Verified — government ID</option>
-                <option value="CREDENTIAL_VERIFIED">Credential Verified — ijazah/sanad</option>
-                <option value="BACKGROUND_CHECKED">Background Checked</option>
-              </select>
-              <DocumentUpload documents={verifDocs} onChange={setVerifDocs} label="Upload your ID or credential" maxFiles={1} />
+          {profile.verificationStatus !== "PENDING" && profile.verificationStatus !== "APPROVED" && (
+            <div style={{ display: "grid", gap: 16 }}>
+              {/* Identity */}
+              <div>
+                <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 13, marginBottom: 8, color: colors.n700 }}>Identity</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={labelStyle()}>Date of birth</label>
+                    <input type="date" value={app.dateOfBirth} onChange={e => setApp(a => ({ ...a, dateOfBirth: e.target.value }))} style={inputStyle()} />
+                  </div>
+                  <div>
+                    <label style={labelStyle()}>Nationality</label>
+                    <input value={app.nationality} onChange={e => setApp(a => ({ ...a, nationality: e.target.value }))} placeholder="e.g. Pakistani" style={inputStyle()} />
+                  </div>
+                </div>
+                <label style={labelStyle()}>ID type</label>
+                <select value={app.govIdType} onChange={e => setApp(a => ({ ...a, govIdType: e.target.value }))} style={{ ...inputStyle(), marginBottom: 10 }}>
+                  <option value="Passport">Passport</option>
+                  <option value="National ID">National ID</option>
+                  <option value="CNIC">CNIC</option>
+                  <option value="Other">Other government ID</option>
+                </select>
+                <DocumentUpload documents={govIdDocs} onChange={setGovIdDocs} label="Government ID document" maxFiles={1} simpleMode />
+              </div>
+
+              {/* Education */}
+              <div>
+                <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 13, marginBottom: 8, color: colors.n700 }}>Education & qualifications</div>
+                <textarea value={app.qualification} onChange={e => setApp(a => ({ ...a, qualification: e.target.value }))} rows={2}
+                  placeholder="e.g. BA Islamic Studies, Al-Azhar University, 2015" style={{ ...inputStyle(), marginBottom: 10 }} />
+                <DocumentUpload documents={eduDocs} onChange={setEduDocs} label="Education certificate" maxFiles={1} simpleMode />
+              </div>
+
+              {/* Ijazah / Sanad */}
+              <div>
+                <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 13, marginBottom: 8, color: colors.n700 }}>Ijazah / Sanad</div>
+                <textarea value={app.ijazahChain} onChange={e => setApp(a => ({ ...a, ijazahChain: e.target.value }))} rows={2}
+                  placeholder="Describe your chain of narration (sanad) — who you learned from, and who they learned from" style={{ ...inputStyle(), marginBottom: 10 }} />
+                <input value={app.ijazahIssuer} onChange={e => setApp(a => ({ ...a, ijazahIssuer: e.target.value }))}
+                  placeholder="Issuing scholar or institution" style={{ ...inputStyle(), marginBottom: 10 }} />
+                <DocumentUpload documents={ijazahDocs} onChange={setIjazahDocs} label="Ijazah / sanad document" maxFiles={1} simpleMode />
+              </div>
+
+              {/* References */}
+              <div>
+                <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 13, marginBottom: 8, color: colors.n700 }}>References (1–2 people we can contact)</div>
+                {refs.map((r, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8, padding: 10, background: colors.n50, borderRadius: 10 }}>
+                    <input value={r.name} onChange={e => updateRef(i, { name: e.target.value })} placeholder="Name" style={inputStyle()} />
+                    <input value={r.relationship} onChange={e => updateRef(i, { relationship: e.target.value })} placeholder="Relationship (e.g. former employer)" style={inputStyle()} />
+                    <input value={r.phone} onChange={e => updateRef(i, { phone: e.target.value })} placeholder="Phone" style={inputStyle()} />
+                    <input value={r.email} onChange={e => updateRef(i, { email: e.target.value })} placeholder="Email" style={inputStyle()} />
+                    {refs.length > 1 && <button onClick={() => removeRef(i)} style={{ gridColumn: "1 / -1", border: "none", background: "none", color: colors.errorText, fontSize: 12, cursor: "pointer", textAlign: "left" }}>Remove</button>}
+                  </div>
+                ))}
+                {refs.length < 2 && (
+                  <button onClick={addRef} style={{ border: "none", background: "none", color: colors.primary, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Add another reference</button>
+                )}
+              </div>
+
+              {/* Video intro */}
+              <div>
+                <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 13, marginBottom: 8, color: colors.n700 }}>Video introduction</div>
+                <div style={{ fontSize: 12, color: colors.n500, marginBottom: 8 }}>A short 1–2 minute clip introducing yourself — required for review.</div>
+                <DocumentUpload documents={videoDocs} onChange={setVideoDocs} label="Video introduction" maxFiles={1} accept="video/mp4,video/quicktime,video/webm" maxSizeMB={50} simpleMode />
+              </div>
+
               <button
-                disabled={submittingVerif || !verifDocs[0]}
-                onClick={submitVerification}
-                style={{ marginTop: 10, padding: "8px 16px", borderRadius: 8, border: "none", cursor: verifDocs[0] ? "pointer" : "not-allowed", opacity: verifDocs[0] ? 1 : 0.6, fontWeight: 700, fontSize: 13, background: colors.primary, color: "white" }}
+                disabled={submittingApp}
+                onClick={submitApplication}
+                style={{ padding: "10px 18px", borderRadius: 8, border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13, background: colors.primary, color: "white" }}
               >
-                {submittingVerif ? "Submitting…" : "Submit for review"}
+                {submittingApp ? "Submitting…" : "Submit application"}
               </button>
-            </>
+            </div>
           )}
         </div>
 

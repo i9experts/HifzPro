@@ -161,11 +161,11 @@ export async function notifyVerificationApproved(
     subject: `You're now ${opts.tierLabel} on HifzPro Marketplace`,
     html: renderEmail({
       heading: `Congratulations — you're ${opts.tierLabel}`,
-      bodyHtml: `Your verification document was reviewed and approved. Your profile now shows the <strong>${escapeHtml(opts.tierLabel)}</strong> badge to parents.`,
+      bodyHtml: `Your onboarding application was reviewed and approved. Your profile now shows the <strong>${escapeHtml(opts.tierLabel)}</strong> badge, and you can list yourself publicly.`,
       ctaUrl: `${baseUrl()}/dashboard/teacher/profile`,
       ctaLabel: "View your profile",
     }),
-    waMessage: `✅ Verification approved!\n\nYou're now ${opts.tierLabel} on HifzPro Marketplace. Your profile now shows this badge to parents.`,
+    waMessage: `✅ Application approved!\n\nYou're now ${opts.tierLabel} on HifzPro Marketplace. You can now list yourself publicly.`,
   });
 }
 
@@ -174,14 +174,14 @@ export async function notifyVerificationRejected(
   opts: { reason: string }
 ): Promise<void> {
   await notify(recipient, {
-    subject: `Your HifzPro verification request needs another look`,
+    subject: `Your HifzPro onboarding application needs another look`,
     html: renderEmail({
-      heading: `Your verification request wasn't approved`,
-      bodyHtml: `Reason: <em>${escapeHtml(opts.reason)}</em><br><br>You can submit a new document any time from your profile.`,
+      heading: `Your application wasn't approved`,
+      bodyHtml: `Reason: <em>${escapeHtml(opts.reason)}</em><br><br>You can edit and resubmit your application any time from your profile.`,
       ctaUrl: `${baseUrl()}/dashboard/teacher/profile`,
       ctaLabel: "Resubmit",
     }),
-    waMessage: `Your HifzPro verification request wasn't approved.\n\nReason: ${opts.reason}\n\nYou can resubmit a document any time from your profile.`,
+    waMessage: `Your HifzPro onboarding application wasn't approved.\n\nReason: ${opts.reason}\n\nYou can edit and resubmit it any time from your profile.`,
   });
 }
 

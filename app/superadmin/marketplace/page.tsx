@@ -10,11 +10,17 @@ interface Teacher {
   avgRating: number | null; totalReviews: number; createdAt: string;
   user: { id: string; name: string; email: string | null; phone: string | null };
 }
+interface Reference { id: string; name: string; relationship: string; phone: string | null; email: string | null }
 interface VerificationRequest {
-  id: string; verificationTier: string; verificationDocumentUrl: string | null;
-  verificationRequestedTier: string | null; verificationStatus: string;
-  verificationRequestedAt: string | null; verificationRejectionReason: string | null;
-  user: { name: string; email: string | null };
+  id: string; verificationTier: string; verificationStatus: string;
+  applicationSubmittedAt: string | null; verificationRejectionReason: string | null;
+  dateOfBirth: string | null; nationality: string | null;
+  govIdType: string | null; govIdDocumentUrl: string | null;
+  qualification: string | null; educationDocumentUrl: string | null;
+  ijazahChain: string | null; ijazahIssuer: string | null; ijazahDocumentUrl: string | null;
+  videoIntroUrl: string | null;
+  references: Reference[];
+  user: { name: string; email: string | null; phone: string | null };
 }
 interface Dispute {
   id: string; reason: string; status: "OPEN" | "RESOLVED" | "DISMISSED"; resolution: string | null; createdAt: string;
@@ -81,19 +87,23 @@ export default function AdminMarketplacePage() {
   }, []);
   useEffect(() => { if (tab === "verification") loadVerifRequests(); }, [tab, loadVerifRequests]);
 
+  const [tierPick, setTierPick] = useState<Record<string, string>>({});
+
   const reviewVerification = async (teacherId: string, action: "APPROVE" | "REJECT") => {
     let rejectionReason: string | undefined;
+    let tier: string | undefined;
     if (action === "REJECT") {
-      rejectionReason = prompt("Why is this request being rejected?") || undefined;
+      rejectionReason = prompt("Why is this application being rejected?") || undefined;
       if (!rejectionReason) return;
-    } else if (!confirm("Approve this verification request?")) {
-      return;
+    } else {
+      tier = tierPick[teacherId] || "ID_VERIFIED";
+      if (!confirm(`Approve this application and grant "${TIER_LABELS[tier]}"?`)) return;
     }
     const res = await fetch(`/api/superadmin/marketplace/verification-requests/${teacherId}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, rejectionReason }),
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, tier, rejectionReason }),
     });
     const data = await res.json();
-    if (!data.success) alert(data.error || "Failed to review request");
+    if (!data.success) alert(data.error || "Failed to review application");
     loadVerifRequests();
   };
 
@@ -297,49 +307,72 @@ export default function AdminMarketplacePage() {
         )}
 
         {!loading && tab === "verification" && (
-          <div style={{ background: "#111827", borderRadius: 12, overflow: "hidden", border: "1px solid #1f2937" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 160px", gap: 0, padding: "10px 16px", background: "#0f172a", borderBottom: "1px solid #1f2937" }}>
-              {["Teacher", "Requesting", "Document", "Status", "Actions"].map((h, i) => (
-                <div key={i} style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: "#4b5563" }}>{h}</div>
-              ))}
-            </div>
-            {verifRequests.map((r, idx) => (
-              <div key={r.id} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 160px", gap: 0, padding: "13px 16px", borderBottom: idx < verifRequests.length - 1 ? "1px solid #1f2937" : "none", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontFamily: fonts.heading, fontSize: 13, fontWeight: 700, color: "white" }}>{r.user.name}</div>
-                  <div style={{ fontFamily: fonts.mono, fontSize: 9, color: "#4b5563", marginTop: 1 }}>{r.user.email || "—"}</div>
-                </div>
-                <div style={{ fontSize: 12, color: "#9ca3af" }}>{(r.verificationRequestedTier || "").replace("_", " ")}</div>
-                <div>
-                  {r.verificationDocumentUrl ? (
-                    <a href={r.verificationDocumentUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", fontSize: 11, textDecoration: "none" }}>View document →</a>
-                  ) : <span style={{ color: "#4b5563", fontSize: 11 }}>—</span>}
-                </div>
-                <div>
-                  <span style={{
-                    padding: "3px 9px", borderRadius: 5, fontSize: 9, fontWeight: 700, fontFamily: fonts.heading,
-                    background: r.verificationStatus === "PENDING" ? "#431d00" : r.verificationStatus === "APPROVED" ? "#052e16" : "#7f1d1d",
-                    color: r.verificationStatus === "PENDING" ? "#d97706" : r.verificationStatus === "APPROVED" ? "#34d399" : "#fca5a5",
-                  }}>{r.verificationStatus}</span>
+          <div style={{ display: "grid", gap: 10 }}>
+            {verifRequests.map(r => {
+              const statusStyle = r.verificationStatus === "PENDING" ? { bg: "#431d00", color: "#d97706" }
+                : r.verificationStatus === "APPROVED" ? { bg: "#052e16", color: "#34d399" }
+                : { bg: "#7f1d1d", color: "#fca5a5" };
+              return (
+                <div key={r.id} style={{ background: "#111827", borderRadius: 12, border: "1px solid #1f2937", padding: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+                    <div>
+                      <div style={{ fontFamily: fonts.heading, fontSize: 14, fontWeight: 700, color: "white" }}>{r.user.name}</div>
+                      <div style={{ fontFamily: fonts.mono, fontSize: 9, color: "#4b5563", marginTop: 2 }}>{r.user.email || "—"} · {r.user.phone || "—"}</div>
+                      <div style={{ fontSize: 10, color: "#4b5563", marginTop: 2 }}>Submitted {r.applicationSubmittedAt ? new Date(r.applicationSubmittedAt).toLocaleString() : "—"}</div>
+                    </div>
+                    <span style={{ padding: "3px 9px", borderRadius: 5, fontSize: 9, fontWeight: 700, fontFamily: fonts.heading, background: statusStyle.bg, color: statusStyle.color }}>{r.verificationStatus}</span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14, fontSize: 12 }}>
+                    <div>
+                      <div style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: "#4b5563", marginBottom: 4 }}>IDENTITY</div>
+                      <div style={{ color: "#d1d5db" }}>DOB: {r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString() : "—"}</div>
+                      <div style={{ color: "#d1d5db" }}>Nationality: {r.nationality || "—"}</div>
+                      <div style={{ color: "#d1d5db" }}>ID type: {r.govIdType || "—"}</div>
+                      {r.govIdDocumentUrl && <a href={r.govIdDocumentUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", textDecoration: "none" }}>View ID document →</a>}
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: "#4b5563", marginBottom: 4 }}>EDUCATION</div>
+                      <div style={{ color: "#d1d5db" }}>{r.qualification || "—"}</div>
+                      {r.educationDocumentUrl && <a href={r.educationDocumentUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", textDecoration: "none" }}>View certificate →</a>}
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: "#4b5563", marginBottom: 4 }}>IJAZAH / SANAD</div>
+                      <div style={{ color: "#d1d5db" }}>{r.ijazahChain || "—"}</div>
+                      <div style={{ color: "#9ca3af" }}>Issued by: {r.ijazahIssuer || "—"}</div>
+                      {r.ijazahDocumentUrl && <a href={r.ijazahDocumentUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", textDecoration: "none" }}>View ijazah document →</a>}
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: fonts.heading, fontSize: 10, fontWeight: 700, color: "#4b5563", marginBottom: 4 }}>REFERENCES</div>
+                      {r.references.length === 0 && <div style={{ color: "#6b7280" }}>—</div>}
+                      {r.references.map(ref => (
+                        <div key={ref.id} style={{ color: "#d1d5db", marginBottom: 2 }}>{ref.name} ({ref.relationship}) — {ref.phone || ref.email}</div>
+                      ))}
+                      {r.videoIntroUrl && <a href={r.videoIntroUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#60a5fa", textDecoration: "none", display: "block", marginTop: 4 }}>▶ View video introduction →</a>}
+                    </div>
+                  </div>
+
                   {r.verificationStatus === "REJECTED" && r.verificationRejectionReason && (
-                    <div style={{ fontSize: 10, color: "#6b7280", marginTop: 4 }}>{r.verificationRejectionReason}</div>
+                    <div style={{ fontSize: 11, color: "#fca5a5", marginTop: 12, background: "#1f1210", padding: "8px 10px", borderRadius: 6 }}>Rejected: {r.verificationRejectionReason}</div>
                   )}
-                </div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+
                   {r.verificationStatus === "PENDING" && (
-                    <>
-                      <button onClick={() => reviewVerification(r.id, "APPROVE")} style={{ padding: "4px 10px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                    <div style={{ display: "flex", gap: 8, marginTop: 14, alignItems: "center" }}>
+                      <select value={tierPick[r.id] || "ID_VERIFIED"} onChange={e => setTierPick(p => ({ ...p, [r.id]: e.target.value }))} style={selectStyle()}>
+                        {Object.entries(TIER_LABELS).filter(([k]) => k !== "UNVERIFIED").map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      </select>
+                      <button onClick={() => reviewVerification(r.id, "APPROVE")} style={{ padding: "5px 14px", borderRadius: 6, background: "#052e16", color: "#34d399", border: "none", fontSize: 11, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
                         Approve
                       </button>
-                      <button onClick={() => reviewVerification(r.id, "REJECT")} style={{ padding: "4px 10px", borderRadius: 6, background: "#431d00", color: "#f59e0b", border: "none", fontSize: 10, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
+                      <button onClick={() => reviewVerification(r.id, "REJECT")} style={{ padding: "5px 14px", borderRadius: 6, background: "#431d00", color: "#f59e0b", border: "none", fontSize: 11, fontWeight: 700, fontFamily: fonts.heading, cursor: "pointer" }}>
                         Reject
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
-            {verifRequests.length === 0 && <div style={{ padding: 30, textAlign: "center", color: "#6b7280" }}>No verification requests yet.</div>}
+              );
+            })}
+            {verifRequests.length === 0 && <div style={{ padding: 30, textAlign: "center", color: "#6b7280", background: "#111827", borderRadius: 12, border: "1px solid #1f2937" }}>No applications submitted yet.</div>}
           </div>
         )}
 

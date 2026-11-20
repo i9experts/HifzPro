@@ -1,20 +1,37 @@
 // app/api/marketplace/teacher/verification/route.ts
-// A teacher submits a credential/ID document and the tier they're
-// requesting; an admin reviews it from the superadmin verification
-// queue (app/api/superadmin/marketplace/verification-requests). This is
-// deliberately separate from verificationTier itself, which stays the
-// public badge until an admin actually approves a request.
+// The comprehensive onboarding application — identity, education,
+// ijazah/sanad, references, and a video introduction, submitted in one
+// go. This is mandatory: app/api/marketplace/teacher/profile/route.ts
+// refuses to set isListed until verificationStatus is APPROVED. An
+// admin reviews the whole thing from the superadmin verification queue
+// (app/api/superadmin/marketplace/verification-requests) and either
+// grants a verificationTier (APPROVED) or leaves it with a reason
+// (REJECTED) — the teacher can then edit and resubmit.
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
 
-const TIERS = ["ID_VERIFIED", "CREDENTIAL_VERIFIED", "BACKGROUND_CHECKED"] as const;
+const referenceSchema = z.object({
+  name: z.string().trim().min(2),
+  relationship: z.string().trim().min(2),
+  phone: z.string().trim().max(40).optional(),
+  email: z.string().trim().email().optional().or(z.literal("")),
+}).refine(r => r.phone || r.email, { message: "Each reference needs a phone or an email" });
 
 const schema = z.object({
-  documentUrl:   z.string().min(1),
-  requestedTier: z.enum(TIERS),
+  dateOfBirth: z.string().min(1), // ISO date
+  nationality: z.string().trim().min(2),
+  govIdType: z.string().trim().min(2),
+  govIdDocumentUrl: z.string().min(1),
+  qualification: z.string().trim().min(5, "Describe your education/qualifications in a bit more detail"),
+  educationDocumentUrl: z.string().min(1),
+  ijazahChain: z.string().trim().min(5, "Describe your sanad/chain of narration in a bit more detail"),
+  ijazahIssuer: z.string().trim().min(2),
+  ijazahDocumentUrl: z.string().min(1),
+  videoIntroUrl: z.string().min(1),
+  references: z.array(referenceSchema).min(1, "At least one reference is required").max(2),
 });
 
 export async function PUT(req: NextRequest) {
@@ -30,21 +47,35 @@ export async function PUT(req: NextRequest) {
 
     const existing = await prisma.teacherProfile.findUnique({ where: { userId: payload.userId } });
     if (!existing) return notFoundResponse("Teacher profile not found");
+    if (existing.verificationStatus === "PENDING") return errorResponse("Your application is already under review");
+    if (existing.verificationStatus === "APPROVED") return errorResponse("Your application has already been approved");
 
-    const profile = await prisma.teacherProfile.update({
-      where: { userId: payload.userId },
-      data: {
-        verificationDocumentUrl: result.data.documentUrl,
-        verificationRequestedTier: result.data.requestedTier,
-        verificationStatus: "PENDING",
-        verificationRequestedAt: new Date(),
-        verificationRejectionReason: null,
-      },
+    const { references, ...rest } = result.data;
+
+    const profile = await prisma.$transaction(async (tx) => {
+      await tx.teacherReference.deleteMany({ where: { teacherId: existing.id } });
+      return tx.teacherProfile.update({
+        where: { userId: payload.userId },
+        data: {
+          ...rest,
+          dateOfBirth: new Date(rest.dateOfBirth),
+          verificationStatus: "PENDING",
+          applicationSubmittedAt: new Date(),
+          verificationRejectionReason: null,
+          references: {
+            create: references.map(r => ({
+              name: r.name, relationship: r.relationship,
+              phone: r.phone || null, email: r.email || null,
+            })),
+          },
+        },
+        include: { references: true },
+      });
     });
 
     return successResponse({ profile });
   } catch (error) {
-    console.error("Submit verification request error:", error);
+    console.error("Submit teacher application error:", error);
     return serverErrorResponse();
   }
 }

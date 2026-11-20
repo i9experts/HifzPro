@@ -947,14 +947,24 @@ model TeacherProfile {
   avgRating         Float?
   totalReviews      Int      @default(0)
 
-  // Verification queue — a teacher submits a credential/ID document and
-  // the tier they're requesting; an admin reviews it and either raises
+  // Comprehensive onboarding application — mandatory before isListed can
+  // ever be set (see app/api/marketplace/teacher/profile/route.ts). The
+  // teacher submits identity, education, ijazah/sanad and references in
+  // one go; an admin reviews the whole thing and either grants a
   // verificationTier (APPROVED) or leaves it with a reason (REJECTED).
-  // Separate from verificationTier itself, which is the public badge.
-  verificationDocumentUrl    String?
-  verificationRequestedTier  TeacherVerificationTier?
-  verificationStatus         VerificationRequestStatus @default(NONE)
-  verificationRequestedAt    DateTime?
+  // verificationStatus doubles as "application status": NONE until
+  // first submitted.
+  dateOfBirth           DateTime?
+  nationality           String?
+  govIdType             String?   // "Passport" | "National ID" | "CNIC" etc — free text
+  govIdDocumentUrl      String?
+  educationDocumentUrl  String?   // supporting certificate for the `qualification` text field
+  ijazahChain           String?   // sanad / chain of narration, in the teacher's own words
+  ijazahIssuer          String?   // issuing scholar or institution
+  ijazahDocumentUrl     String?
+  videoIntroUrl         String?
+  verificationStatus          VerificationRequestStatus @default(NONE)
+  applicationSubmittedAt      DateTime?
   verificationRejectionReason String?
 
   // Running average of how long a teacher takes to send their first
@@ -979,8 +989,25 @@ model TeacherProfile {
   bookings          Booking[]
   reviews           TeacherReview[]
   savedBy           SavedTeacher[]
+  references        TeacherReference[]
 
   @@map("teacher_profiles")
+}
+
+// 1–2 people the admin team can actually contact to vouch for a teacher
+// before approving their application.
+model TeacherReference {
+  id           String   @id @default(cuid())
+  teacherId    String
+  name         String
+  relationship String
+  phone        String?
+  email        String?
+  createdAt    DateTime @default(now())
+
+  teacher      TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@map("teacher_references")
 }
 
 model TeacherAvailabilitySlot {
