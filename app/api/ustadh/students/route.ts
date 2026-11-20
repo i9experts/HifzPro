@@ -11,10 +11,14 @@ export async function GET(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "USTADH") return unauthorizedResponse();
+    if (!payload || (payload.role !== "USTADH" && payload.role !== "MARKETPLACE_TEACHER")) return unauthorizedResponse();
 
     const ustadh = await prisma.ustadh.findUnique({ where: { userId: payload.userId } });
-    if (!ustadh) return unauthorizedResponse("Ustadh profile not found");
+    // A marketplace teacher has no Ustadh row until their first paid
+    // booking is provisioned (lib/marketplace-provisioning.ts) — that's
+    // "no students yet", not an auth failure, so return an empty list
+    // rather than unauthorizedResponse (which would read as broken).
+    if (!ustadh) return successResponse({ students: [] });
 
     const students = await prisma.student.findMany({
       where: {
@@ -22,8 +26,9 @@ export async function GET(req: NextRequest) {
         batch:  { ustadhId: ustadh.id },
       },
       select: {
-        id: true, name: true, enrollmentNumber: true, photo: true,
-        progress: { select: { currentJuz: true, currentPage: true } },
+        id: true, name: true, enrollmentNumber: true, photo: true, program: true, batchId: true,
+        progress: { select: { currentJuz: true, currentPage: true, percentComplete: true } },
+        manzilHealth: { orderBy: { calculatedAt: "desc" }, take: 1, select: { score: true } },
         batch:    { select: { name: true } },
       },
       orderBy: { name: "asc" },

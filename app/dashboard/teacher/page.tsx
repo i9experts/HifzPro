@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import HifzMark from "@/components/ui/HifzMark";
 import { SkeletonBlock } from "@/components/marketplace/Skeleton";
 import { colors, fonts, shadows } from "@/lib/tokens";
 
@@ -82,18 +81,21 @@ export default function TeacherDashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [studentCount, setStudentCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       fetch("/api/marketplace/teacher/profile").then(r => r.json()),
       fetch("/api/marketplace/inquiries").then(r => r.json()),
-    ]).then(([profileRes, inquiriesRes]) => {
+      fetch("/api/ustadh/students").then(r => r.json()),
+    ]).then(([profileRes, inquiriesRes, studentsRes]) => {
       if (profileRes.success) {
         setProfile(profileRes.data.profile);
         setMissing(profileRes.data.missingForListing || []);
       }
       if (inquiriesRes.success) setInquiries(inquiriesRes.data.inquiries || []);
+      if (studentsRes.success) setStudentCount((studentsRes.data.students || []).length);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -102,40 +104,9 @@ export default function TeacherDashboardPage() {
   const appPct = Math.round((app.done / app.total) * 100);
   const newInquiries = inquiries.filter(i => i.status === "PENDING").length;
 
-  const MODULES = [
-    {
-      href: "/dashboard/teacher/profile",
-      icon: "📝",
-      title: "My Profile",
-      desc: profile?.isListed ? "You're listed publicly — keep it up to date" : "Bio, credentials, pricing, availability — finish this to get listed",
-      action: "Open",
-      color: colors.primary,
-      bg: colors.green50,
-      border: colors.green200,
-    },
-    {
-      href: "/dashboard/teacher/inquiries",
-      icon: "💬",
-      title: "Inquiries",
-      desc: newInquiries > 0 ? `${newInquiries} new inquir${newInquiries === 1 ? "y" : "ies"} waiting on a reply` : "Messages from parents interested in booking you",
-      action: newInquiries > 0 ? `Reply (${newInquiries})` : "Open",
-      color: "#7c3aed",
-      bg: "#f5f3ff",
-      border: "#ddd6fe",
-    },
-  ];
-
   return (
     <div style={{ minHeight: "100vh", background: colors.n50, fontFamily: fonts.body }}>
-      <header style={{ background: colors.primary, padding: "18px 20px", display: "flex", alignItems: "center", gap: 10 }}>
-        <HifzMark size={28} />
-        <div>
-          <div style={{ color: "white", fontFamily: fonts.heading, fontWeight: 700, fontSize: 16 }}>Teacher Dashboard</div>
-          <div style={{ color: colors.green100, fontSize: 12 }}>Quran Teacher Marketplace</div>
-        </div>
-      </header>
-
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "24px 16px 48px", display: "grid", gap: 18 }}>
+      <main style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px 48px", display: "grid", gap: 18 }}>
         {loading ? (
           <SkeletonBlock width="60%" height={26} />
         ) : (
@@ -204,29 +175,14 @@ export default function TeacherDashboardPage() {
           </div>
         )}
 
-        {/* Modules */}
-        <div style={{ display: "grid", gap: 12 }}>
-          {MODULES.map(m => (
-            <Link key={m.href} href={m.href} style={{ textDecoration: "none" }}>
-              <div style={{ background: m.bg, border: `1.5px solid ${m.border}`, borderRadius: 16, padding: "18px 16px", display: "flex", alignItems: "center", gap: 14 }}>
-                <div style={{ fontSize: 28, flexShrink: 0 }}>{m.icon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: fonts.heading, fontWeight: 700, fontSize: 16, color: m.color }}>{m.title}</div>
-                  <div style={{ fontSize: 13, color: colors.n600, marginTop: 2 }}>{m.desc}</div>
-                </div>
-                <span style={{ fontFamily: fonts.heading, fontSize: 12, fontWeight: 700, color: m.color, background: colors.white, border: `1px solid ${m.border}`, borderRadius: 8, padding: "8px 14px", whiteSpace: "nowrap", flexShrink: 0 }}>{m.action} →</span>
-              </div>
-            </Link>
-          ))}
-        </div>
-
         {/* Stats */}
         {loading ? (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {[0, 1, 2, 3].map(i => <SkeletonBlock key={i} width={130} height={70} radius={14} />)}
+            {[0, 1, 2, 3, 4].map(i => <SkeletonBlock key={i} width={130} height={70} radius={14} />)}
           </div>
         ) : (
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <StatTile label="My Students" value={studentCount != null ? String(studentCount) : "—"} sub={studentCount ? "actively enrolled" : "none yet"} />
             <StatTile label="New Inquiries" value={String(newInquiries)} sub={newInquiries > 0 ? "awaiting your reply" : "all caught up"} />
             <StatTile
               label="Rating"

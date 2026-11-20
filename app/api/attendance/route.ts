@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "USTADH") return unauthorizedResponse();
+    if (!payload || (payload.role !== "USTADH" && payload.role !== "MARKETPLACE_TEACHER")) return unauthorizedResponse();
 
     const body   = await req.json();
     const result = saveSchema.safeParse(body);
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "USTADH") return unauthorizedResponse();
+    if (!payload || (payload.role !== "USTADH" && payload.role !== "MARKETPLACE_TEACHER")) return unauthorizedResponse();
 
     const { searchParams } = new URL(req.url);
     const batchId = searchParams.get("batchId");

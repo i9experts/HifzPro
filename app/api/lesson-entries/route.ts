@@ -7,7 +7,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { getTokenFromRequest, verifyToken } from "@/lib/auth";
-import { successResponse, errorResponse, unauthorizedResponse, serverErrorResponse } from "@/lib/api";
+import { successResponse, errorResponse, unauthorizedResponse, notFoundResponse, serverErrorResponse } from "@/lib/api";
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { dailySabaqMessage } from "@/lib/whatsapp-templates";
 
@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
     const token = getTokenFromRequest(req);
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
-    if (!payload || payload.role !== "USTADH") return unauthorizedResponse("Only Asatidha can record lessons");
+    if (!payload || (payload.role !== "USTADH" && payload.role !== "MARKETPLACE_TEACHER")) {
+      return unauthorizedResponse("Only Asatidha can record lessons");
+    }
 
     const body   = await req.json();
     const result = schema.safeParse(body);
@@ -45,6 +47,16 @@ export async function POST(req: NextRequest) {
 
     const ustadh = await prisma.ustadh.findUnique({ where: { userId: payload.userId } });
     if (!ustadh) return unauthorizedResponse("Ustadh profile not found");
+
+    // ── OWNERSHIP CHECK: the student must actually be in one of this
+    //    Ustadh's own batches — otherwise any authenticated Ustadh (or,
+    //    now, marketplace teacher) could log entries for an arbitrary
+    //    studentId just by knowing/guessing it. ──
+    const owned = await prisma.student.findFirst({
+      where:  { id: data.studentId, batch: { ustadhId: ustadh.id } },
+      select: { id: true },
+    });
+    if (!owned) return notFoundResponse("Student not found or not assigned to you");
 
     // Create entry
     const entry = await prisma.lessonEntry.create({
