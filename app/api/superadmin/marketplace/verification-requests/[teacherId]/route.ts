@@ -6,6 +6,7 @@ import { getTokenFromRequest, verifyToken } from "@/lib/auth";
 import { successResponse, unauthorizedResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api";
 import { notifyVerificationApproved, notifyVerificationRejected } from "@/lib/marketplace-notify";
 
+const TIERS = ["ID_VERIFIED", "CREDENTIAL_VERIFIED", "BACKGROUND_CHECKED"] as const;
 const TIER_LABELS: Record<string, string> = {
   ID_VERIFIED: "ID Verified",
   CREDENTIAL_VERIFIED: "Credential Verified",
@@ -14,6 +15,7 @@ const TIER_LABELS: Record<string, string> = {
 
 const schema = z.object({
   action: z.enum(["APPROVE", "REJECT"]),
+  tier: z.enum(TIERS).optional(), // required for APPROVE — the admin decides, based on what the application actually supports
   rejectionReason: z.string().trim().max(1000).optional(),
 });
 
@@ -33,14 +35,15 @@ export async function PATCH(
       include: { user: { select: { name: true, email: true, whatsapp: true } } },
     });
     if (!existing) return notFoundResponse("Teacher not found");
-    if (existing.verificationStatus !== "PENDING") return errorResponse("This teacher has no pending verification request");
+    if (existing.verificationStatus !== "PENDING") return errorResponse("This teacher has no pending application");
 
     const body = await req.json();
     const result = schema.safeParse(body);
     if (!result.success) return errorResponse(result.error.errors[0].message);
 
     if (result.data.action === "APPROVE") {
-      const tier = existing.verificationRequestedTier || "ID_VERIFIED";
+      if (!result.data.tier) return errorResponse("Pick a verification tier to grant before approving");
+      const tier = result.data.tier;
       const profile = await prisma.teacherProfile.update({
         where: { id: teacherId },
         data: { verificationTier: tier, verificationStatus: "APPROVED" },

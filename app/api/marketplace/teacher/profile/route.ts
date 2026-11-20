@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
       where: { userId: payload!.userId },
       include: {
         availabilitySlots: { orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }] },
+        references: true,
         user: { select: { name: true, avatar: true } },
       },
     });
@@ -89,6 +90,9 @@ export async function PUT(req: NextRequest) {
       const missing = minimumFieldsMissing(merged as any);
       if (missing.length > 0) {
         return errorResponse(`Finish your profile before listing yourself publicly: add ${missing.join(", ")}.`);
+      }
+      if (existing.verificationStatus !== "APPROVED") {
+        return errorResponse("You can't be listed publicly until your onboarding application is approved — submit it from the Verification section below.");
       }
     }
 

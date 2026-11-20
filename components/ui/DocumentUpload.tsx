@@ -16,6 +16,8 @@ interface DocumentUploadProps {
   label?:      string;
   maxFiles?:   number;
   accept?:     string;
+  maxSizeMB?:  number;
+  simpleMode?: boolean; // hides the doc-type/name picker — for a single-purpose upload (e.g. "your ID") where the label already says what it is
 }
 
 const DOC_TYPES = [
@@ -36,7 +38,7 @@ function formatSize(bytes: number) {
 
 export default function DocumentUpload({
   documents, onChange, label = "Documents", maxFiles = 10,
-  accept = "image/jpeg,image/png,application/pdf",
+  accept = "image/jpeg,image/png,application/pdf", maxSizeMB = 10, simpleMode = false,
 }: DocumentUploadProps) {
   const [uploading,  setUploading]  = useState(false);
   const [error,      setError]      = useState("");
@@ -57,7 +59,7 @@ export default function DocumentUpload({
 
   const handleFile = async (file: File) => {
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { setError("File must be under 10MB"); return; }
+    if (file.size > maxSizeMB * 1024 * 1024) { setError(`File must be under ${maxSizeMB}MB`); return; }
     if (documents.length >= maxFiles) { setError(`Maximum ${maxFiles} documents allowed`); return; }
 
     setUploading(true); setError("");
@@ -90,9 +92,9 @@ export default function DocumentUpload({
       if (url) {
         const typeConfig = DOC_TYPES.find(t => t.value === docType) || DOC_TYPES[6];
         const newDoc: UploadedDoc = {
-          name:       docName || `${typeConfig.label} — ${file.name}`,
+          name:       simpleMode ? (docName || label) : (docName || `${typeConfig.label} — ${file.name}`),
           url,
-          type:       docType,
+          type:       simpleMode ? "other" : docType,
           size:       file.size,
           uploadedAt: new Date().toISOString(),
         };
@@ -161,25 +163,27 @@ export default function DocumentUpload({
       {/* Upload new */}
       {documents.length < maxFiles && (
         <div style={{ background: colors.white, borderRadius: 10, padding: 14, border: `1.5px dashed ${colors.n200}` }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-            <select value={docType} onChange={e => setDocType(e.target.value)}
-              style={{ flex: 1, minWidth: 140, padding: "8px 10px", border: `1px solid ${colors.n200}`, borderRadius: 8, fontSize: 12, fontFamily: fonts.body, color: colors.n700, background: colors.white, outline: "none" }}>
-              {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
-            </select>
-            <input value={docName} onChange={e => setDocName(e.target.value)}
-              placeholder="Document name (optional)"
-              style={{ flex: 2, minWidth: 160, padding: "8px 10px", border: `1px solid ${colors.n200}`, borderRadius: 8, fontSize: 12, fontFamily: fonts.body, color: colors.n700, outline: "none" }}
-            />
-          </div>
+          {!simpleMode && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+              <select value={docType} onChange={e => setDocType(e.target.value)}
+                style={{ flex: 1, minWidth: 140, padding: "8px 10px", border: `1px solid ${colors.n200}`, borderRadius: 8, fontSize: 12, fontFamily: fonts.body, color: colors.n700, background: colors.white, outline: "none" }}>
+                {DOC_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+              </select>
+              <input value={docName} onChange={e => setDocName(e.target.value)}
+                placeholder="Document name (optional)"
+                style={{ flex: 2, minWidth: 160, padding: "8px 10px", border: `1px solid ${colors.n200}`, borderRadius: 8, fontSize: 12, fontFamily: fonts.body, color: colors.n700, outline: "none" }}
+              />
+            </div>
+          )}
           <button
             onClick={() => !uploading && inputRef.current?.click()}
             disabled={uploading}
             style={{ width: "100%", padding: "10px", borderRadius: 8, background: uploading ? colors.n100 : colors.green50, border: `1px solid ${uploading ? colors.n200 : colors.green200}`, color: uploading ? colors.n400 : colors.primary, fontSize: 12, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer", fontFamily: fonts.heading }}
           >
-            {uploading ? "⏳ Uploading..." : "📎 Click to Upload Document"}
+            {uploading ? "⏳ Uploading..." : `📎 Click to Upload ${simpleMode ? label : "Document"}`}
           </button>
           <div style={{ fontFamily: fonts.body, fontSize: 10, color: colors.n400, textAlign: "center", marginTop: 6 }}>
-            JPG, PNG, PDF · Max 10MB per file
+            {accept.includes("video") ? "MP4, MOV, WebM" : "JPG, PNG, PDF"} · Max {maxSizeMB}MB per file
           </div>
         </div>
       )}
