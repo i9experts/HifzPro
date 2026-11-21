@@ -14,8 +14,8 @@ export async function GET(
     if (!token) return unauthorizedResponse();
     const payload = verifyToken(token);
     if (!payload) return unauthorizedResponse();
-    // ── Only Ustadhs recording lessons, or campus/institution admins, may view this ──
-    if (!["USTADH", "CAMPUS_ADMIN", "SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
+    // ── Only Ustadhs (institutional or marketplace) recording lessons, or campus/institution admins, may view this ──
+    if (!["USTADH", "MARKETPLACE_TEACHER", "CAMPUS_ADMIN", "SUPER_ADMIN"].includes(payload.role)) return unauthorizedResponse();
 
     const { id: studentId } = await params;
 
@@ -50,7 +50,7 @@ export async function GET(
     }
 
     // ── TENANT / OWNERSHIP ISOLATION ──
-    const isOwningUstadh = payload.role === "USTADH" && student.batch?.ustadh?.userId === payload.userId;
+    const isOwningUstadh = (payload.role === "USTADH" || payload.role === "MARKETPLACE_TEACHER") && student.batch?.ustadh?.userId === payload.userId;
     const isScopedAdmin  = ["CAMPUS_ADMIN", "SUPER_ADMIN"].includes(payload.role)
       && canAccessCampus(payload, student.campusId, student.campus?.institutionId);
     if (!isOwningUstadh && !isScopedAdmin) {
@@ -83,6 +83,7 @@ export async function GET(
         id:          student.id,
         name:        student.name,
         program:     student.program,
+        batchId:     student.batchId,
         progress:    student.progress,
         manzilHealth: student.manzilHealth[0]?.score ?? null,
         guardian:    student.guardians[0] ?? null,

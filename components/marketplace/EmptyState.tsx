@@ -3,7 +3,7 @@ import Link from "next/link";
 import { colors, fonts } from "@/lib/tokens";
 
 interface EmptyStateProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   description?: string;
   action?: { label: string; href: string };
